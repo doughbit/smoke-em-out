@@ -252,8 +252,7 @@ const SMOKER_RATE = 0.5;           // fraction of spawned people who smoke
 // v0.9: 可调设置 (结算页改, localStorage 记住)
 const SETTINGS_KEY = 'smoke_settings_v09';
 const SPEEDS = [
-  // v0.11: aoe = 连锁飞溅半径 (逻辑像素, 0 = 无); banner = 开局横幅色
-  { name: '正常',     mult: 1,    aoe: 0,   banner: '#ffce5e' },
+  // v0.18: 去掉"正常"(和"赶地铁"体感无差); 上下都 3 档。aoe=连锁飞溅半径; banner=横幅色
   { name: '赶地铁',   mult: 1.45, aoe: 0,   banner: '#ffce5e' },
   { name: '泄愤',     mult: 2.0,  aoe: 70,  banner: '#ff8c4a' },
   { name: '走火入魔', mult: 2.8,  aoe: 110, banner: '#ff5a3a' },
@@ -261,7 +260,11 @@ const SPEEDS = [
 const DURS = [20, 40, 60];
 let settings = { dur: 20, speed: 0 };
 try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) {}
+// v0.18: 旧存档可能存了越界的 speed (去档前的索引), clamp 回合法范围
+settings.speed = Math.max(0, Math.min(SPEEDS.length - 1, settings.speed | 0));
+if (DURS.indexOf(settings.dur) < 0) settings.dur = 20;
 function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {} }
+function isMaxSpeed() { return settings.speed === SPEEDS.length - 1; } // 走火入魔 = 最高档
 
 // v0.12 最佳纪录: 按 "时长_速度档" 各存一个最高拦截数
 const BEST_KEY = 'smoke_best_v012';
@@ -993,8 +996,9 @@ function update() {
       state.arriveStartTime = now;
       playTrainArrive();
       // v0.12: 高档撑到终点的那一瞬间就该爆一下 (结算屏还有第二波)
-      if (settings.speed >= 2) {
-        spawnFloatingText(CX, H * 0.4, settings.speed === 3 ? '撑 住 了 !!!' : '解 气 !', '#ffd700', 38);
+      // v0.18: 去"正常"档后泄愤=1/走火入魔=2, 高档阈值从 >=2 改 >=1 (泄愤也算高档)
+      if (settings.speed >= 1) {
+        spawnFloatingText(CX, H * 0.4, isMaxSpeed() ? '撑 住 了 !!!' : '解 气 !', '#ffd700', 38);
         state.shakeIntensity = 14;
         state.shockwaves.push({ x: CX, y: H * 0.4, bornAt: now, maxR: Math.min(W, H) * 0.45 });
       }
@@ -1006,11 +1010,11 @@ function update() {
     if (now - state.arriveStartTime > 2600) enterOver(now);
   } else if (state.status === 'over') {
     // v0.12 结算演出: 胜利烟花 + 滚分盖章 (失败局不放)
-    if (!state.diedEarly && settings.speed >= 2 && state.overAt) {
-      const cadence = settings.speed === 3 ? 300 : 600;
+    if (!state.diedEarly && settings.speed >= 1 && state.overAt) { // v0.18: >=2→>=1
+      const cadence = isMaxSpeed() ? 300 : 600;
       if (now - state.lastFireworkAt > cadence) {
         state.lastFireworkAt = now;
-        spawnFirework(settings.speed === 3);
+        spawnFirework(isMaxSpeed());
       }
     }
     for (const p of state.celebParticles) { p.x += p.vx; p.y += p.vy; p.vy += 0.055; p.life -= p.decay; }
@@ -1489,8 +1493,8 @@ function drawOptRow(label, items, selIdx, y, btnW, gap, dy, type, bucket) {
 }
 
 // v0.12 分档胜利文案 — 泄愤要"泄愤成功", 走火入魔要炸裂
+// v0.18: 与 SPEEDS 对齐 (去掉"正常"对应条), 索引: 0赶地铁 / 1泄愤 / 2走火入魔
 const WIN_COPY = [
-  { t: '🚇 地铁进站',       s: '你如愿上车了',                 c1: '#7ad0ff', c2: '#bfe0ff' },
   { t: '🚇 卡点上车',       s: '赶上了, 还顺手清了一路二手烟',  c1: '#7ad0ff', c2: '#bfe0ff' },
   { t: '😤 泄愤成功',       s: '这口气总算顺了',               c1: '#ffb05e', c2: '#ffd9a0' },
   { t: '🔥 走火入魔 · 通关', s: '你已不是人, 是人形奶茶炮台',   c1: '#ff6a3a', c2: '#ffc09a' },
@@ -1519,7 +1523,7 @@ function drawOverScreen() {
     const wc = WIN_COPY[settings.speed];
     // 走火入魔: 标题脉冲呼吸 + 开场 0.7s 余震抖动 (玩家: "震出屏幕"是爽点)
     let jx = 0, jy = 0, sc = 1;
-    if (settings.speed === 3) {
+    if (isMaxSpeed()) {
       sc = 1 + Math.sin(nowO / 170) * 0.045;
       if (ageOv < 700) {
         const k = (1 - ageOv / 700) * 9;
@@ -1530,7 +1534,7 @@ function drawOverScreen() {
     ctx.save();
     ctx.translate(CX + jx, 64 + jy);
     ctx.scale(sc, sc);
-    ctx.font = `bold ${settings.speed === 3 ? 40 : 36}px sans-serif`;
+    ctx.font = `bold ${isMaxSpeed() ? 40 : 36}px sans-serif`;
     ctx.fillStyle = wc.c1;
     ctx.fillText(wc.t, 0, 0);
     ctx.restore();
@@ -1578,7 +1582,7 @@ function drawOverScreen() {
   drawOptRow('速度', SPEEDS.map(s => s.name), settings.speed, 340, 84, 6, dy, 'speed', overOpts);
   ctx.restore();
   // v0.12 走火入魔通关: 进结算瞬间白闪一下 (爆炸的余光)
-  if (!state.diedEarly && settings.speed === 3 && state.overAt) {
+  if (!state.diedEarly && isMaxSpeed() && state.overAt) {
     const fa = 1 - ageOv / 260;
     if (fa > 0) {
       ctx.fillStyle = `rgba(255,240,220,${fa * 0.9})`;
@@ -1679,13 +1683,13 @@ function drawModeBanner() {
   const sp = SPEEDS[settings.speed];
   ctx.save();
   ctx.globalAlpha = Math.min(1, left * 2.5);
-  ctx.font = `bold ${settings.speed === 3 ? 44 : 36}px sans-serif`;
+  ctx.font = `bold ${isMaxSpeed() ? 44 : 36}px sans-serif`;
   ctx.fillStyle = sp.banner;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.strokeStyle = '#000';
   ctx.lineWidth = 5;
-  const txt = sp.name + (settings.speed === 3 ? '!!!' : '!');
+  const txt = sp.name + (isMaxSpeed() ? '!!!' : '!');
   ctx.strokeText(txt, CX, H * 0.3);
   ctx.fillText(txt, CX, H * 0.3);
   ctx.restore();
@@ -1745,7 +1749,7 @@ function render() {
   ctx.restore();
 
   // v0.11 走火入魔氛围 — 屏幕边缘红晕, 连击越高越浓 (屏幕空间, 不随镜头抖)
-  if (settings.speed === 3 && (state.status === 'playing' || state.status === 'arriving')) {
+  if (isMaxSpeed() && (state.status === 'playing' || state.status === 'arriving')) {
     const vg = ctx.createRadialGradient(CX, H / 2, Math.min(W, H) * 0.38, CX, H / 2, Math.max(W, H) * 0.72);
     vg.addColorStop(0, 'rgba(200,40,20,0)');
     vg.addColorStop(1, `rgba(200,40,20,${0.12 + Math.min(state.combo, 8) * 0.012})`);
