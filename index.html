@@ -247,15 +247,17 @@ function applyLayout(mode) {
 }
 function LY() { return LAYOUTS[LAYOUT_MODE]; }
 
-const SMOKER_RATE = 0.5;           // fraction of spawned people who smoke
+// v0.20: SMOKER_RATE 已废弃 — 抽烟改由 PEOPLE_META 的 per-角色概率决定 (性别/职业相关)
 
 // v0.9: 可调设置 (结算页改, localStorage 记住)
 const SETTINGS_KEY = 'smoke_settings_v09';
 const SPEEDS = [
-  // v0.18: 去掉"正常"(和"赶地铁"体感无差); 上下都 3 档。aoe=连锁飞溅半径; banner=横幅色
-  { name: '赶地铁',   mult: 1.45, aoe: 0,   banner: '#ffce5e' },
-  { name: '泄愤',     mult: 2.0,  aoe: 70,  banner: '#ff8c4a' },
-  { name: '走火入魔', mult: 2.8,  aoe: 110, banner: '#ff5a3a' },
+  // v0.20: mult = 行人走路速度(主差异, 玩家 要"越高档走得越快") · dens = 出生密度(次差异)
+  //        两者分开, mult 跨度比 dens 大 → 档位递进主要体感是"人走得更快"而非只是"人更多"
+  // aoe=连锁飞溅半径; banner=横幅色
+  { name: '赶地铁',   mult: 1.25, dens: 1.15, aoe: 0,   banner: '#ffce5e' },
+  { name: '泄愤',     mult: 2.0,  dens: 1.55, aoe: 70,  banner: '#ff8c4a' },
+  { name: '走火入魔', mult: 2.9,  dens: 2.0,  aoe: 110, banner: '#ff5a3a' },
 ];
 const DURS = [20, 40, 60];
 let settings = { dur: 20, speed: 0 };
@@ -271,7 +273,8 @@ const BEST_KEY = 'smoke_best_v012';
 let bests = {};
 try { bests = JSON.parse(localStorage.getItem(BEST_KEY) || '{}'); } catch (e) {}
 function saveBests() { try { localStorage.setItem(BEST_KEY, JSON.stringify(bests)); } catch (e) {} }
-function speedMult() { return SPEEDS[settings.speed].mult; }
+function speedMult() { return SPEEDS[settings.speed].mult; }   // 行人走路速度
+function densMult() { return SPEEDS[settings.speed].dens; }    // v0.20 出生密度 (与 mult 分离)
 // v0.11: 玩家产能跟着速度档走 — 装填时间随档位缩短 (不到 1:1, 保留紧张感)
 function reloadMs() { return RELOAD_MS / (1 + (speedMult() - 1) * 0.65); }
 function aoeRadius() { return SPEEDS[settings.speed].aoe || 0; }
@@ -320,6 +323,23 @@ const ASSETS = {
   sfxSplat: 'assets/nosmoking-sfx-splat-1.wav',
 };
 const NUM_VARIATIONS = ASSETS.people.length;
+
+// v0.20: 每个角色的性别 + 抽烟概率 (与 people 同序)。
+// 现实: 中国烟民 ~96% 男性; 学生/护士/小孩不抽。→ smk = 该角色被随机点成烟民的概率。
+//   男性可烟者高概率, 女性极低 (凑那 4%), 学生/护士=0。
+const PEOPLE_META = [
+  { g: 'M', smk: 0.62 }, // 0 suit 上班族
+  { g: 'M', smk: 0.62 }, // 1 rider 外卖员
+  { g: 'F', smk: 0.04 }, // 2 fashion 潮人女
+  { g: 'M', smk: 0.62 }, // 3 worker 工人
+  { g: 'F', smk: 0.05 }, // 4 granny 拎菜阿姨
+  { g: 'F', smk: 0    }, // 5 student 学生 (小孩, 永不抽)
+  { g: 'F', smk: 0    }, // 6 nurse 护士 (永不抽)
+  { g: 'M', smk: 0.58 }, // 7 hoodie 卫衣青年
+  { g: 'M', smk: 0.55 }, // 8 elder 老大爷
+  { g: 'F', smk: 0.04 }, // 9 office 白领女
+];
+function metaOf(v) { return PEOPLE_META[v] || { g: 'M', smk: 0.5 }; }
 
 const img = {
   bg: null,
@@ -421,159 +441,81 @@ function updateAssetStatus() {
   ].join(' · ');
 }
 
-// ============== Audio (synth; v0.19 重做为手机喇叭友好) ==============
-// 旧音效落在 sub-bass(<180Hz, 手机放不出) + 高频很轻 → 手机近乎无声。
-// v0.19: 全部移到中频 + 拔高音量 + 走 masterGain; 开局加一记"叮"当确定性测试。
-let audioCtx = null;
-let masterGain = null;
-function aout() { return masterGain || (audioCtx && audioCtx.destination); }
+// ============== Audio: HTML5 <audio> 播放 (v0.20) ==============
+// iOS 的 Web Audio 在部分机型上即便 ctx=running 也不出声 (走 ringer 通道易被系统吞);
+// PC 正常但 玩家 的 iPhone 一直无声 → 改用 HTML5 <audio> (media 通道, iOS 上可靠)。
+// 做法: JS 合成各音效为 WAV dataURI → 每种音一个 Audio 池 (供快速重叠播放) →
+//       首个用户手势里全部静音 play()+pause() 解锁 (iOS 要求) → 之后随时触发。
+const A_RATE = 22050;
+let audioReady = false, SFX = null;
 
+function wavURI(samples) {
+  const n = samples.length, ab = new ArrayBuffer(44 + n * 2), v = new DataView(ab);
+  const ws = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  ws(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); ws(8, 'WAVE'); ws(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, A_RATE, true); v.setUint32(28, A_RATE * 2, true); v.setUint16(32, 2, true);
+  v.setUint16(34, 16, true); ws(36, 'data'); v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) { let x = Math.max(-1, Math.min(1, samples[i])); v.setInt16(44 + i * 2, x * 0x7fff, true); }
+  let bin = ''; const by = new Uint8Array(ab);
+  for (let i = 0; i < by.length; i++) bin += String.fromCharCode(by[i]);
+  return 'data:audio/wav;base64,' + btoa(bin);
+}
+function synth(dur, fn) {
+  const n = A_RATE * dur | 0, s = new Float32Array(n);
+  for (let i = 0; i < n; i++) s[i] = fn(i / A_RATE, i / n);
+  return s;
+}
+// 全部中频 (手机喇叭可闻), 音量足
+const sThrow = () => synth(0.12, (tt, t) => (Math.random() * 2 - 1) * Math.pow(1 - t, 1.3) * 0.6);
+const sSplat = () => synth(0.18, (tt, t) => (Math.random() * 2 - 1) * Math.pow(1 - t, 1.6) * 0.6
+                                          + Math.sin(2 * Math.PI * (240 - 110 * t) * tt) * Math.exp(-tt * 11) * 0.5);
+const sDing = () => synth(0.42, (tt) => (Math.sin(2 * Math.PI * 660 * tt) * Math.exp(-tt * 8)
+                                       + (tt > 0.1 ? Math.sin(2 * Math.PI * 990 * (tt - 0.1)) * Math.exp(-(tt - 0.1) * 8) : 0))
+                                       * 0.4 * Math.min(1, tt * 80));
+const sCombo = () => synth(0.12, (tt) => Math.sign(Math.sin(2 * Math.PI * 780 * tt)) * Math.exp(-tt * 24) * 0.3);
+const sWin = () => synth(0.7, (tt) => { let v = 0; [523, 659, 784, 1047].forEach((f, k) => {
+  const o = k * 0.09; if (tt > o) v += Math.sign(Math.sin(2 * Math.PI * f * (tt - o))) * Math.exp(-(tt - o) * 5) * 0.16; }); return v; });
+const sTrain = () => synth(1.2, (tt, t) => Math.sign(Math.sin(2 * Math.PI * (90 + 130 * t) * tt)) * Math.min(1, t * 3) * (1 - t) * 0.35);
+
+function audPool(uri, size) {
+  const arr = [];
+  for (let i = 0; i < size; i++) { const a = new Audio(); a.src = uri; a.preload = 'auto'; arr.push(a); }
+  let k = 0;
+  return { els: arr, play(vol) {
+    const a = arr[k = (k + 1) % size];
+    try { a.currentTime = 0; a.volume = vol == null ? 1 : vol; const p = a.play(); if (p) p.catch(() => {}); } catch (e) {}
+  } };
+}
+function buildSfx() {
+  if (SFX) return;
+  SFX = {
+    throw: audPool(wavURI(sThrow()), 5),
+    splat: audPool(wavURI(sSplat()), 5),
+    ding:  audPool(wavURI(sDing()), 2),
+    combo: audPool(wavURI(sCombo()), 4),
+    win:   audPool(wavURI(sWin()), 1),
+    train: audPool(wavURI(sTrain()), 1),
+  };
+}
+// 首个用户手势里调用: 静音逐个 play→pause 解锁所有 audio 元素 (iOS)
 function initAudio() {
-  if (audioCtx) {
-    if (audioCtx.state !== 'running') audioCtx.resume().catch(() => {});
-    return;
-  }
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  masterGain = audioCtx.createGain();
-  masterGain.gain.value = 0.95;
-  masterGain.connect(audioCtx.destination);
-  // iOS 解锁: 手势内 resume + 播一帧静音 buffer "唤醒"输出
-  audioCtx.resume().catch(() => {});
-  try {
-    const ub = audioCtx.createBuffer(1, 1, 22050);
-    const us = audioCtx.createBufferSource();
-    us.buffer = ub; us.connect(audioCtx.destination); us.start(0);
-  } catch (e) {}
+  buildSfx();
+  if (audioReady) return;
+  audioReady = true;
+  Object.values(SFX).forEach(p => p.els.forEach(a => {
+    const vol = a.volume; a.volume = 0;
+    const pr = a.play();
+    if (pr) pr.then(() => { a.pause(); a.currentTime = 0; a.volume = vol; }).catch(() => { a.volume = vol; });
+    else a.volume = vol;
+  }));
 }
-
-function noiseBuf(dur, decayPow) {
-  const n = Math.floor(audioCtx.sampleRate * dur);
-  const buf = audioCtx.createBuffer(1, n, audioCtx.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, decayPow);
-  return buf;
-}
-
-// throw = 中频 whoosh (避开手机放不出的低频, 也别太高太轻)
-function playThrow() {
-  if (!audioCtx) return;
-  const src = audioCtx.createBufferSource();
-  src.buffer = noiseBuf(0.12, 1.3);
-  const f = audioCtx.createBiquadFilter();
-  f.type = 'bandpass'; f.frequency.value = 1500; f.Q.value = 0.6;
-  const g = audioCtx.createGain(); g.gain.value = 0.5;
-  src.connect(f).connect(g).connect(aout());
-  src.start(audioCtx.currentTime);
-}
-
-// splat = 湿噪 burst (中频可闻) + 中音 "pop" (260→130Hz; 不用 sub-bass)
-function playSplat() {
-  if (!audioCtx) return;
-  const now = audioCtx.currentTime;
-  const src = audioCtx.createBufferSource();
-  src.buffer = noiseBuf(0.18, 1.6);
-  const f = audioCtx.createBiquadFilter();
-  f.type = 'lowpass';
-  f.frequency.setValueAtTime(3600, now);
-  f.frequency.exponentialRampToValueAtTime(900, now + 0.18);
-  const g = audioCtx.createGain(); g.gain.value = 0.75;
-  src.connect(f).connect(g).connect(aout());
-  src.start(now);
-  const osc = audioCtx.createOscillator();
-  const og = audioCtx.createGain();
-  osc.type = 'triangle';
-  osc.frequency.setValueAtTime(260, now);
-  osc.frequency.exponentialRampToValueAtTime(130, now + 0.1);
-  og.gain.setValueAtTime(0.55, now);
-  og.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
-  osc.connect(og).connect(aout());
-  osc.start(now);
-  osc.stop(now + 0.12);
-}
-
-// v0.19 开局"叮" — 清晰上行两音; 既是开场反馈, 也是"声音到底响不响"的确定性测试
-function playStartDing() {
-  if (!audioCtx) return;
-  const now = audioCtx.currentTime;
-  [660, 990].forEach((freq, i) => {
-    const t = now + 0.04 + i * 0.1;
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.type = 'triangle';
-    o.frequency.value = freq;
-    g.gain.setValueAtTime(0.0, t);
-    g.gain.linearRampToValueAtTime(0.4, t + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
-    o.connect(g).connect(aout());
-    o.start(t);
-    o.stop(t + 0.2);
-  });
-}
-
-function playComboChime(level) {
-  if (!audioCtx) return;
-  const now = audioCtx.currentTime;
-  const osc = audioCtx.createOscillator();
-  const g = audioCtx.createGain();
-  osc.type = 'square';
-  osc.frequency.setValueAtTime(620 + level * 70, now);
-  g.gain.setValueAtTime(0.2, now);
-  g.gain.exponentialRampToValueAtTime(0.01, now + 0.11);
-  osc.connect(g).connect(aout());
-  osc.start(now);
-  osc.stop(now + 0.11);
-}
-
-// v0.12 胜利小号 — 上行琶音, 档越高音越多; 走火入魔加一记爆破白噪垫底
-function playVictoryJingle(level) {
-  if (!audioCtx) return;
-  const t0 = audioCtx.currentTime + 0.05;
-  const top = SPEEDS.length - 1; // v0.19: 去"正常"档后按最高档算 (走火入魔)
-  const notes = level >= top ? [392, 523, 659, 784, 1047]
-              : level >= top - 1 ? [392, 523, 659, 784]
-              : [523, 659, 784];
-  notes.forEach((f, i) => {
-    const t = t0 + i * 0.09;
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.type = 'square';
-    o.frequency.setValueAtTime(f, t);
-    g.gain.setValueAtTime(0.18, t);
-    g.gain.exponentialRampToValueAtTime(0.01, t + 0.22);
-    o.connect(g).connect(aout());
-    o.start(t);
-    o.stop(t + 0.22);
-  });
-  if (level >= top) {
-    const src = audioCtx.createBufferSource();
-    src.buffer = noiseBuf(0.5, 2);
-    const f = audioCtx.createBiquadFilter();
-    f.type = 'lowpass';
-    f.frequency.value = 1800;
-    const g = audioCtx.createGain(); g.gain.value = 0.5;
-    src.connect(f).connect(g).connect(aout());
-    src.start(t0);
-  }
-}
-
-function playTrainArrive() {
-  if (!audioCtx) return;
-  const now = audioCtx.currentTime;
-  const osc = audioCtx.createOscillator();
-  const g = audioCtx.createGain();
-  osc.type = 'sawtooth';
-  osc.frequency.setValueAtTime(60, now);
-  osc.frequency.linearRampToValueAtTime(140, now + 0.9);
-  g.gain.setValueAtTime(0.0, now);
-  g.gain.linearRampToValueAtTime(0.22, now + 0.3);
-  g.gain.exponentialRampToValueAtTime(0.01, now + 1.4);
-  const f = audioCtx.createBiquadFilter();
-  f.type = 'lowpass';
-  f.frequency.value = 500;
-  osc.connect(f).connect(g).connect(aout());
-  osc.start(now);
-  osc.stop(now + 1.4);
-}
+function playThrow() { if (SFX) SFX.throw.play(0.55); }
+function playSplat() { if (SFX) SFX.splat.play(0.9); }
+function playStartDing() { if (SFX) SFX.ding.play(0.95); }
+function playComboChime() { if (SFX) SFX.combo.play(0.6); }
+function playVictoryJingle() { if (SFX) SFX.win.play(0.95); }
+function playTrainArrive() { if (SFX) SFX.train.play(0.85); }
 
 // ============== Canvas ==============
 const canvas = document.getElementById('canvas');
@@ -696,7 +638,9 @@ function spawnPerson() {
   const fromLeft = Math.random() < 0.5;
   const lane = LANES[Math.floor(Math.random() * LANES.length)];
   const speed = (0.9 + Math.random() * 0.5) * (1 + progress() * 1.6) * PACE * speedMult(); // v0.9 速度档
-  const type = Math.random() < SMOKER_RATE ? 'smoker' : 'nonsmoker';
+  // v0.20: 先定是谁, 再按该角色的抽烟概率掷骰 (学生/护士=0, 男性高/女性极低 → ~96% 烟民为男)
+  const variation = pickVariation();
+  const type = Math.random() < metaOf(variation).smk ? 'smoker' : 'nonsmoker';
   state.people.push({
     x: fromLeft ? -PERSON_W : W + PERSON_W,
     y: lane,
@@ -705,7 +649,7 @@ function spawnPerson() {
     speed,
     baseSpeed: speed,
     type,
-    variation: pickVariation(),
+    variation,
     clothes: CLOTHES[Math.floor(Math.random() * CLOTHES.length)],
     extinguished: false,        // hit smoker → stops smoking, scurries off
     flashUntil: 0,
@@ -979,7 +923,7 @@ function update() {
 
     // spawn — rate escalates over the round
     // v0.8: 提速 + 按 lane 数补密度; v0.9: 速度档进一步加密
-    const interval = (900 - progress() * 560) / PACE / (LANES.length / 3) / speedMult();
+    const interval = (900 - progress() * 560) / PACE / (LANES.length / 3) / densMult(); // v0.20 密度用 dens
     if (now - state.lastSpawnTime > interval) {
       spawnPerson();
       state.lastSpawnTime = now;
@@ -1392,12 +1336,10 @@ function drawUI() {
   document.getElementById('score').textContent = `拦下: ${state.kills}`;
   const comboEl = document.getElementById('combo');
   comboEl.textContent = state.combo >= 2 ? `连击 ×${state.combo}` : '';
-  // v0.17 音频状态: 改成可读可操作的提示 (running 但没声 = 静音键)
+  // v0.20 音频状态 (HTML5 audio): 解锁了显示 🔊已开
   const adb = document.getElementById('audio-dbg');
-  const st = audioCtx ? audioCtx.state : null;
-  if (st === 'running') { adb.textContent = '🔊已开'; adb.style.color = '#6acb6a'; }
-  else if (st === 'suspended') { adb.textContent = '🔇点屏幕'; adb.style.color = '#ffce5e'; }
-  else { adb.textContent = '🔇'; adb.style.color = '#777'; }
+  if (audioReady) { adb.textContent = '🔊已开'; adb.style.color = '#6acb6a'; }
+  else { adb.textContent = '🔇点屏幕'; adb.style.color = '#ffce5e'; }
 }
 
 function drawComboBanner() {
@@ -1875,13 +1817,8 @@ canvas.addEventListener('touchstart', e => {
 canvas.addEventListener('mousedown', e => handlePointer(e.clientX, e.clientY));
 
 // 音频兜底 (v0.8.1): iOS 的 WebAudio 解锁在 touchend 时机最稳;
-// 转屏/切后台被挂起的 AudioContext 在回前台/任意触摸时恢复
+// v0.20: HTML5 audio 解锁兜底 — 任意触摸都尝试解锁 (idempotent)
 document.addEventListener('touchend', initAudio, { passive: true });
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && audioCtx && audioCtx.state !== 'running') {
-    audioCtx.resume().catch(() => {});
-  }
-});
 
 // ============== Boot ==============
 if (location.protocol === 'file:') {
@@ -1889,6 +1826,7 @@ if (location.protocol === 'file:') {
   if (warn) warn.style.display = 'block';
 }
 loadAllAssets();
+try { buildSfx(); } catch (e) {} // v0.20: 预合成音效 (首次点击只需解锁, 不卡顿)
 requestAnimationFrame(loop);
 
 </script>
