@@ -155,7 +155,14 @@
 'use strict';
 
 // ============================================================
-//  拍灭二手烟 v0.12 — 胜利演出 (依据玩家反馈: 通关 anti-climax)
+//  拍灭二手烟 v0.13 — 开局屏可选模式 + 横竖屏/音效提示 (依据玩家反馈)
+//  ① 时长/速度档从"结算页才出现"前移到开局屏 — 第一次进来就能选
+//     (原先刻意只在第二局后给, 现判定第一页不再算麻烦; 想试不同
+//      mode 的新玩家不该被挡在一局之后)。点设置按钮只改不开局,
+//     点别处/空格照旧秒开 — 保留"零延迟第一口"。
+//  ② 开局屏高亮一行提示: 🔄 横屏/竖屏都能玩 · 🎧 戴耳机/开音效更带感
+//     (音效以后会做得更 dramatic, 先把"开声音"的预期立起来)
+//  v0.12 原注释: 胜利演出 (依据玩家反馈: 通关 anti-climax)
 //  街机 results ceremony 配方 (juice 调研: 滚分/烟花/permanence):
 //  ① 分档结算文案: 正常/赶地铁/泄愤("泄愤成功")/走火入魔(炸裂) 各一套
 //  ② 撑到终点的瞬间先爆一波 (高档): 金字横幅 + 震屏 + 冲击波
@@ -1383,34 +1390,45 @@ function drawComboBanner() {
 }
 
 function drawStartScreen() {
-  ctx.fillStyle = 'rgba(0,0,0,0.78)';
+  ctx.fillStyle = 'rgba(0,0,0,0.8)';
   ctx.fillRect(0, 0, W, H);
+  const dy = (H - 400) / 2;
   ctx.save();
-  ctx.translate(0, (H - 400) / 2); // 竖屏时文案垂直居中
-  ctx.fillStyle = '#fff';
+  ctx.translate(0, dy); // 竖屏时文案垂直居中
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = 'bold 34px sans-serif';
-  ctx.fillText('🧋 拍灭二手烟', CX, 110);
-  ctx.font = '15px sans-serif';
-  ctx.fillText('地铁站台禁止吸烟 — 但总有人不管', CX, 155);
-  ctx.fillText('看到叼烟+飘烟的人 → 用左右手甩奶茶', CX, 182);
-  ctx.fillText('点屏幕左半边 / 右半边 = 左手 / 右手 — 点哪都行, 不用按到下面的手', CX, 209);
-  ctx.fillText('漏掉的吸烟者会烧 ❤️ — 烧光就提前结束', CX, 236);
-  ctx.fillText('撑到地铁进站 = 你上车 — 拦下越多越爽', CX, 261);
-  ctx.font = 'bold 22px sans-serif';
-  ctx.fillStyle = '#ffce5e';
-  ctx.fillText('按 [空格] 或 点屏幕 开始', CX, 305);
+  startOpts = [];
+  // 标题
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 30px sans-serif';
+  ctx.fillText('🧋 拍灭二手烟', CX, 54);
+  // 玩法 (只留前置必需的 2 行 — 细节玩一局就懂, 玩家 拍板砍掉)
+  ctx.font = '14px sans-serif';
+  ctx.fillStyle = '#ccd';
+  ctx.fillText('地铁站台禁止吸烟 — 但总有人不管', CX, 92);
   ctx.font = '13px sans-serif';
-  ctx.fillStyle = '#9a8';
-  ctx.fillText(`本局：${settings.dur} 秒 · ${SPEEDS[settings.speed].name}（结算页可调）`, CX, 340);
+  ctx.fillStyle = '#aab';
+  ctx.fillText('看到叼烟+飘烟的人 → 左 / 右手甩奶茶（点屏幕左 / 右半边）', CX, 116);
+  // v0.13 提示: 横竖屏 + 音效 (高亮一行, 玩家 要的两件事)
+  ctx.font = 'bold 13px sans-serif';
+  ctx.fillStyle = '#7ad0ff';
+  ctx.fillText('🔄 横屏 / 竖屏都能玩　·　🎧 戴耳机 / 开音效更带感', CX, 152);
+  // v0.13 两排设置 — 一进来就能选 (不必玩完一局才解锁)
+  drawOptRow('时长', DURS.map(d => d + ' 秒'), DURS.indexOf(settings.dur), 196, 64, 10, dy, 'dur', startOpts);
+  drawOptRow('速度', SPEEDS.map(s => s.name), settings.speed, 256, 84, 6, dy, 'speed', startOpts);
+  // 开始 (设置按钮以外点哪都开始)
+  ctx.font = 'bold 20px sans-serif';
+  ctx.fillStyle = '#ffce5e';
+  ctx.fillText('点空白处 / 按 [空格] 开始', CX, 322);
   ctx.restore();
 }
 
 let overBtn = null;  // 结算屏"再来一局"按钮命中区 (canvas 坐标)
-let overOpts = [];   // v0.9 设置按钮命中区 [{x,y,w,h,type,idx}]
+let overOpts = [];   // v0.9 结算屏设置按钮命中区 [{x,y,w,h,type,idx}]
+let startOpts = [];  // v0.13 开局屏设置按钮命中区 (同结构, 分桶避免与结算屏串味)
 
-function drawOptRow(label, items, selIdx, y, btnW, gap, dy, type) {
+// bucket = 命中区收集到哪个数组 (开局屏 startOpts / 结算屏 overOpts)
+function drawOptRow(label, items, selIdx, y, btnW, gap, dy, type, bucket) {
   ctx.font = '12px sans-serif';
   ctx.fillStyle = '#778';
   ctx.fillText(label, CX, y - 10);
@@ -1426,7 +1444,7 @@ function drawOptRow(label, items, selIdx, y, btnW, gap, dy, type) {
     ctx.font = sel ? 'bold 14px sans-serif' : '13px sans-serif';
     ctx.fillStyle = sel ? '#1a1a2e' : '#bbc';
     ctx.fillText(items[i], x + btnW / 2, y + 16);
-    overOpts.push({ x, y: y + dy, w: btnW, h: 30, type, idx: i });
+    (bucket || overOpts).push({ x, y: y + dy, w: btnW, h: 30, type, idx: i });
     x += btnW + gap;
   }
 }
@@ -1517,8 +1535,8 @@ function drawOverScreen() {
   ctx.fillText('再 来 一 局', CX, by + bh / 2 + 1);
   overBtn = { x: bx, y: by + dy, w: bw, h: bh };
   // v0.9 两排设置 — 默认记住上次, 点了只改设置不开局
-  drawOptRow('时长', DURS.map(d => d + ' 秒'), DURS.indexOf(settings.dur), 286, 64, 10, dy, 'dur');
-  drawOptRow('速度', SPEEDS.map(s => s.name), settings.speed, 340, 84, 6, dy, 'speed');
+  drawOptRow('时长', DURS.map(d => d + ' 秒'), DURS.indexOf(settings.dur), 286, 64, 10, dy, 'dur', overOpts);
+  drawOptRow('速度', SPEEDS.map(s => s.name), settings.speed, 340, 84, 6, dy, 'speed', overOpts);
   ctx.restore();
   // v0.12 走火入魔通关: 进结算瞬间白闪一下 (爆炸的余光)
   if (!state.diedEarly && settings.speed === 3 && state.overAt) {
@@ -1773,7 +1791,20 @@ function handlePointer(clientX, clientY) {
     }
     return;
   }
-  if (state.status === 'start') { tryFullscreen(); startRound(); return; }
+  if (state.status === 'start') {
+    // v0.13: 开局屏点设置按钮 = 只改设置不开局; 点别处 = 开局
+    for (const o of startOpts) {
+      if (x >= o.x && x <= o.x + o.w && y >= o.y && y <= o.y + o.h) {
+        if (o.type === 'dur') settings.dur = DURS[o.idx];
+        else settings.speed = o.idx;
+        saveSettings();
+        return;
+      }
+    }
+    tryFullscreen();
+    startRound();
+    return;
+  }
   if (state.status !== 'playing') return;
   triggerSide(x < CX ? 'left' : 'right');
 }
