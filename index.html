@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>拍灭二手烟 🧋</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1391,9 +1394,12 @@ function drawUI() {
   document.getElementById('score').textContent = `拦下: ${state.kills}`;
   const comboEl = document.getElementById('combo');
   comboEl.textContent = state.combo >= 2 ? `连击 ×${state.combo}` : '';
-  // v0.9 音频诊断: 手机上没控制台, 状态直接亮在 UI 条
-  document.getElementById('audio-dbg').textContent =
-    '♪' + (audioCtx ? audioCtx.state : '未触发');
+  // v0.17 音频状态: 改成可读可操作的提示 (running 但没声 = 静音键)
+  const adb = document.getElementById('audio-dbg');
+  const st = audioCtx ? audioCtx.state : null;
+  if (st === 'running') { adb.textContent = '🔊已开'; adb.style.color = '#6acb6a'; }
+  else if (st === 'suspended') { adb.textContent = '🔇点屏幕'; adb.style.color = '#ffce5e'; }
+  else { adb.textContent = '🔇'; adb.style.color = '#777'; }
 }
 
 function drawComboBanner() {
