@@ -131,7 +131,7 @@
   <div id="hearts">❤️❤️❤️❤️❤️</div>
   <div id="score">拦下: 0</div>
   <div id="combo"></div>
-  <div id="audio-dbg" style="display:none">♪—</div>
+  <div id="audio-dbg" style="font-size:10px;color:#777">♪—</div>
 </div>
 
 <canvas id="canvas" width="600" height="400"></canvas>
@@ -272,7 +272,7 @@ function aoeRadius() { return SPEEDS[settings.speed].aoe || 0; }
 
 const PERSON_W = 44;               // logical body width
 const PERSON_H = 74;               // logical body height
-const PERSON_DRAW_SIZE = 112;      // v0.15: 96→112 人物放大 (玩家反馈: "显得有点小")
+const PERSON_DRAW_SIZE = 112;      // v0.15: 96→112 人物放大 (玩家: "显得有点小")
 const RELOAD_MS = 300;             // per-hand cooldown → forces L-R-L-R rhythm
 const THROW_MS = 110;              // milk-tea travel time (homing)
 const SPLASH_SPRITE_MS = 380;      // v0.10 命中飞溅贴图寿命 (弹出→淡出)
@@ -297,15 +297,18 @@ const ASSETS = {
   bg: 'assets/nosmoking-designB-bg-1.png',
   bgPortrait: 'assets/nosmoking-designB-bg-portrait-1.png', // v0.10 竖屏背景 (1024×1536)
   splash: 'assets/nosmoking-designB-splash-1.png',
+  // v0.16: 大头 Q 版 roster (全家福7 = batch1 已到货 5 个; batch2 5 个待生成, 缺图自动跳过)
   people: [
-    'assets/nosmoking-designB-person-suit-1.png',
-    'assets/nosmoking-designB-person-jacket-1.png',
-    'assets/nosmoking-designB-person-fan-1.png',
-    'assets/nosmoking-designB-person-student-1.png',
-    'assets/nosmoking-designB-person-dress-1.png',
-    'assets/nosmoking-designB-person-purple-1.png',
-    'assets/nosmoking-designB-person-grandpa-1.png',
-    'assets/nosmoking-designB-person-orange-1.png',
+    'assets/nosmoking-designB-person-suit-1.png',     // 上班族
+    'assets/nosmoking-designB-person-rider-1.png',    // 外卖员
+    'assets/nosmoking-designB-person-fashion-1.png',  // 潮人女
+    'assets/nosmoking-designB-person-worker-1.png',   // 工人
+    'assets/nosmoking-designB-person-granny-1.png',   // 拎菜阿姨
+    'assets/nosmoking-designB-person-student-1.png',  // batch2: 学生
+    'assets/nosmoking-designB-person-nurse-1.png',    // batch2: 护士
+    'assets/nosmoking-designB-person-hoodie-1.png',   // batch2: 卫衣青年
+    'assets/nosmoking-designB-person-elder-1.png',    // batch2: 老大爷
+    'assets/nosmoking-designB-person-office-1.png',   // batch2: 白领女
   ],
   sfxThrow: 'assets/nosmoking-sfx-throw-1.wav',
   sfxSplat: 'assets/nosmoking-sfx-splat-1.wav',
@@ -802,7 +805,7 @@ function impact(target, cx, cy, chained) {
     state.splashSprites.push({
       x: cx, y: cy, bornAt: now,
       rot: (Math.random() - 0.5) * 0.9,
-      size: (64 + Math.min(state.combo, 8) * 5) * JUICE,
+      size: (92 + Math.min(state.combo, 8) * 6) * JUICE, // v0.16: 放大盖住脸 (糊脸)
     });
   }
   // 高连击 → 奶茶溅到"镜头"上
@@ -1438,7 +1441,11 @@ function drawStartScreen() {
   // v0.13 提示: 横竖屏 + 音效 (高亮一行, 玩家 要的两件事)
   ctx.font = 'bold 13px sans-serif';
   ctx.fillStyle = '#7ad0ff';
-  ctx.fillText('🔄 横屏 / 竖屏都能玩　·　🎧 戴耳机 / 开音效更带感', CX, 152);
+  ctx.fillText('🔄 横屏 / 竖屏都能玩　·　🎧 戴耳机 / 开音效更带感', CX, 150);
+  // v0.16: iPhone 静音键提示 (网页音频服从静音键, 是"没声音"最常见原因)
+  ctx.font = '12px sans-serif';
+  ctx.fillStyle = '#9a8';
+  ctx.fillText('📱 iPhone 没声音？关掉机身侧面的静音键', CX, 170);
   // v0.13 两排设置 — 一进来就能选 (不必玩完一局才解锁)
   drawOptRow('时长', DURS.map(d => d + ' 秒'), DURS.indexOf(settings.dur), 196, 64, 10, dy, 'dur', startOpts);
   drawOptRow('速度', SPEEDS.map(s => s.name), settings.speed, 256, 84, 6, dy, 'speed', startOpts);
@@ -1504,7 +1511,7 @@ function drawOverScreen() {
     ctx.fillText('二手烟漏太多，没撑到地铁进站', CX, 100);
   } else {
     const wc = WIN_COPY[settings.speed];
-    // 走火入魔: 标题脉冲呼吸 + 开场 0.7s 余震抖动 (玩家反馈: "震出屏幕"是爽点)
+    // 走火入魔: 标题脉冲呼吸 + 开场 0.7s 余震抖动 (玩家: "震出屏幕"是爽点)
     let jx = 0, jy = 0, sc = 1;
     if (settings.speed === 3) {
       sc = 1 + Math.sin(nowO / 170) * 0.045;
