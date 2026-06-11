@@ -272,7 +272,7 @@ function aoeRadius() { return SPEEDS[settings.speed].aoe || 0; }
 
 const PERSON_W = 44;               // logical body width
 const PERSON_H = 74;               // logical body height
-const PERSON_DRAW_SIZE = 96;       // sprite render box (for real art later)
+const PERSON_DRAW_SIZE = 112;      // v0.15: 96→112 人物放大 (玩家反馈: "显得有点小")
 const RELOAD_MS = 300;             // per-hand cooldown → forces L-R-L-R rhythm
 const THROW_MS = 110;              // milk-tea travel time (homing)
 const SPLASH_SPRITE_MS = 380;      // v0.10 命中飞溅贴图寿命 (弹出→淡出)
@@ -599,7 +599,7 @@ function fitCanvas() {
       if (bootDone && state) {
         if (state.status === 'over') {
           // 结算屏保留, 只清掉旧布局坐标系里的对象
-          state.people = []; state.cups = []; state.particles = []; state.puddles = []; state.splashSprites = []; state.shockwaves = []; state.celebParticles = [];
+          state.people = []; state.cups = []; state.particles = []; state.puddles = []; state.splashSprites = []; state.shockwaves = []; state.celebParticles = []; state.flyingCigs = [];
         } else {
           state = freshState('start');
         }
@@ -641,6 +641,7 @@ function freshState(status) {
     particles: [],
     puddles: [],               // 地面奶茶渍 (摊开后慢慢淡出)
     splashSprites: [],         // v0.10 命中飞溅贴图实例 (有图才生成)
+    flyingCigs: [],            // v0.15 被打飞的香烟 (旋转飞出掉地)
     shockwaves: [],            // v0.11 连锁飞溅冲击波环
     modeBannerUntil: 0,        // v0.11 开局档名横幅 (startRound 时设)
     overAt: 0,                 // v0.12 进结算的时刻 (驱动滚分/烟花/白闪)
@@ -766,6 +767,18 @@ function impact(target, cx, cy, chained) {
   target.flashUntil = now + 90;
   target.soakedAt = now;                 // 驱动挂浆下滴
   target.speed = target.baseSpeed * 1.9; // soaked → scurries off, embarrassed
+
+  // v0.15: 香烟被打飞 — 从嘴叼处旋转飞出 + 掉地 (替代"凭空消失"的生硬感)
+  state.flyingCigs.push({
+    x: target.x + target.dir * 9,
+    y: target.y - PERSON_DRAW_SIZE * 0.23,
+    vx: -target.dir * (1.5 + Math.random() * 1.5) - 0.5, // 往脸的反方向弹飞
+    vy: -3.5 - Math.random() * 1.5,
+    rot: 0,
+    vrot: (Math.random() < 0.5 ? -1 : 1) * (0.3 + Math.random() * 0.3),
+    bornAt: now,
+    floorY: target.y + PERSON_H / 2,
+  });
 
   // 地面奶茶渍 — 在脚下摊开, 慢慢淡掉
   state.puddles.push({
@@ -1078,6 +1091,13 @@ function update() {
     state.splashSprites = state.splashSprites.filter(s => now - s.bornAt < SPLASH_SPRITE_MS);
     state.shockwaves = state.shockwaves.filter(s => now - s.bornAt < SHOCKWAVE_MS); // v0.11
 
+    // v0.15 被打飞的香烟: 抛物线 + 旋转, 落地后停住一会儿再淡出
+    for (const c of state.flyingCigs) {
+      if (c.y < c.floorY || c.vy < 0) { c.x += c.vx; c.y += c.vy; c.vy += 0.32; c.rot += c.vrot; }
+      else { c.vx *= 0.8; c.x += c.vx; c.rot += c.vrot * 0.2; }
+    }
+    state.flyingCigs = state.flyingCigs.filter(c => now - c.bornAt < 1100 && c.x > -20 && c.x < W + 20);
+
     // 刚被泼中的人持续往下滴奶茶
     for (const p of state.people) {
       if (p.extinguished && p.soakedAt && now - p.soakedAt < 1600 && Math.random() < 0.3) {
@@ -1272,8 +1292,9 @@ function drawPersonCigarette(p) {
   const walkPhase = (t - p.spawnTime) * p.speed / 105; // v0.11 步频跟实际速度走 (固定步频会让快人像滑行)
   const bob = Math.abs(Math.sin(walkPhase)) * 3;
   // v0.14: 引擎程序画一根干净卡通烟 (替换违和的 emoji); 嘴在行进方向一侧
-  const mx = p.x + p.dir * 9;
-  const my = p.y - bob - PERSON_H * 0.30;
+  // v0.15: 嘴位置随人物放大缩放 (用 DRAW_SIZE 相对量)
+  const mx = p.x + p.dir * 10;
+  const my = p.y - bob - PERSON_DRAW_SIZE * 0.23;
   const tipx = mx + p.dir * 8, tipy = my + 1;
 
   // 烟雾从烟头升起 — "这人在抽烟"的可读信号
@@ -1601,6 +1622,25 @@ function renderCelebParticles() {
   ctx.globalAlpha = 1;
 }
 
+// ============== Render — v0.15 被打飞的香烟 ==============
+function renderFlyingCigs() {
+  const now = performance.now();
+  for (const c of state.flyingCigs) {
+    const age = now - c.bornAt;
+    ctx.save();
+    ctx.globalAlpha = age > 800 ? Math.max(0, 1 - (age - 800) / 300) : 1;
+    ctx.translate(c.x, c.y);
+    ctx.rotate(c.rot);
+    // 白杆 + 橙烟头
+    ctx.strokeStyle = '#f2f0ea'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(5, 0); ctx.stroke();
+    ctx.fillStyle = '#ff6a2a';
+    ctx.beginPath(); ctx.arc(5, 0, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+
 // ============== Render — v0.11 连锁飞溅冲击波环 ==============
 function renderShockwaves() {
   const now = performance.now();
@@ -1679,6 +1719,7 @@ function render() {
   renderSplashSprites(); // v0.10 飞溅贴图垫在粒子之下当主形体
   renderShockwaves();    // v0.11 连锁冲击波环
   renderParticles();
+  renderFlyingCigs();    // v0.15 被打飞的香烟 (粒子之上)
   drawCups();
   renderFloatingTexts();
   drawComboBanner();
