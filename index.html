@@ -302,7 +302,7 @@ const CLOTHES = ['#7a6a55', '#4a6a8a', '#8a5a5a', '#5a7a5a', '#6a5a7a', '#9a7a4a
 const ASSETS = {
   bg: 'assets/nosmoking-designB-bg-1.png',
   bgPortrait: 'assets/nosmoking-designB-bg-portrait-1.png', // v0.10 竖屏背景 (1024×1536)
-  splash: 'assets/nosmoking-designB-splash-1.png',
+  splash: 'assets/nosmoking-designB-splash-2.png', // v0.19 飞杯动感版 (杯体+盖分离+泼洒)
   // v0.16: 大头 Q 版 roster (全家福7 = batch1 已到货 5 个; batch2 5 个待生成, 缺图自动跳过)
   people: [
     'assets/nosmoking-designB-person-suit-1.png',     // 上班族
@@ -421,96 +421,93 @@ function updateAssetStatus() {
   ].join(' · ');
 }
 
-// ============== Audio (synth placeholder; WAV swaps in if provided) ==============
+// ============== Audio (synth; v0.19 重做为手机喇叭友好) ==============
+// 旧音效落在 sub-bass(<180Hz, 手机放不出) + 高频很轻 → 手机近乎无声。
+// v0.19: 全部移到中频 + 拔高音量 + 走 masterGain; 开局加一记"叮"当确定性测试。
 let audioCtx = null;
-const decoded = { throw: null, splat: null };
+let masterGain = null;
+function aout() { return masterGain || (audioCtx && audioCtx.destination); }
 
 function initAudio() {
   if (audioCtx) {
-    // 手机转屏/切后台后 AudioContext 可能被挂起 → 在用户手势里恢复 (v0.8 横屏无声 fix)
     if (audioCtx.state !== 'running') audioCtx.resume().catch(() => {});
     return;
   }
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  // v0.9 iOS 解锁补丁: 新建的 ctx 在 iOS 上以 suspended 出生 —
-  // 必须在用户手势内 resume + 播一帧静音 buffer, 否则永远无声
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.95;
+  masterGain.connect(audioCtx.destination);
+  // iOS 解锁: 手势内 resume + 播一帧静音 buffer "唤醒"输出
   audioCtx.resume().catch(() => {});
   try {
     const ub = audioCtx.createBuffer(1, 1, 22050);
     const us = audioCtx.createBufferSource();
-    us.buffer = ub;
-    us.connect(audioCtx.destination);
-    us.start(0);
+    us.buffer = ub; us.connect(audioCtx.destination); us.start(0);
   } catch (e) {}
-  if (sfxBuf.throw) audioCtx.decodeAudioData(sfxBuf.throw.slice(0)).then(b => decoded.throw = b).catch(()=>{});
-  if (sfxBuf.splat) audioCtx.decodeAudioData(sfxBuf.splat.slice(0)).then(b => decoded.splat = b).catch(()=>{});
 }
 
-function playBuffer(buf, gain) {
-  if (!audioCtx || !buf) return false;
-  const src = audioCtx.createBufferSource();
-  src.buffer = buf;
-  const g = audioCtx.createGain();
-  g.gain.value = gain == null ? 0.7 : gain;
-  src.connect(g).connect(audioCtx.destination);
-  src.start();
-  return true;
+function noiseBuf(dur, decayPow) {
+  const n = Math.floor(audioCtx.sampleRate * dur);
+  const buf = audioCtx.createBuffer(1, n, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, decayPow);
+  return buf;
 }
 
-// throw = a quick airy whoosh
+// throw = 中频 whoosh (避开手机放不出的低频, 也别太高太轻)
 function playThrow() {
   if (!audioCtx) return;
-  if (playBuffer(decoded.throw, 0.5)) return;
-  const dur = 0.07;
-  const n = Math.floor(audioCtx.sampleRate * dur);
-  const buf = audioCtx.createBuffer(1, n, audioCtx.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i = 0; i < n; i++) {
-    const t = i / n;
-    d[i] = (Math.random() * 2 - 1) * Math.sin(t * Math.PI) * 0.35;
-  }
   const src = audioCtx.createBufferSource();
-  src.buffer = buf;
+  src.buffer = noiseBuf(0.12, 1.3);
   const f = audioCtx.createBiquadFilter();
-  f.type = 'highpass';
-  f.frequency.value = 2000;
-  src.connect(f).connect(audioCtx.destination);
-  src.start();
+  f.type = 'bandpass'; f.frequency.value = 1500; f.Q.value = 0.6;
+  const g = audioCtx.createGain(); g.gain.value = 0.5;
+  src.connect(f).connect(g).connect(aout());
+  src.start(audioCtx.currentTime);
 }
 
-// splat = the 乒乓 — a wet noise burst + a low body thump
+// splat = 湿噪 burst (中频可闻) + 中音 "pop" (260→130Hz; 不用 sub-bass)
 function playSplat() {
   if (!audioCtx) return;
-  if (playBuffer(decoded.splat, 0.8)) return;
   const now = audioCtx.currentTime;
-  // wet noise burst
-  const dur = 0.16;
-  const n = Math.floor(audioCtx.sampleRate * dur);
-  const buf = audioCtx.createBuffer(1, n, audioCtx.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i = 0; i < n; i++) {
-    const t = i / n;
-    d[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 1.8) * 0.55;
-  }
   const src = audioCtx.createBufferSource();
-  src.buffer = buf;
+  src.buffer = noiseBuf(0.18, 1.6);
   const f = audioCtx.createBiquadFilter();
   f.type = 'lowpass';
-  f.frequency.setValueAtTime(2600, now);
-  f.frequency.exponentialRampToValueAtTime(700, now + dur);
-  src.connect(f).connect(audioCtx.destination);
-  src.start();
-  // low body thump
+  f.frequency.setValueAtTime(3600, now);
+  f.frequency.exponentialRampToValueAtTime(900, now + 0.18);
+  const g = audioCtx.createGain(); g.gain.value = 0.75;
+  src.connect(f).connect(g).connect(aout());
+  src.start(now);
   const osc = audioCtx.createOscillator();
-  const g = audioCtx.createGain();
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(180, now);
-  osc.frequency.exponentialRampToValueAtTime(70, now + 0.12);
-  g.gain.setValueAtTime(0.5, now);
-  g.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
-  osc.connect(g).connect(audioCtx.destination);
+  const og = audioCtx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(260, now);
+  osc.frequency.exponentialRampToValueAtTime(130, now + 0.1);
+  og.gain.setValueAtTime(0.55, now);
+  og.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+  osc.connect(og).connect(aout());
   osc.start(now);
-  osc.stop(now + 0.14);
+  osc.stop(now + 0.12);
+}
+
+// v0.19 开局"叮" — 清晰上行两音; 既是开场反馈, 也是"声音到底响不响"的确定性测试
+function playStartDing() {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  [660, 990].forEach((freq, i) => {
+    const t = now + 0.04 + i * 0.1;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'triangle';
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0, t);
+    g.gain.linearRampToValueAtTime(0.4, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+    o.connect(g).connect(aout());
+    o.start(t);
+    o.stop(t + 0.2);
+  });
 }
 
 function playComboChime(level) {
@@ -519,10 +516,10 @@ function playComboChime(level) {
   const osc = audioCtx.createOscillator();
   const g = audioCtx.createGain();
   osc.type = 'square';
-  osc.frequency.setValueAtTime(520 + level * 70, now);
-  g.gain.setValueAtTime(0.12, now);
+  osc.frequency.setValueAtTime(620 + level * 70, now);
+  g.gain.setValueAtTime(0.2, now);
   g.gain.exponentialRampToValueAtTime(0.01, now + 0.11);
-  osc.connect(g).connect(audioCtx.destination);
+  osc.connect(g).connect(aout());
   osc.start(now);
   osc.stop(now + 0.11);
 }
@@ -531,8 +528,9 @@ function playComboChime(level) {
 function playVictoryJingle(level) {
   if (!audioCtx) return;
   const t0 = audioCtx.currentTime + 0.05;
-  const notes = level >= 3 ? [392, 523, 659, 784, 1047]
-              : level === 2 ? [392, 523, 659, 784]
+  const top = SPEEDS.length - 1; // v0.19: 去"正常"档后按最高档算 (走火入魔)
+  const notes = level >= top ? [392, 523, 659, 784, 1047]
+              : level >= top - 1 ? [392, 523, 659, 784]
               : [523, 659, 784];
   notes.forEach((f, i) => {
     const t = t0 + i * 0.09;
@@ -540,24 +538,20 @@ function playVictoryJingle(level) {
     const g = audioCtx.createGain();
     o.type = 'square';
     o.frequency.setValueAtTime(f, t);
-    g.gain.setValueAtTime(0.13, t);
+    g.gain.setValueAtTime(0.18, t);
     g.gain.exponentialRampToValueAtTime(0.01, t + 0.22);
-    o.connect(g).connect(audioCtx.destination);
+    o.connect(g).connect(aout());
     o.start(t);
     o.stop(t + 0.22);
   });
-  if (level >= 3) {
-    const dur = 0.5;
-    const n = Math.floor(audioCtx.sampleRate * dur);
-    const buf = audioCtx.createBuffer(1, n, audioCtx.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2) * 0.5;
+  if (level >= top) {
     const src = audioCtx.createBufferSource();
-    src.buffer = buf;
+    src.buffer = noiseBuf(0.5, 2);
     const f = audioCtx.createBiquadFilter();
     f.type = 'lowpass';
-    f.frequency.value = 1200;
-    src.connect(f).connect(audioCtx.destination);
+    f.frequency.value = 1800;
+    const g = audioCtx.createGain(); g.gain.value = 0.5;
+    src.connect(f).connect(g).connect(aout());
     src.start(t0);
   }
 }
@@ -576,7 +570,7 @@ function playTrainArrive() {
   const f = audioCtx.createBiquadFilter();
   f.type = 'lowpass';
   f.frequency.value = 500;
-  osc.connect(f).connect(g).connect(audioCtx.destination);
+  osc.connect(f).connect(g).connect(aout());
   osc.start(now);
   osc.stop(now + 1.4);
 }
@@ -1513,12 +1507,14 @@ function drawOverScreen() {
   ctx.textBaseline = 'middle';
   overOpts = [];
   if (state.diedEarly) {
-    ctx.font = 'bold 36px sans-serif';
+    // v0.19 (玩家): 有喜感的"没撑到地铁进站"当大字头条; "桃心烧光了"降为小字脚注
+    ctx.font = 'bold 24px sans-serif';
     ctx.fillStyle = '#ff6a5a';
-    ctx.fillText('💀 桃心烧光了', CX, 64);
-    ctx.font = 'bold 18px sans-serif';
-    ctx.fillStyle = '#ffb09a';
-    ctx.fillText('二手烟漏太多，没撑到地铁进站', CX, 100);
+    ctx.fillText('💀 二手烟漏太多', CX, 56);
+    ctx.fillText('没撑到地铁进站', CX, 88);
+    ctx.font = '14px sans-serif';
+    ctx.fillStyle = '#99a';
+    ctx.fillText('🖤 桃心烧光了', CX, 118);
   } else {
     const wc = WIN_COPY[settings.speed];
     // 走火入魔: 标题脉冲呼吸 + 开场 0.7s 余震抖动 (玩家: "震出屏幕"是爽点)
@@ -1807,7 +1803,8 @@ function startRound() {
   state = freshState('playing');
   state.startTime = performance.now();
   state.lastSpawnTime = performance.now();
-  // v0.11 开局档名横幅 (正常档不打, 高档让你知道自己选了什么)
+  playStartDing(); // v0.19 开局"叮" (也是声音是否响的确定性测试)
+  // v0.11 开局档名横幅 (最缓档不打, 高档让你知道自己选了什么)
   if (settings.speed > 0) state.modeBannerUntil = state.startTime + 1400;
 }
 
