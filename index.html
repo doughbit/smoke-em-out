@@ -122,8 +122,8 @@
 
 <div id="file-warning">
   ⚠️ 你是<strong>双击打开</strong>的 (<code>file://</code>) — 浏览器禁止抠图, 之后换真图会带绿背景。<br>
-  请改用本地 server 打开: <code>http://localhost:8766/rapid-response/v0.12_smoke_em_out.html</code><br>
-  (server 没开: 在 vault 根运行 <code>python 01-projects/herstory-game/serve_nocache.py</code>)
+  请改用本地 server 打开: <code>http://localhost:8767/v0.13_smoke_em_out.html</code><br>
+  (server 没开: 在 vault 根运行 <code>python 01-projects/rapid-response/serve_nocache.py</code>)
 </div>
 
 <div id="ui">
@@ -282,7 +282,7 @@ const BASE_SCORE = 2;
 const COMBO_WINDOW = 1200;         // ms to keep a combo alive
 const START_HEARTS = 5;            // soft floor — each escaped smoker burns one
 
-const NUM_VARIATIONS = 10; // v0.10: 槽位 5 → 10
+// v0.14: 单一"无烟人物池" — 抽烟与否由引擎运行时决定 (不再分 smoker/nonsmoker 两套图)
 const CHROMA_TOLERANCE = 90;
 const SPRITE_MAX_DIM = 256;
 
@@ -291,46 +291,32 @@ const CLOTHES = ['#7a6a55', '#4a6a8a', '#8a5a5a', '#5a7a5a', '#6a5a7a', '#9a7a4a
 // ============== Asset manifest (Design B — side view) ==============
 // flat folder + naming convention: [game]-[design]-[type]-[variant]-[num].png
 // All optional — missing files gracefully fall back to procedural placeholders.
+// v0.14: people = 一套"不叼烟"的人物图 (透明 PNG, 切图脚本已 key 成透明)。
+// 引擎给当前抽烟的人程序画香烟; 打中即停画 = 视觉上戒了。同一个人既能当烟民也能当路人。
 const ASSETS = {
   bg: 'assets/nosmoking-designB-bg-1.png',
   bgPortrait: 'assets/nosmoking-designB-bg-portrait-1.png', // v0.10 竖屏背景 (1024×1536)
   splash: 'assets/nosmoking-designB-splash-1.png',
-  smokers: [
-    'assets/nosmoking-designB-smoker-businessman-1.png',
-    'assets/nosmoking-designB-smoker-hoodie-1.png',
-    'assets/nosmoking-designB-smoker-elderly-1.png',
-    'assets/nosmoking-designB-smoker-businesswoman-1.png',
-    'assets/nosmoking-designB-smoker-leather-1.png',
-    // v0.10 扩展槽 6-10 (文件名与美术需求清单 §2 v0.10 扩展表一致)
-    'assets/nosmoking-designB-smoker-delivery-1.png',
-    'assets/nosmoking-designB-smoker-worker-1.png',
-    'assets/nosmoking-designB-smoker-manager-1.png',
-    'assets/nosmoking-designB-smoker-trendy-1.png',
-    'assets/nosmoking-designB-smoker-vest-1.png',
-  ],
-  nonsmokers: [
-    'assets/nosmoking-designB-nonsmoker-student-1.png',
-    'assets/nosmoking-designB-nonsmoker-mother-1.png',
-    'assets/nosmoking-designB-nonsmoker-office-1.png',
-    'assets/nosmoking-designB-nonsmoker-elderly-1.png',
-    'assets/nosmoking-designB-nonsmoker-young-1.png',
-    // v0.10 扩展槽 6-10
-    'assets/nosmoking-designB-nonsmoker-runner-1.png',
-    'assets/nosmoking-designB-nonsmoker-headphones-1.png',
-    'assets/nosmoking-designB-nonsmoker-grandma-1.png',
-    'assets/nosmoking-designB-nonsmoker-nurse-1.png',
-    'assets/nosmoking-designB-nonsmoker-teen-1.png',
+  people: [
+    'assets/nosmoking-designB-person-suit-1.png',
+    'assets/nosmoking-designB-person-jacket-1.png',
+    'assets/nosmoking-designB-person-fan-1.png',
+    'assets/nosmoking-designB-person-student-1.png',
+    'assets/nosmoking-designB-person-dress-1.png',
+    'assets/nosmoking-designB-person-purple-1.png',
+    'assets/nosmoking-designB-person-grandpa-1.png',
+    'assets/nosmoking-designB-person-orange-1.png',
   ],
   sfxThrow: 'assets/nosmoking-sfx-throw-1.wav',
   sfxSplat: 'assets/nosmoking-sfx-splat-1.wav',
 };
+const NUM_VARIATIONS = ASSETS.people.length;
 
 const img = {
   bg: null,
   bgPortrait: null, // v0.10 竖屏背景
   splash: null,
-  smokers: new Array(NUM_VARIATIONS).fill(null),
-  nonsmokers: new Array(NUM_VARIATIONS).fill(null),
+  people: new Array(ASSETS.people.length).fill(null),
 };
 const sfxBuf = { throw: null, splat: null };
 
@@ -370,10 +356,24 @@ function chromaKey(image) {
   return c;
 }
 
-function loadImage(src, applyChroma) {
+// v0.14: 透明 sprite 只降采样 (不抠绿 — 切图脚本已 key 成透明), 平滑缩放卡通线条
+function downscale(image) {
+  const w = image.naturalWidth || image.width, h = image.naturalHeight || image.height;
+  if (!w || !h || (w <= SPRITE_MAX_DIM && h <= SPRITE_MAX_DIM)) return image;
+  const scale = SPRITE_MAX_DIM / Math.max(w, h);
+  const c = document.createElement('canvas');
+  c.width = Math.round(w * scale); c.height = Math.round(h * scale);
+  const cx = c.getContext('2d');
+  cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high';
+  cx.drawImage(image, 0, 0, c.width, c.height);
+  return c;
+}
+
+// mode: 'chroma' (绿底抠绿) | 'sprite' (透明图只降采样) | 'plain' (原样)
+function loadImage(src, mode) {
   return new Promise(resolve => {
     const i = new Image();
-    i.onload = () => resolve(applyChroma ? chromaKey(i) : i);
+    i.onload = () => resolve(mode === 'chroma' ? chromaKey(i) : mode === 'sprite' ? downscale(i) : i);
     i.onerror = () => resolve(null);
     i.src = src;
   });
@@ -389,11 +389,10 @@ async function fetchArrayBuffer(url) {
 
 async function loadAllAssets() {
   const tasks = [];
-  tasks.push(loadImage(ASSETS.bg, false).then(x => img.bg = x));
-  tasks.push(loadImage(ASSETS.bgPortrait, false).then(x => img.bgPortrait = x));
-  tasks.push(loadImage(ASSETS.splash, true).then(x => img.splash = x));
-  ASSETS.smokers.forEach((src, i) => tasks.push(loadImage(src, true).then(x => img.smokers[i] = x)));
-  ASSETS.nonsmokers.forEach((src, i) => tasks.push(loadImage(src, true).then(x => img.nonsmokers[i] = x)));
+  tasks.push(loadImage(ASSETS.bg, 'plain').then(x => img.bg = x));
+  tasks.push(loadImage(ASSETS.bgPortrait, 'plain').then(x => img.bgPortrait = x));
+  tasks.push(loadImage(ASSETS.splash, 'chroma').then(x => img.splash = x));
+  ASSETS.people.forEach((src, i) => tasks.push(loadImage(src, 'sprite').then(x => img.people[i] = x)));
   tasks.push(fetchArrayBuffer(ASSETS.sfxThrow).then(b => sfxBuf.throw = b));
   tasks.push(fetchArrayBuffer(ASSETS.sfxSplat).then(b => sfxBuf.splat = b));
   await Promise.all(tasks);
@@ -407,8 +406,7 @@ function updateAssetStatus() {
     mark(img.bg, 'bg横'),
     mark(img.bgPortrait, 'bg竖'),
     mark(img.splash, 'splash'),
-    mark(img.smokers.filter(x => x).length > 0, `smoker(${img.smokers.filter(x=>x).length}/${NUM_VARIATIONS})`),
-    mark(img.nonsmokers.filter(x => x).length > 0, `nonsmoker(${img.nonsmokers.filter(x=>x).length}/${NUM_VARIATIONS})`),
+    mark(img.people.filter(x => x).length > 0, `people(${img.people.filter(x=>x).length}/${NUM_VARIATIONS})`),
     mark(sfxBuf.throw, 'sfx_throw'),
     mark(sfxBuf.splat, 'sfx_splat'),
   ].join(' · ');
@@ -681,13 +679,11 @@ function progress() {
   return 1 - state.timeLeft / settings.dur; // 0 → 1 over the round
 }
 
-// v0.10: 只在"已加载"的 sprite 变体里抽 — 图部分到货时分布均匀,
-// 不再让缺图槽位 fallback 全挤到 1 号; 一张都没有时随便抽
-// (procedural 小人不看 variation, 衣服色由 CLOTHES 决定)
-function pickVariation(type) {
-  const pool = type === 'smoker' ? img.smokers : img.nonsmokers;
+// v0.14: 从"已加载的无烟人物"里抽变体 (烟民/路人共用同一池, 抽烟与否在 spawn 决定);
+// 一张图都没到货时随便抽 (procedural 占位不看 variation, 衣服色由 CLOTHES 决定)
+function pickVariation() {
   const loaded = [];
-  for (let i = 0; i < pool.length; i++) if (pool[i]) loaded.push(i);
+  for (let i = 0; i < img.people.length; i++) if (img.people[i]) loaded.push(i);
   if (!loaded.length) return Math.floor(Math.random() * NUM_VARIATIONS);
   return loaded[Math.floor(Math.random() * loaded.length)];
 }
@@ -705,7 +701,7 @@ function spawnPerson() {
     speed,
     baseSpeed: speed,
     type,
-    variation: pickVariation(type),
+    variation: pickVariation(),
     clothes: CLOTHES[Math.floor(Math.random() * CLOTHES.length)],
     extinguished: false,        // hit smoker → stops smoking, scurries off
     flashUntil: 0,
@@ -1183,8 +1179,8 @@ function drawPerson(p) {
   const walkPhase = (t - p.spawnTime) * p.speed / 105; // v0.11 步频跟实际速度走 (固定步频会让快人像滑行)
   const bob = Math.abs(Math.sin(walkPhase)) * 3;
   const flash = t < p.flashUntil;
-  const pool = p.type === 'smoker' ? img.smokers : img.nonsmokers;
-  const sprite = pool[p.variation] || pool.find(s => s) || null;
+  // v0.14: 单一无烟人物池; sprite 基准朝右, 向左走时镜像
+  const sprite = img.people[p.variation] || img.people.find(s => s) || null;
   const faceFlip = p.dir < 0 ? -1 : 1;
 
   ctx.save();
@@ -1208,6 +1204,7 @@ function drawPerson(p) {
     ctx.save();
     ctx.scale(faceFlip, 1);
     const s = PERSON_DRAW_SIZE;
+    ctx.imageSmoothingEnabled = true; // v0.14: 卡通线条平滑缩放 (restore 后恢复)
     ctx.drawImage(sprite, -s / 2, -s / 2, s, s);
     if (flash) {
       ctx.globalCompositeOperation = 'source-atop';
@@ -1274,25 +1271,33 @@ function drawPersonCigarette(p) {
   const t = performance.now();
   const walkPhase = (t - p.spawnTime) * p.speed / 105; // v0.11 步频跟实际速度走 (固定步频会让快人像滑行)
   const bob = Math.abs(Math.sin(walkPhase)) * 3;
-  // cigarette near the head/mouth, nudged toward facing direction
-  const cx = p.x + p.dir * 11;
-  const cy = p.y - bob - PERSON_H * 0.30;
+  // v0.14: 引擎程序画一根干净卡通烟 (替换违和的 emoji); 嘴在行进方向一侧
+  const mx = p.x + p.dir * 9;
+  const my = p.y - bob - PERSON_H * 0.30;
+  const tipx = mx + p.dir * 8, tipy = my + 1;
 
-  // rising smoke wisp — the unmistakable "this one smokes" signal
-  ctx.fillStyle = 'rgba(210,210,210,0.42)';
+  // 烟雾从烟头升起 — "这人在抽烟"的可读信号
+  ctx.fillStyle = 'rgba(215,215,215,0.38)';
   for (let i = 0; i < 3; i++) {
     const ph = t / 470 + i * 0.8 + p.spawnTime * 0.001;
-    const sx = cx + Math.sin(ph) * 4;
-    const sy = cy - 8 - i * 9;
+    const sx = tipx + Math.sin(ph) * 4;
+    const sy = tipy - 6 - i * 8;
     ctx.beginPath();
-    ctx.arc(sx, sy, 3 + i * 1.5, 0, Math.PI * 2);
+    ctx.arc(sx, sy, 2.5 + i * 1.3, 0, Math.PI * 2);
     ctx.fill();
   }
-  // cigarette
-  ctx.font = '24px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('🚬', cx, cy);
+  // 香烟: 白杆 + 橙红烟头
+  ctx.strokeStyle = '#f2f0ea';
+  ctx.lineWidth = 2.6;
+  ctx.lineCap = 'butt';
+  ctx.beginPath();
+  ctx.moveTo(mx, my);
+  ctx.lineTo(tipx, tipy);
+  ctx.stroke();
+  ctx.fillStyle = '#ff6a2a';
+  ctx.beginPath();
+  ctx.arc(tipx, tipy, 1.9, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 // ============== Render — milk-tea cups in flight ==============
