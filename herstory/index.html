@@ -3520,6 +3520,13 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'ArrowRight') commit('R');
 });
 document.getElementById('restart').addEventListener('click', newGame);
+// 触屏设备走 Reigns 式"拖动即预览": 隐藏底部选项按钮, 选项文字只在拖卡时浮现 (读书会反馈: 按钮文字干扰卡面)
+if (window.matchMedia('(hover: none) and (pointer: coarse)').matches) {
+  document.getElementById('choices').style.display = 'none';
+  document.getElementById('foot').innerHTML =
+    '按住卡片左右拖 —— 拖动时浮现选项，松手即选<br>空了会死，满了会死，有些卡看着无害——也会死。死了，下一代接着来。';
+}
+
 // 音效: 首次触碰解锁 AudioContext (移动端自动播放策略) + 静音开关记忆
 document.addEventListener('pointerdown', () => ac(), { once: true });
 const muteBtn = document.getElementById('muteBtn');
