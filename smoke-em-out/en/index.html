@@ -307,7 +307,7 @@ const SPRITE_MAX_DIM = 256;
 const CLOTHES = ['#7a6a55', '#4a6a8a', '#8a5a5a', '#5a7a5a', '#6a5a7a', '#9a7a4a', '#445a6a'];
 
 // ============== Asset manifest ==============
-// v0.33 命名 convention: nosmoking-2D-<kind>-<subject>-[state]-[stage]-<seq>.png
+// v0.33 命名 convention: smoke_em_out-2D-<kind>-<subject>-[state]-[stage]-<seq>.png
 //   kind=person/bg/splash/hand/lineup · state=plain/smoke(仅person) · stage=cut(引擎用)/green(种子)/raw(原图)
 //   引擎只加载 cut; green/raw 是 img2img 工作文件, 留在 vault 不部署。详见 美术需求清单 §1。
 // All optional — missing files gracefully fall back to procedural placeholders.
@@ -316,24 +316,24 @@ const CLOTHES = ['#7a6a55', '#4a6a8a', '#8a5a5a', '#5a7a5a', '#6a5a7a', '#9a7a4a
 const ASSET_BASE = /\/en(\/|$)/.test(location.pathname) ? '../assets/' : 'assets/';
 const A = f => ASSET_BASE + f;
 const ASSETS = {
-  bg: A('nosmoking-2D-bg-stationLand-1.png'),       // 横屏背景 (待生成, 缺图回退程序画)
-  bgPortrait: A('nosmoking-2D-bg-stationPort-1.png'), // 竖屏背景 (待生成)
-  splash: A('nosmoking-2D-splash-cup-cut-2.png'),   // 飞杯动感版 (杯体+盖分离+泼洒)
+  bg: A('smoke_em_out-2D-bg-stationLand-1.png'),       // 横屏背景 (待生成, 缺图回退程序画)
+  bgPortrait: A('smoke_em_out-2D-bg-stationPort-1.png'), // 竖屏背景 (待生成)
+  splash: A('smoke_em_out-2D-splash-cup-cut-2.png'),   // 飞杯动感版 (杯体+盖分离+泼洒)
   // 大头 Q 版 roster (全家福8 一图 10 人, 切片 = plain-cut)
   people: [
-    A('nosmoking-2D-person-suit-plain-cut-1.png'),     // 上班族
-    A('nosmoking-2D-person-rider-plain-cut-1.png'),    // 外卖员
-    A('nosmoking-2D-person-fashion-plain-cut-1.png'),  // 潮人女
-    A('nosmoking-2D-person-worker-plain-cut-1.png'),   // 工人
-    A('nosmoking-2D-person-granny-plain-cut-1.png'),   // 阿姨(相机女)
-    A('nosmoking-2D-person-student-plain-cut-1.png'),  // 学生
-    A('nosmoking-2D-person-nurse-plain-cut-1.png'),    // 护士
-    A('nosmoking-2D-person-hoodie-plain-cut-1.png'),   // 卫衣青年
-    A('nosmoking-2D-person-elder-plain-cut-1.png'),    // 老大爷
-    A('nosmoking-2D-person-office-plain-cut-1.png'),   // 白领女
+    A('smoke_em_out-2D-person-suit-plain-cut-1.png'),     // 上班族
+    A('smoke_em_out-2D-person-rider-plain-cut-1.png'),    // 外卖员
+    A('smoke_em_out-2D-person-fashion-plain-cut-1.png'),  // 潮人女
+    A('smoke_em_out-2D-person-worker-plain-cut-1.png'),   // 工人
+    A('smoke_em_out-2D-person-granny-plain-cut-1.png'),   // 阿姨(相机女)
+    A('smoke_em_out-2D-person-student-plain-cut-1.png'),  // 学生
+    A('smoke_em_out-2D-person-nurse-plain-cut-1.png'),    // 护士
+    A('smoke_em_out-2D-person-hoodie-plain-cut-1.png'),   // 卫衣青年
+    A('smoke_em_out-2D-person-elder-plain-cut-1.png'),    // 老大爷
+    A('smoke_em_out-2D-person-office-plain-cut-1.png'),   // 白领女
   ],
-  sfxThrow: A('nosmoking-sfx-throw-1.wav'),
-  sfxSplat: A('nosmoking-sfx-splat-1.wav'),
+  sfxThrow: A('smoke_em_out-sfx-throw-1.wav'),
+  sfxSplat: A('smoke_em_out-sfx-splat-1.wav'),
 };
 const NUM_VARIATIONS = ASSETS.people.length;
 
