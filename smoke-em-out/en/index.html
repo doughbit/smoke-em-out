@@ -348,7 +348,7 @@ const ASSETS = {
   ],
   // v0.38: 手部真图 (画一只右手系, 左手引擎镜像; 缺图回退程序画手)
   handHold: A('smoke_em_out-2D-hand-hold-cut-2.png'),   // 持杯态
-  handThrow: A('smoke_em_out-2D-hand-throw-cut-1.png'), // 掷出张开态
+  handThrow: A('smoke_em_out-2D-hand-throw-cut-2.png'), // 掷出张开态
   sfxThrow: A('smoke_em_out-sfx-throw-1.wav'),
   sfxSplat: A('smoke_em_out-sfx-splat-1.wav'),
 };
@@ -1469,7 +1469,7 @@ function drawHand(side) {
     ctx.translate(anchor.x, anchor.y + recoil);
     if (side === 'left') ctx.scale(-1, 1);
     // v0.41: 两态分开定宽 — 玩家 反馈持杯显得太大、甩出显得太小 (两张图手的占幅不同)
-    const hw = throwing ? 104 : 82;
+    const hw = throwing ? 92 : 72; // v0.42: 持杯再缩小(玩家: 奶茶本身缩小一点); 掷出=新拳头图
     const hh = hi.height * (hw / hi.width);
     if (!throwing && reloading) ctx.globalAlpha = hand.queued ? 0.62 : 0.4;
     ctx.imageSmoothingEnabled = true;
