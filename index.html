@@ -1294,13 +1294,16 @@ function drawPersonCigarette(p) {
 
 // ============== Render — milk-tea cups in flight ==============
 function drawCups() {
+  const now = performance.now();
   for (const cup of state.cups) {
     ctx.save();
     ctx.translate(cup.x, cup.y);
-    // v0.21: 右手丢的杯左右镜像 + 反向旋转 (左右手对称)
+    // v0.24: 之前用快速旋转, 把左右镜像盖住了看不出来。改成"左右手反向的固定倾斜 + 轻微晃动":
+    //   左手杯往一边歪、右手杯往另一边歪 (scale 镜像杯形 + 镜像空间里固定右倾) → 一眼看出左右对称。
     const mir = cup.side === 'right' ? -1 : 1;
     ctx.scale(mir, 1);
-    ctx.rotate(mir * (performance.now() - cup.bornAt) / 40);
+    const wob = Math.sin((now - cup.bornAt) / 50) * 0.28;
+    ctx.rotate(0.5 + wob);
     ctx.font = '26px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
