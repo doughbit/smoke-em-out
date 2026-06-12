@@ -841,7 +841,7 @@ function impact(target, cx, cy, chained, side) {
   target.extinguished = true;
   target.flashUntil = now + 90;
   target.soakedAt = now;                 // 驱动挂浆下滴
-  target.speed = target.baseSpeed * 1.9; // soaked → scurries off, embarrassed
+  target.speed = target.baseSpeed * 2.6; // v0.43: 1.9→2.6 — 1.9× 在满屏快行人里读不出仓皇感 (玩家: 没逃)
 
   // v0.15: 香烟被打飞 — 从嘴叼处旋转飞出 + 掉地 (替代"凭空消失"的生硬感)
   state.flyingCigs.push({
@@ -1328,7 +1328,7 @@ function drawPerson(p) {
     } else if (p.extinguished) {
       // 奶茶挂浆 — source-atop 只染在 sprite 像素内
       ctx.globalCompositeOperation = 'source-atop';
-      ctx.fillStyle = 'rgba(140,90,50,0.45)';
+      ctx.fillStyle = 'rgba(208,162,108,0.55)'; // v0.43: 深褐(像阴影)→奶茶色
       ctx.beginPath();
       ctx.arc(-s * 0.08, -s * 0.16, s * 0.2, 0, Math.PI * 2);
       ctx.arc(s * 0.1, -s * 0.04, s * 0.16, 0, Math.PI * 2);
@@ -1361,7 +1361,7 @@ function drawPerson(p) {
     ctx.fillText(face, faceFlip * 2, -bh / 2 + 10);
     // 奶茶挂浆 — 头肩一大块 + 两条往下流的痕 + 粘住的珍珠
     if (p.extinguished) {
-      ctx.fillStyle = 'rgba(140,90,50,0.55)';
+      ctx.fillStyle = 'rgba(208,162,108,0.6)';
       ctx.beginPath();
       ctx.arc(-4, -bh / 2 + 16, 12, 0, Math.PI * 2);
       ctx.arc(7, -bh / 2 + 24, 9, 0, Math.PI * 2);
@@ -1568,17 +1568,18 @@ function drawStartScreen() {
   // v0.13 提示: 横竖屏 (v0.30: iPhone 静音键提示移除 — 不是人人用 iPhone, 换成显眼的声音开关)
   ctx.fillStyle = '#7ad0ff';
   fitFillText(EN ? '🔄 Plays in portrait or landscape — best with sound on 🎧' : '🔄 横屏 / 竖屏都能玩　·　🎧 戴耳机 / 开音效更带感', CX, 142, 13, W - 16, true);
-  // v0.30 声音开关 (默认开, 点击切换); v0.31 上移并收窄, 不再压到"时长"标签
+  // v0.30 声音开关; v0.43: 从屏幕正中(玩家点屏开始的落点!)挪到右上角 — 误触关声还被 localStorage 记住,
+  //        是"突然没声音"的头号嫌疑。关闭态整钮变红更醒目。
   {
-    const sw = 150, sh = 24, sx = CX - sw / 2, sy = 152;
-    ctx.fillStyle = settings.sound ? '#2a4a3e' : '#3a2a2a';
+    const sw = 118, sh = 24, sx = W - sw - 10, sy = 10;
+    ctx.fillStyle = settings.sound ? '#2a4a3e' : '#5a2a2a';
     ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(sx, sy, sw, sh, 12); else ctx.rect(sx, sy, sw, sh);
     ctx.fill();
-    ctx.strokeStyle = settings.sound ? '#5a9a7a' : '#7a5a5a'; ctx.lineWidth = 1; ctx.stroke();
-    ctx.font = 'bold 13px sans-serif';
-    ctx.fillStyle = settings.sound ? '#8ee0b0' : '#d0a0a0';
-    ctx.fillText(settings.sound ? (EN ? '🔊 Sound: ON' : '🔊 声音：开') : (EN ? '🔇 Sound: OFF' : '🔇 声音：关'), CX, sy + sh / 2 + 1);
+    ctx.strokeStyle = settings.sound ? '#5a9a7a' : '#c06a6a'; ctx.lineWidth = settings.sound ? 1 : 2; ctx.stroke();
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillStyle = settings.sound ? '#8ee0b0' : '#ffb0b0';
+    ctx.fillText(settings.sound ? (EN ? '🔊 Sound ON' : '🔊 声音开') : (EN ? '🔇 Sound OFF' : '🔇 声音关'), sx + sw / 2, sy + sh / 2 + 1);
     startOpts.push({ x: sx, y: sy + dy, w: sw, h: sh, type: 'sound', idx: 0 });
   }
   // v0.13 三排设置 — 一进来就能选; v0.31 整体下移避开声音开关
@@ -2007,7 +2008,7 @@ function handlePointer(clientX, clientY) {
       if (x >= o.x && x <= o.x + o.w && y >= o.y && y <= o.y + o.h) {
         if (o.type === 'dur') settings.dur = DURS[o.idx];
         else if (o.type === 'aim') settings.aim = o.idx;
-        else if (o.type === 'sound') settings.sound = settings.sound ? 0 : 1; // v0.30 开关切换
+        else if (o.type === 'sound') { settings.sound = settings.sound ? 0 : 1; if (settings.sound) { initAudio(); playStartDing(); } } // v0.43 开声立刻"叮"确认
         else settings.speed = o.idx;
         saveSettings();
         return;
