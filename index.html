@@ -729,7 +729,7 @@ function triggerSide(side) {
 
 // ============== Impact (cup lands on a smoker) ==============
 // v0.11: chained = 被连锁波及的二级命中 (只一层, 不递归引爆全屏)
-function impact(target, cx, cy, chained) {
+function impact(target, cx, cy, chained, side) {
   const now = performance.now();
   if (target.extinguished) return;
   target.extinguished = true;
@@ -770,7 +770,8 @@ function impact(target, cx, cy, chained) {
   if (img.splash) {
     state.splashSprites.push({
       x: cx, y: cy, bornAt: now,
-      rot: (Math.random() - 0.5) * 0.9,
+      rot: (Math.random() - 0.5) * 0.35,             // v0.26: 减小随机旋转, 让杯子大体朝下
+      mir: side === 'right' ? -1 : 1,                // v0.26: 右手命中 → 飞溅图左右镜像
       size: (92 + Math.min(state.combo, 8) * 6) * JUICE, // v0.16: 放大盖住脸 (糊脸)
     });
   }
@@ -801,7 +802,7 @@ function impact(target, cx, cy, chained) {
       for (const p of state.people) {
         if (p === target || p.type !== 'smoker' || p.extinguished) continue;
         const dx = p.x - cx, dy = p.y - cy;
-        if (dx * dx + dy * dy <= R * R) impact(p, p.x, p.y - PERSON_H * 0.18, true);
+        if (dx * dx + dy * dy <= R * R) impact(p, p.x, p.y - PERSON_H * 0.18, true, side); // 连锁继承同手镜像
       }
     }
   }
@@ -1032,7 +1033,7 @@ function update() {
         });
       }
       if (t >= 1) {
-        impact(cup.target, cup.target.x, cup.target.y - PERSON_H * 0.18);
+        impact(cup.target, cup.target.x, cup.target.y - PERSON_H * 0.18, false, cup.side); // v0.26 传左右手
         cup.done = true;
       }
     }
@@ -1675,6 +1676,7 @@ function renderSplashSprites() {
     const sz = s.size * pop;
     ctx.save();
     ctx.translate(s.x, s.y);
+    ctx.scale(s.mir || 1, 1); // v0.26: 右手命中左右镜像 (杯子在右边)
     ctx.rotate(s.rot);
     ctx.globalAlpha = t < 0.25 ? 1 : 1 - (t - 0.25) / 0.75;
     ctx.drawImage(img.splash, -sz / 2, -sz / 2, sz, sz);
