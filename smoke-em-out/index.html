@@ -346,6 +346,9 @@ const ASSETS = {
     A('smoke_em_out-2D-person-elder-smoke-cut-1.png'),    // 8 老大爷
     A('smoke_em_out-2D-person-office-smoke-cut-1.png'),   // 9 白领女
   ],
+  // v0.38: 手部真图 (画一只右手系, 左手引擎镜像; 缺图回退程序画手)
+  handHold: A('smoke_em_out-2D-hand-hold-cut-1.png'),   // 持杯态
+  handThrow: A('smoke_em_out-2D-hand-throw-cut-1.png'), // 掷出张开态
   sfxThrow: A('smoke_em_out-sfx-throw-1.wav'),
   sfxSplat: A('smoke_em_out-sfx-splat-1.wav'),
 };
@@ -375,6 +378,7 @@ const img = {
   splash: null,
   people: new Array(ASSETS.people.length).fill(null),
   peopleSmoke: new Array(ASSETS.people.length).fill(null), // v0.36 叼烟版
+  handHold: null, handThrow: null, // v0.38 手部真图
 };
 const sfxBuf = { throw: null, splat: null };
 
@@ -452,6 +456,8 @@ async function loadAllAssets() {
   tasks.push(loadImage(ASSETS.splash, 'chroma').then(x => img.splash = x));
   ASSETS.people.forEach((src, i) => tasks.push(loadImage(src, 'sprite').then(x => img.people[i] = x)));
   (ASSETS.peopleSmoke || []).forEach((src, i) => { if (src) tasks.push(loadImage(src, 'sprite').then(x => img.peopleSmoke[i] = x)); }); // v0.36 叼烟版
+  tasks.push(loadImage(ASSETS.handHold, 'sprite').then(x => img.handHold = x));   // v0.38 手
+  tasks.push(loadImage(ASSETS.handThrow, 'sprite').then(x => img.handThrow = x));
   tasks.push(fetchArrayBuffer(ASSETS.sfxThrow).then(b => sfxBuf.throw = b));
   tasks.push(fetchArrayBuffer(ASSETS.sfxSplat).then(b => sfxBuf.splat = b));
   await Promise.all(tasks);
@@ -1455,36 +1461,49 @@ function drawHand(side) {
 
   // throw recoil — hand juts up briefly
   const recoil = throwing ? -14 : 0;
-  ctx.save();
-  ctx.translate(anchor.x, anchor.y + recoil);
 
-  // arm
-  ctx.fillStyle = '#c89060';
-  ctx.fillRect(-13, 0, 26, 70);
-  // hand
-  ctx.fillStyle = '#d8a878';
-  ctx.beginPath();
-  ctx.arc(0, 0, 17, 0, Math.PI * 2);
-  ctx.fill();
-
-  // milk tea cup in hand — present only when loaded (not mid-throw)
-  if (!throwing) {
-    const ready = !reloading;
-    // v0.11: 排队那杯亮一点 — 告诉玩家"这下没白点, 马上甩"
-    ctx.globalAlpha = ready ? 1 : (hand.queued ? 0.62 : 0.35);
-    ctx.font = '26px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🧋', 0, -6);
+  // v0.38: 手部真图 — 持杯/掷出两态, 左手=右手镜像; 装填中半透明(排队那杯亮一点); 缺图回退程序画手
+  const hi = throwing ? img.handThrow : img.handHold;
+  if (hi) {
+    ctx.save();
+    ctx.translate(anchor.x, anchor.y + recoil);
+    if (side === 'left') ctx.scale(-1, 1);
+    const hw = 92;                              // 屏上宽度 (锚点=手腕中部, 图底沉到屏外)
+    const hh = hi.height * (hw / hi.width);
+    if (!throwing && reloading) ctx.globalAlpha = hand.queued ? 0.62 : 0.4;
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(hi, -hw / 2, -hh * 0.32, hw, hh); // 手心约在图高 32% 处对齐锚点
     ctx.globalAlpha = 1;
+    ctx.restore();
+  } else {
+    ctx.save();
+    ctx.translate(anchor.x, anchor.y + recoil);
+    // arm
+    ctx.fillStyle = '#c89060';
+    ctx.fillRect(-13, 0, 26, 70);
+    // hand
+    ctx.fillStyle = '#d8a878';
+    ctx.beginPath();
+    ctx.arc(0, 0, 17, 0, Math.PI * 2);
+    ctx.fill();
+    // milk tea cup in hand — present only when loaded (not mid-throw)
+    if (!throwing) {
+      const ready = !reloading;
+      ctx.globalAlpha = ready ? 1 : (hand.queued ? 0.62 : 0.35);
+      ctx.font = '26px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🧋', 0, -6);
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
   }
-  ctx.restore();
 
   // side hint label
   ctx.fillStyle = 'rgba(255,255,255,0.25)';
   ctx.font = 'bold 14px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText(side === 'left' ? '← 左手' : '右手 →', anchor.x, H - 8);
+  ctx.fillText(side === 'left' ? (EN ? '← LEFT' : '← 左手') : (EN ? 'RIGHT →' : '右手 →'), anchor.x, H - 8);
 }
 
 // ============== Render — UI / screens ==============
