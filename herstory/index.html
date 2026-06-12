@@ -71,15 +71,19 @@
     padding: 6px 4px; margin-bottom: 8px; line-height: 1.5;
   }
   .text { font-size: 15.5px; line-height: 1.8; color: #2b2218; text-align: justify; overflow-y: auto; }
-  .hintL, .hintR { /* 浮现在卡片中上部(盖住头像图标位), 划出屏幕也看得见且显眼 */
-    position: absolute; top: 10%; left: 50%; transform: translateX(-50%);
-    font-size: 14.5px; font-weight: bold; text-align: center;
-    padding: 8px 14px; border: 1px solid #8a7654; background: rgba(250,243,224,0.97);
-    box-shadow: 0 2px 10px rgba(40,28,12,0.35);
-    opacity: 0; transition: opacity 0.1s; max-width: 84%; pointer-events: none; z-index: 6;
+  #hintZone { /* 选项浮现区: 五维度下方的固定空白带, 不再盖卡面 (读书会反馈) */
+    position: relative; min-height: 44px; margin-bottom: 2px;
   }
-  .hintL { color: #7a2d22; }
-  .hintR { color: #2d5a2a; }
+  #hintGL, #hintGR {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: max-content; max-width: 92%;
+    font-size: 14px; font-weight: bold; text-align: center; line-height: 1.4;
+    padding: 6px 13px; border: 1px solid #8a7654; background: rgba(250,243,224,0.97);
+    box-shadow: 0 2px 8px rgba(40,28,12,0.3);
+    opacity: 0; transition: opacity 0.1s; pointer-events: none;
+  }
+  #hintGL { color: #7a2d22; }
+  #hintGR { color: #2d5a2a; }
   .notesBtn { /* 本棒史实注脚: 卡底横幅按钮, 点开浮层/再点收起, 不挡结束语不碍滑卡 */
     position: absolute; left: 12px; right: 12px; bottom: 10px;
     font-size: 11px; letter-spacing: 1px; text-align: center;
@@ -167,15 +171,13 @@
   </div>
   <div id="stats"></div>
   <div id="dateline"></div>
+  <div id="hintZone"><div id="hintGL"></div><div id="hintGR"></div></div>
   <div id="stage"></div>
   <div id="choices">
     <button class="choiceBtn" id="btnL"><span class="arrow">◀ 左滑</span><span id="btnLText"></span></button>
     <button class="choiceBtn" id="btnR"><span class="arrow">右滑 ▶</span><span id="btnRText"></span></button>
   </div>
-  <div id="foot">
-    拖卡片 / 点选项 / <kbd>←</kbd><kbd>→</kbd><br>
-    空了会死，满了会死，有些卡看着无害——也会死。死了，下一代接着来。
-  </div>
+  <div id="foot"></div>
   <div id="endScreen">
     <h2 id="endTitle"></h2>
     <div id="endBody"></div>
@@ -233,6 +235,7 @@ const SFX = {
     sfxTone(262, 0.18, 'triangle', 0.13, 0.40, 247);
     sfxTone(247, 0.70, 'triangle', 0.14, 0.60, 175); // 末音长拖下滑
   },
+  flip(side) { sfxNoise(0.05, 0.07, side === 'L' ? 2800 : 3600); }, // 每张卡滑出的翻牌轻响 (左右音高微差)
   era()   { sfxTone(392, 0.22, 'triangle', 0.09); sfxTone(523.25, 0.30, 'triangle', 0.09, 0.16); },   // 两音上行=接棒
   survive() { // 活过时代: 明朗大三和弦琶音 + 顶端一点闪光
     sfxTone(523.25, 0.16, 'triangle', 0.10);
@@ -3087,7 +3090,7 @@ let pendingRoles = null; // 职业二选一的待定状态
 function offerRoles(era, introText) {
   pendingRoles = shuffle(era.roles.slice()).slice(0, 2);
   showCard({
-    d: era.banner, sp: '—— 接 力 ——', role: '这一棒，你是谁？', cameo: '✦',
+    d: '', sp: '—— 接 力 ——', role: '这一棒，你是谁？', cameo: '✦',
     t: introText,
     L: { lab: pendingRoles[0].protag }, R: { lab: pendingRoles[1].protag },
   }, 'rolepick');
@@ -3150,7 +3153,7 @@ function restoreCheckpoint(s) {
   document.getElementById('eraBanner').textContent =
     waveOf(era.id).short + ' ｜ ' + era.banner + ' — ' + era.protag;
   showCard({
-    d: era.banner, sp: '—— 接 力 ——', role: era.protag, cameo: '✦',
+    d: '', sp: '—— 接 力 ——', role: era.protag, cameo: '✦',
     t: era.transitionIn.t + ' （续上次的接力。）',
     L: { lab: '深吸一口气' }, R: { lab: '继续' },
   }, 'transition');
@@ -3235,8 +3238,6 @@ function buildCardEl(card, behind, special) {
   const el = document.createElement('div');
   el.className = 'card' + (behind ? ' behind' : '') + (special ? ' special' : '');
   el.innerHTML = `
-    <div class="hintL">${card.L.lab}</div>
-    <div class="hintR">${card.R.lab}</div>
     <div class="cameo">${card.cameo || '❦'}</div>
     <div class="speaker">${card.sp || ''}</div>
     <div class="role">${card.role || ''}</div>
@@ -3291,8 +3292,12 @@ function showCurrent() { showCard(queue[qi], 'play'); }
 // ---------------- drag ----------------
 function attachDrag(el, card) {
   let startX = 0, dx = 0, dragging = false;
-  const hintL = el.querySelector('.hintL');
-  const hintR = el.querySelector('.hintR');
+  const hintL = document.getElementById('hintGL');
+  const hintR = document.getElementById('hintGR');
+  hintL.textContent = card.L.lab;
+  hintR.textContent = card.R.lab;
+  hintL.style.opacity = 0;
+  hintR.style.opacity = 0;
   function onDown(e) {
     dragging = true;
     startX = (e.touches ? e.touches[0].clientX : e.clientX);
@@ -3335,6 +3340,7 @@ function commit(side) {
   if (!activeCard) return;
   const { card, kind } = activeCard;
   const choice = card[side];
+  SFX.flip(side);
   if (cardEl) {
     cardEl.style.transition = 'transform 0.2s ease-in, opacity 0.2s';
     cardEl.style.transform = `translateX(${side === 'L' ? -520 : 520}px) rotate(${side === 'L' ? -26 : 26}deg)`;
@@ -3466,7 +3472,7 @@ function nextEra(died) {
   document.getElementById('eraBanner').textContent =
     waveOf(era.id).short + ' ｜ ' + era.banner + ' — ' + era.protag;
   showCard({
-    d: era.banner, sp: '—— 接 力 ——', role: era.protag, cameo: '✦',
+    d: '', sp: '—— 接 力 ——', role: era.protag, cameo: '✦',
     t: era.transitionIn.t + ' ' + inherit,
     L: { lab: '深吸一口气' }, R: { lab: '开始' },
   }, 'transition');
@@ -3520,11 +3526,10 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'ArrowRight') commit('R');
 });
 document.getElementById('restart').addEventListener('click', newGame);
-// 触屏设备走 Reigns 式"拖动即预览": 隐藏底部选项按钮, 选项文字只在拖卡时浮现 (读书会反馈: 按钮文字干扰卡面)
+// 触屏设备走 Reigns 式"拖动即预览": 隐藏底部选项按钮 (读书会反馈: 按钮文字干扰卡面)
+// 玩法说明只在封面讲一次; "会死"是悬念, 不在常驻 UI 里剧透 (玩家)
 if (window.matchMedia('(hover: none) and (pointer: coarse)').matches) {
   document.getElementById('choices').style.display = 'none';
-  document.getElementById('foot').innerHTML =
-    '按住卡片左右拖 —— 拖动时浮现选项，松手即选<br>空了会死，满了会死，有些卡看着无害——也会死。死了，下一代接着来。';
 }
 
 // 音效: 首次触碰解锁 AudioContext (移动端自动播放策略) + 静音开关记忆
