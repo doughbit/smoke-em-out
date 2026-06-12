@@ -283,7 +283,7 @@ const PERSON_W = 44;               // logical body width
 const PERSON_H = 74;               // logical body height
 const PERSON_DRAW_SIZE = 112;      // v0.15: 96→112 人物放大 (玩家: "显得有点小")
 const RELOAD_MS = 300;             // per-hand cooldown → forces L-R-L-R rhythm
-const THROW_MS = 110;              // milk-tea travel time (homing)
+const THROW_MS = 165;              // v0.25: 110→165 飞行慢一点, 让奶茶杯(及左右手镜像)看得清
 const SPLASH_SPRITE_MS = 380;      // v0.10 命中飞溅贴图寿命 (弹出→淡出)
 const SHOCKWAVE_MS = 320;          // v0.11 连锁飞溅冲击波环寿命
 
@@ -1303,8 +1303,8 @@ function drawCups() {
     const mir = cup.side === 'right' ? -1 : 1;
     ctx.scale(mir, 1);
     const wob = Math.sin((now - cup.bornAt) / 50) * 0.28;
-    ctx.rotate(0.5 + wob);
-    ctx.font = '26px sans-serif';
+    ctx.rotate(0.6 + wob);                 // v0.25: 倾斜更明显
+    ctx.font = '38px sans-serif';          // v0.25: 26→38 杯子放大, 看得清
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('🧋', 0, 0);
