@@ -671,8 +671,9 @@ function pickVariation() {
 function spawnPerson() {
   const fromLeft = Math.random() < 0.5;
   const lane = LANES[Math.floor(Math.random() * LANES.length)];
-  // v0.30: 手动瞄准模式行人放慢 22% — 朋友反馈"手动连 Commute 都跟不上"(瞄准移动目标需要追踪时间)
-  const aimFactor = settings.aim === 1 ? 0.78 : 1;
+  // v0.30: 手动瞄准模式行人放慢 — 朋友反馈"手动连 Commute 都跟不上"(瞄准移动目标需要追踪时间)
+  // v0.31: 0.78 → 0.70 再放慢一档 (朋友的反馈在 v0.30 之前, 这次加深让他重测)
+  const aimFactor = settings.aim === 1 ? 0.70 : 1;
   const speed = (0.9 + Math.random() * 0.5) * (1 + progress() * 1.6) * PACE * speedMult() * aimFactor; // v0.9 速度档
   // v0.20: 先定是谁, 再按该角色的抽烟概率掷骰 (学生/护士=0, 男性高/女性极低 → ~96% 烟民为男)
   const variation = pickVariation();
@@ -1237,7 +1238,7 @@ function drawBackground() {
   ctx.fillStyle = '#888';
   ctx.font = 'bold 13px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(EN ? 'NO SMOKING ON PLATFORM' : '地铁站内 禁止吸烟', CX, LY().wallH - 10);
+  ctx.fillText(EN ? 'NO SMOKING IN STATION' : '地铁站内 禁止吸烟', CX, LY().wallH - 10);
 }
 
 // ============== Render — train (round-end) ==============
@@ -1505,20 +1506,20 @@ function drawStartScreen() {
   // 玩法 (只留前置必需的 2 行 — 细节玩一局就懂, 玩家 拍板砍掉)
   ctx.font = '14px sans-serif';
   ctx.fillStyle = '#ccd';
-  ctx.fillText(EN ? "No smoking on this platform — but some people don't care" : '地铁站台禁止吸烟 — 但总有人不管', CX, 92);
+  ctx.fillText(EN ? "No smoking in the subway station — but some people don't care" : '地铁站台禁止吸烟 — 但总有人不管', CX, 92);
   ctx.font = '13px sans-serif';
   ctx.fillStyle = '#aab';
   ctx.fillText(EN ? 'Spot the smokers → fling milk tea (tap left / right half)' : '看到叼烟+飘烟的人 → 左 / 右手甩奶茶（点屏幕左 / 右半边）', CX, 116);
   // v0.13 提示: 横竖屏 (v0.30: iPhone 静音键提示移除 — 不是人人用 iPhone, 换成显眼的声音开关)
   ctx.font = 'bold 13px sans-serif';
   ctx.fillStyle = '#7ad0ff';
-  ctx.fillText(EN ? '🔄 Plays in portrait or landscape — best with sound on 🎧' : '🔄 横屏 / 竖屏都能玩　·　🎧 戴耳机 / 开音效更带感', CX, 148);
-  // v0.30 声音开关 (默认开, 点击切换; 替代 iPhone 提示行)
+  ctx.fillText(EN ? '🔄 Plays in portrait or landscape — best with sound on 🎧' : '🔄 横屏 / 竖屏都能玩　·　🎧 戴耳机 / 开音效更带感', CX, 142);
+  // v0.30 声音开关 (默认开, 点击切换); v0.31 上移并收窄, 不再压到"时长"标签
   {
-    const sw = 150, sh = 26, sx = CX - sw / 2, sy = 162;
+    const sw = 150, sh = 24, sx = CX - sw / 2, sy = 152;
     ctx.fillStyle = settings.sound ? '#2a4a3e' : '#3a2a2a';
     ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(sx, sy, sw, sh, 13); else ctx.rect(sx, sy, sw, sh);
+    if (ctx.roundRect) ctx.roundRect(sx, sy, sw, sh, 12); else ctx.rect(sx, sy, sw, sh);
     ctx.fill();
     ctx.strokeStyle = settings.sound ? '#5a9a7a' : '#7a5a5a'; ctx.lineWidth = 1; ctx.stroke();
     ctx.font = 'bold 13px sans-serif';
@@ -1526,15 +1527,15 @@ function drawStartScreen() {
     ctx.fillText(settings.sound ? (EN ? '🔊 Sound: ON' : '🔊 声音：开') : (EN ? '🔇 Sound: OFF' : '🔇 声音：关'), CX, sy + sh / 2 + 1);
     startOpts.push({ x: sx, y: sy + dy, w: sw, h: sh, type: 'sound', idx: 0 });
   }
-  // v0.13 三排设置 — 一进来就能选 (不必玩完一局才解锁); v0.27 加瞄准模式
-  drawOptRow(EN ? 'Time' : '时长', DURS.map(durLabel), DURS.indexOf(settings.dur), 192, 64, 10, dy, 'dur', startOpts);
-  drawOptRow(EN ? 'Speed' : '速度', SPEEDS.map(s => s.name), settings.speed, 246, 84, 6, dy, 'speed', startOpts);
-  drawOptRow(EN ? 'Aim' : '瞄准', AIMS, settings.aim, 300, 84, 6, dy, 'aim', startOpts);
+  // v0.13 三排设置 — 一进来就能选; v0.31 整体下移避开声音开关
+  drawOptRow(EN ? 'Time' : '时长', DURS.map(durLabel), DURS.indexOf(settings.dur), 198, 64, 10, dy, 'dur', startOpts);
+  drawOptRow(EN ? 'Speed' : '速度', SPEEDS.map(s => s.name), settings.speed, 250, 84, 6, dy, 'speed', startOpts);
+  drawOptRow(EN ? 'Aim' : '瞄准', AIMS, settings.aim, 302, 84, 6, dy, 'aim', startOpts);
   ctx.font = '11px sans-serif';
   ctx.fillStyle = '#778';
   ctx.fillText(settings.aim === 1
     ? (EN ? 'Manual: tap ON a smoker to hit — splashing bystanders costs −1' : '手动：点哪打哪 — 打中烟民得分，误伤路人 -1')
-    : (EN ? 'Auto: tap left / right half to rapid-fire, auto-locks smokers' : '自动：点左 / 右半屏即连发，自动锁定烟民'), CX, 342);
+    : (EN ? 'Auto: tap left / right half to rapid-fire, auto-locks smokers' : '自动：点左 / 右半屏即连发，自动锁定烟民'), CX, 344);
   // 开始 (设置按钮以外点哪都开始)
   ctx.font = 'bold 20px sans-serif';
   ctx.fillStyle = '#ffce5e';
