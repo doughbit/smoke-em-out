@@ -260,11 +260,14 @@ const SPEEDS = [
   { name: '走火入魔', mult: 2.9,  dens: 7.0, aoe: 110, banner: '#ff5a3a' },
 ];
 const DURS = [20, 40, 60];
-let settings = { dur: 20, speed: 0 };
+const AIMS = ['自动', '手动']; // v0.27: 自动=点左右半屏自动索敌; 手动=直接点中烟民才出手
+const AIM_R = 60;              // 手动模式命中判定半径 (逻辑像素)
+let settings = { dur: 20, speed: 0, aim: 0 };
 try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) {}
 // v0.18: 旧存档可能存了越界的 speed (去档前的索引), clamp 回合法范围
 settings.speed = Math.max(0, Math.min(SPEEDS.length - 1, settings.speed | 0));
 if (DURS.indexOf(settings.dur) < 0) settings.dur = 20;
+settings.aim = settings.aim === 1 ? 1 : 0;
 function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {} }
 function isMaxSpeed() { return settings.speed === SPEEDS.length - 1; } // 走火入魔 = 最高档
 
@@ -281,7 +284,7 @@ function aoeRadius() { return SPEEDS[settings.speed].aoe || 0; }
 
 const PERSON_W = 44;               // logical body width
 const PERSON_H = 74;               // logical body height
-const PERSON_DRAW_SIZE = 112;      // v0.15: 96→112 人物放大 (玩家: "显得有点小")
+const PERSON_DRAW_SIZE = 128;      // v0.27: 112→128 — 朋友反馈"人太小看不清"; 装机量主流屏(6.1"/360-390pt)比 玩家 的 15 Pro Max(6.7"/430pt) 线性小 ~10-15%, +14% 让主流屏看到 玩家 原来的物理尺寸
 const RELOAD_MS = 300;             // per-hand cooldown → forces L-R-L-R rhythm
 const THROW_MS = 165;              // v0.25: 110→165 飞行慢一点, 让奶茶杯(及左右手镜像)看得清
 const SPLASH_SPRITE_MS = 380;      // v0.10 命中飞溅贴图寿命 (弹出→淡出)
@@ -633,8 +636,8 @@ function freshState(status) {
     comboMaxThisRun: 0,
     lastHitTime: 0,
     hands: {
-      left:  { reloadUntil: 0, throwUntil: 0, queued: false },
-      right: { reloadUntil: 0, throwUntil: 0, queued: false },
+      left:  { reloadUntil: 0, throwUntil: 0, queued: false, queuedPt: null },
+      right: { reloadUntil: 0, throwUntil: 0, queued: false, queuedPt: null },
     },
   };
 }
@@ -725,6 +728,37 @@ function triggerSide(side) {
     bornAt: now,
     side,  // v0.21: 左/右手 → 飞行杯左右镜像
   });
+}
+
+// v0.27 手动瞄准: 点哪打哪 — 点中烟民 (AIM_R 内) 则锁定他, 点空了奶茶飞到点击点摔一滩。
+// 服务 Challenge/精确型玩家 (Quantic Foundry 光谱); 自动模式仍是默认 (乒乓节奏是本作核心)。
+function manualThrow(x, y) {
+  if (state.status !== 'playing') return;
+  const now = performance.now();
+  const side = x < CX ? 'left' : 'right';
+  const hand = state.hands[side];
+  if (now < hand.reloadUntil) { hand.queued = true; hand.queuedPt = { x, y }; return; }
+  hand.queued = false; hand.queuedPt = null;
+
+  hand.throwUntil = now + THROW_MS;
+  hand.reloadUntil = now + THROW_MS + reloadMs();
+  playThrow();
+
+  // 找点击点附近最近的还在抽的烟民
+  let best = null, bd = Infinity;
+  for (const p of state.people) {
+    if (p.type !== 'smoker' || p.extinguished) continue;
+    if (state.cups.some(c => c.target === p)) continue;
+    const dx = p.x - x, dy = p.y - y, d2 = dx * dx + dy * dy;
+    if (d2 < bd) { bd = d2; best = p; }
+  }
+  const origin = side === 'left' ? HAND_L : HAND_R;
+  if (best && bd <= AIM_R * AIM_R) {
+    state.cups.push({ x: origin.x, y: origin.y, ox: origin.x, oy: origin.y, target: best, bornAt: now, side });
+  } else {
+    // 点空: 奶茶仍然飞出去, 落在点击点摔一滩 (miss 也有反馈)
+    state.cups.push({ x: origin.x, y: origin.y, ox: origin.x, oy: origin.y, target: null, tx: x, ty: y, bornAt: now, side });
+  }
 }
 
 // ============== Impact (cup lands on a smoker) ==============
@@ -941,7 +975,11 @@ function update() {
     // v0.11 装填缓冲出膛: 装填好了且有排队的那一下 → 立刻甩
     for (const side of ['left', 'right']) {
       const hand = state.hands[side];
-      if (hand.queued && now >= hand.reloadUntil) { hand.queued = false; triggerSide(side); }
+      if (hand.queued && now >= hand.reloadUntil) {
+        hand.queued = false;
+        if (settings.aim === 1 && hand.queuedPt) { const pt = hand.queuedPt; hand.queuedPt = null; manualThrow(pt.x, pt.y); }
+        else triggerSide(side);
+      }
     }
 
     // spawn — rate escalates over the round
@@ -1015,11 +1053,12 @@ function update() {
     });
 
     // update cups — 抛物线飞行 + 飞行中洒落的奶茶尾迹
+    // v0.27: target 可为 null (手动模式点空) → 飞向固定点 (tx,ty), 落地摔一滩
     for (const cup of state.cups) {
       const elapsed = now - cup.bornAt;
       const t = Math.min(1, elapsed / THROW_MS);
-      const tx = cup.target.x;
-      const ty = cup.target.y - PERSON_H * 0.18;
+      const tx = cup.target ? cup.target.x : cup.tx;
+      const ty = cup.target ? cup.target.y - PERSON_H * 0.18 : cup.ty;
       cup.x = cup.ox + (tx - cup.ox) * t;
       cup.y = cup.oy + (ty - cup.oy) * t - Math.sin(t * Math.PI) * 52; // arc
       if (Math.random() < 0.75) {
@@ -1033,7 +1072,14 @@ function update() {
         });
       }
       if (t >= 1) {
-        impact(cup.target, cup.target.x, cup.target.y - PERSON_H * 0.18, false, cup.side); // v0.26 传左右手
+        if (cup.target) {
+          impact(cup.target, cup.target.x, cup.target.y - PERSON_H * 0.18, false, cup.side); // v0.26 传左右手
+        } else {
+          // v0.27 手动模式点空: 奶茶摔地上 — 小飞溅 + 地面渍 + 闷一点的 splat (miss 也要有反馈)
+          spawnSplash(cup.tx, cup.ty, cup.ty + 10, 0);
+          state.puddles.push({ x: cup.tx, y: cup.ty + 10, r: 4, maxR: 16 + Math.random() * 8, life: 1 });
+          playSplat();
+        }
         cup.done = true;
       }
     }
@@ -1265,23 +1311,23 @@ function drawPersonCigarette(p) {
   const bob = Math.abs(Math.sin(walkPhase)) * 3;
   // v0.14: 引擎程序画一根干净卡通烟 (替换违和的 emoji); 嘴在行进方向一侧
   // v0.15: 嘴位置随人物放大缩放 (用 DRAW_SIZE 相对量)
-  const mx = p.x + p.dir * 10;
+  const mx = p.x + p.dir * 11;
   const my = p.y - bob - PERSON_DRAW_SIZE * 0.23;
-  const tipx = mx + p.dir * 8, tipy = my + 1;
+  const tipx = mx + p.dir * 10, tipy = my + 1;
 
-  // 烟雾从烟头升起 — "这人在抽烟"的可读信号
-  ctx.fillStyle = 'rgba(215,215,215,0.38)';
+  // 烟雾从烟头升起 — "这人在抽烟"的可读信号 (v0.27: 加大加浓, 小屏朋友反馈看不清)
+  ctx.fillStyle = 'rgba(220,220,220,0.5)';
   for (let i = 0; i < 3; i++) {
     const ph = t / 470 + i * 0.8 + p.spawnTime * 0.001;
-    const sx = tipx + Math.sin(ph) * 4;
-    const sy = tipy - 6 - i * 8;
+    const sx = tipx + Math.sin(ph) * 5;
+    const sy = tipy - 7 - i * 10;
     ctx.beginPath();
-    ctx.arc(sx, sy, 2.5 + i * 1.3, 0, Math.PI * 2);
+    ctx.arc(sx, sy, 3.2 + i * 1.8, 0, Math.PI * 2);
     ctx.fill();
   }
-  // 香烟: 白杆 + 橙红烟头
+  // 香烟: 白杆 + 橙红烟头 (v0.27: 加粗)
   ctx.strokeStyle = '#f2f0ea';
-  ctx.lineWidth = 2.6;
+  ctx.lineWidth = 3.4;
   ctx.lineCap = 'butt';
   ctx.beginPath();
   ctx.moveTo(mx, my);
@@ -1289,7 +1335,7 @@ function drawPersonCigarette(p) {
   ctx.stroke();
   ctx.fillStyle = '#ff6a2a';
   ctx.beginPath();
-  ctx.arc(tipx, tipy, 1.9, 0, Math.PI * 2);
+  ctx.arc(tipx, tipy, 2.5, 0, Math.PI * 2);
   ctx.fill();
 }
 
@@ -1422,13 +1468,17 @@ function drawStartScreen() {
   ctx.font = '12px sans-serif';
   ctx.fillStyle = '#9a8';
   ctx.fillText('📱 iPhone 没声音？关掉机身侧面的静音键', CX, 170);
-  // v0.13 两排设置 — 一进来就能选 (不必玩完一局才解锁)
-  drawOptRow('时长', DURS.map(d => d + ' 秒'), DURS.indexOf(settings.dur), 196, 64, 10, dy, 'dur', startOpts);
-  drawOptRow('速度', SPEEDS.map(s => s.name), settings.speed, 256, 84, 6, dy, 'speed', startOpts);
+  // v0.13 三排设置 — 一进来就能选 (不必玩完一局才解锁); v0.27 加瞄准模式
+  drawOptRow('时长', DURS.map(d => d + ' 秒'), DURS.indexOf(settings.dur), 192, 64, 10, dy, 'dur', startOpts);
+  drawOptRow('速度', SPEEDS.map(s => s.name), settings.speed, 246, 84, 6, dy, 'speed', startOpts);
+  drawOptRow('瞄准', AIMS, settings.aim, 300, 84, 6, dy, 'aim', startOpts);
+  ctx.font = '11px sans-serif';
+  ctx.fillStyle = '#778';
+  ctx.fillText(settings.aim === 1 ? '手动：直接点中烟民才出手，点空了奶茶摔地上' : '自动：点左 / 右半屏即连发，自动锁定烟民', CX, 342);
   // 开始 (设置按钮以外点哪都开始)
   ctx.font = 'bold 20px sans-serif';
   ctx.fillStyle = '#ffce5e';
-  ctx.fillText('点空白处 / 按 [空格] 开始', CX, 322);
+  ctx.fillText('点空白处 / 按 [空格] 开始', CX, 368);
   ctx.restore();
 }
 
@@ -1546,8 +1596,9 @@ function drawOverScreen() {
   ctx.fillText('再 来 一 局', CX, by + bh / 2 + 1);
   overBtn = { x: bx, y: by + dy, w: bw, h: bh };
   // v0.9 两排设置 — 默认记住上次, 点了只改设置不开局
-  drawOptRow('时长', DURS.map(d => d + ' 秒'), DURS.indexOf(settings.dur), 286, 64, 10, dy, 'dur', overOpts);
-  drawOptRow('速度', SPEEDS.map(s => s.name), settings.speed, 340, 84, 6, dy, 'speed', overOpts);
+  drawOptRow('时长', DURS.map(d => d + ' 秒'), DURS.indexOf(settings.dur), 268, 64, 10, dy, 'dur', overOpts);
+  drawOptRow('速度', SPEEDS.map(s => s.name), settings.speed, 316, 84, 6, dy, 'speed', overOpts);
+  drawOptRow('瞄准', AIMS, settings.aim, 364, 84, 6, dy, 'aim', overOpts); // v0.27
   ctx.restore();
   // v0.12 走火入魔通关: 进结算瞬间白闪一下 (爆炸的余光)
   if (!state.diedEarly && isMaxSpeed() && state.overAt) {
@@ -1765,7 +1816,7 @@ function enterOver(now) {
   state.status = 'over';
   state.overAt = now;
   state.lastFireworkAt = 0;
-  const key = settings.dur + '_' + settings.speed;
+  const key = settings.dur + '_' + settings.speed + (settings.aim === 1 ? '_m' : ''); // v0.27 手动模式单独记纪录
   state.newRecord = state.kills > 0 && state.kills > (bests[key] || 0);
   if (state.newRecord) { bests[key] = state.kills; saveBests(); }
   if (!state.diedEarly) playVictoryJingle(settings.speed);
@@ -1817,6 +1868,7 @@ function handlePointer(clientX, clientY) {
     for (const o of overOpts) {
       if (x >= o.x && x <= o.x + o.w && y >= o.y && y <= o.y + o.h) {
         if (o.type === 'dur') settings.dur = DURS[o.idx];
+        else if (o.type === 'aim') settings.aim = o.idx;
         else settings.speed = o.idx;
         saveSettings();
         return;
@@ -1829,6 +1881,7 @@ function handlePointer(clientX, clientY) {
     for (const o of startOpts) {
       if (x >= o.x && x <= o.x + o.w && y >= o.y && y <= o.y + o.h) {
         if (o.type === 'dur') settings.dur = DURS[o.idx];
+        else if (o.type === 'aim') settings.aim = o.idx;
         else settings.speed = o.idx;
         saveSettings();
         return;
@@ -1839,7 +1892,8 @@ function handlePointer(clientX, clientY) {
     return;
   }
   if (state.status !== 'playing') return;
-  triggerSide(x < CX ? 'left' : 'right');
+  if (settings.aim === 1) manualThrow(x, y);            // v0.27 手动瞄准: 点哪打哪
+  else triggerSide(x < CX ? 'left' : 'right');
 }
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
