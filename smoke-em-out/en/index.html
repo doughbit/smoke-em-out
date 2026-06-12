@@ -306,30 +306,31 @@ const SPRITE_MAX_DIM = 256;
 
 const CLOTHES = ['#7a6a55', '#4a6a8a', '#8a5a5a', '#5a7a5a', '#6a5a7a', '#9a7a4a', '#445a6a'];
 
-// ============== Asset manifest (Design B — side view) ==============
-// flat folder + naming convention: [game]-[design]-[type]-[variant]-[num].png
+// ============== Asset manifest ==============
+// v0.33 命名 convention: nosmoking-2D-<kind>-<subject>-[state]-[stage]-<seq>.png
+//   kind=person/bg/splash/hand/lineup · state=plain/smoke(仅person) · stage=cut(引擎用)/green(种子)/raw(原图)
+//   引擎只加载 cut; green/raw 是 img2img 工作文件, 留在 vault 不部署。详见 美术需求清单 §1。
 // All optional — missing files gracefully fall back to procedural placeholders.
-// v0.14: people = 一套"不叼烟"的人物图 (透明 PNG, 切图脚本已 key 成透明)。
-// 引擎给当前抽烟的人程序画香烟; 打中即停画 = 视觉上戒了。同一个人既能当烟民也能当路人。
-// v0.30: 资产只存一份在游戏根; /en/ 子路径页面要往上一级找 (修"英文版小人消失": /en/assets/ 404)
+// v0.14: people = 一套"不叼烟"(plain)的透明图; 引擎给烟民程序画烟, 打中即停 = 视觉上戒了。
+// v0.30: 资产只存一份在游戏根; /en/ 子路径页面往上一级找。
 const ASSET_BASE = /\/en(\/|$)/.test(location.pathname) ? '../assets/' : 'assets/';
 const A = f => ASSET_BASE + f;
 const ASSETS = {
-  bg: A('nosmoking-designB-bg-1.png'),
-  bgPortrait: A('nosmoking-designB-bg-portrait-1.png'), // v0.10 竖屏背景 (1024×1536)
-  splash: A('nosmoking-designB-splash-2.png'), // v0.19 飞杯动感版 (杯体+盖分离+泼洒)
-  // v0.16: 大头 Q 版 roster (全家福8 一图 10 人)
+  bg: A('nosmoking-2D-bg-stationLand-1.png'),       // 横屏背景 (待生成, 缺图回退程序画)
+  bgPortrait: A('nosmoking-2D-bg-stationPort-1.png'), // 竖屏背景 (待生成)
+  splash: A('nosmoking-2D-splash-cup-cut-2.png'),   // 飞杯动感版 (杯体+盖分离+泼洒)
+  // 大头 Q 版 roster (全家福8 一图 10 人, 切片 = plain-cut)
   people: [
-    A('nosmoking-designB-person-suit-1.png'),     // 上班族
-    A('nosmoking-designB-person-rider-1.png'),    // 外卖员
-    A('nosmoking-designB-person-fashion-1.png'),  // 潮人女
-    A('nosmoking-designB-person-worker-1.png'),   // 工人
-    A('nosmoking-designB-person-granny-1.png'),   // 拎菜阿姨
-    A('nosmoking-designB-person-student-1.png'),  // 学生
-    A('nosmoking-designB-person-nurse-1.png'),    // 护士
-    A('nosmoking-designB-person-hoodie-1.png'),   // 卫衣青年
-    A('nosmoking-designB-person-elder-1.png'),    // 老大爷
-    A('nosmoking-designB-person-office-1.png'),   // 白领女
+    A('nosmoking-2D-person-suit-plain-cut-1.png'),     // 上班族
+    A('nosmoking-2D-person-rider-plain-cut-1.png'),    // 外卖员
+    A('nosmoking-2D-person-fashion-plain-cut-1.png'),  // 潮人女
+    A('nosmoking-2D-person-worker-plain-cut-1.png'),   // 工人
+    A('nosmoking-2D-person-granny-plain-cut-1.png'),   // 阿姨(相机女)
+    A('nosmoking-2D-person-student-plain-cut-1.png'),  // 学生
+    A('nosmoking-2D-person-nurse-plain-cut-1.png'),    // 护士
+    A('nosmoking-2D-person-hoodie-plain-cut-1.png'),   // 卫衣青年
+    A('nosmoking-2D-person-elder-plain-cut-1.png'),    // 老大爷
+    A('nosmoking-2D-person-office-plain-cut-1.png'),   // 白领女
   ],
   sfxThrow: A('nosmoking-sfx-throw-1.wav'),
   sfxSplat: A('nosmoking-sfx-splat-1.wav'),
