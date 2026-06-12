@@ -252,12 +252,12 @@ function LY() { return LAYOUTS[LAYOUT_MODE]; }
 // v0.9: 可调设置 (结算页改, localStorage 记住)
 const SETTINGS_KEY = 'smoke_settings_v09';
 const SPEEDS = [
-  // v0.20: mult = 行人走路速度(主差异, 玩家 要"越高档走得越快") · dens = 出生密度(次差异)
-  //        两者分开, mult 跨度比 dens 大 → 档位递进主要体感是"人走得更快"而非只是"人更多"
-  // aoe=连锁飞溅半径; banner=横幅色
-  { name: '赶地铁',   mult: 1.25, dens: 1.15, aoe: 0,   banner: '#ffce5e' },
-  { name: '泄愤',     mult: 2.0,  dens: 1.55, aoe: 70,  banner: '#ff8c4a' },
-  { name: '走火入魔', mult: 2.9,  dens: 2.0,  aoe: 110, banner: '#ff5a3a' },
+  // mult = 行人走路速度(主差异, 越高档走得越快) · dens = 出生密度(人多寡)
+  // v0.23: 复盘后把 dens 大幅调回 — v0.20 误把密度从~2.8 砍到 2.0 + 抽烟率腰斩 → 走火入魔只剩43。
+  //        现在 dens 拉回高位, 配合 PEOPLE_META 提高的烟民率, 找回"赶地铁~25 / 泄愤~50 / 走火入魔100+"
+  { name: '赶地铁',   mult: 1.25, dens: 1.9, aoe: 0,   banner: '#ffce5e' },
+  { name: '泄愤',     mult: 2.0,  dens: 4.0, aoe: 70,  banner: '#ff8c4a' },
+  { name: '走火入魔', mult: 2.9,  dens: 7.0, aoe: 110, banner: '#ff5a3a' },
 ];
 const DURS = [20, 40, 60];
 let settings = { dur: 20, speed: 0 };
@@ -327,17 +327,18 @@ const NUM_VARIATIONS = ASSETS.people.length;
 // v0.20: 每个角色的性别 + 抽烟概率 (与 people 同序)。
 // 现实: 中国烟民 ~96% 男性; 学生/护士/小孩不抽。→ smk = 该角色被随机点成烟民的概率。
 //   男性可烟者高概率, 女性极低 (凑那 4%), 学生/护士=0。
+// v0.23: 男性可烟者概率拉高 (找回烟民数量/爽感); 仍保 学生/护士=0、女性极低 → 烟民 ~96% 男
 const PEOPLE_META = [
-  { g: 'M', smk: 0.62 }, // 0 suit 上班族
-  { g: 'M', smk: 0.62 }, // 1 rider 外卖员
-  { g: 'F', smk: 0.04 }, // 2 fashion 潮人女
-  { g: 'M', smk: 0.62 }, // 3 worker 工人
-  { g: 'F', smk: 0.05 }, // 4 granny 拎菜阿姨
+  { g: 'M', smk: 0.82 }, // 0 suit 上班族
+  { g: 'M', smk: 0.82 }, // 1 rider 外卖员
+  { g: 'F', smk: 0.05 }, // 2 fashion 潮人女
+  { g: 'M', smk: 0.8  }, // 3 worker 工人
+  { g: 'F', smk: 0.06 }, // 4 granny 拎菜阿姨
   { g: 'F', smk: 0    }, // 5 student 学生 (小孩, 永不抽)
   { g: 'F', smk: 0    }, // 6 nurse 护士 (永不抽)
-  { g: 'M', smk: 0.58 }, // 7 hoodie 卫衣青年
-  { g: 'M', smk: 0.55 }, // 8 elder 老大爷
-  { g: 'F', smk: 0.04 }, // 9 office 白领女
+  { g: 'M', smk: 0.78 }, // 7 hoodie 卫衣青年
+  { g: 'M', smk: 0.75 }, // 8 elder 老大爷
+  { g: 'F', smk: 0.05 }, // 9 office 白领女
 ];
 function metaOf(v) { return PEOPLE_META[v] || { g: 'M', smk: 0.5 }; }
 
@@ -441,81 +442,101 @@ function updateAssetStatus() {
   ].join(' · ');
 }
 
-// ============== Audio: HTML5 <audio> + JS 滤波 (v0.22) ==============
-// 结论: 玩家 的 iPhone 上只有 HTML5 audio 出声 (Web Audio 怎么弄都不响)。
-// v0.22: 回 HTML5 (有声), 但① JS 里加一阶滤波预渲染 → 音色丰富有区别(不再扁平);
-//        ② 触发极轻 (短音 + 精简池 + 预解锁) → 不卡; ③ 首次点击即解锁 → 默认有声。
-const A_RATE = 22050;
-let audioReady = false, SFX = null;
+// ============== Audio: Web Audio 直连 (v0.23 回到早期在手机/微信能出声的写法) ==============
+// 复盘: Web Audio (v0.2–v0.18) 当年在 玩家 手机+微信里有声、不卡、音色好;
+// v0.20–v0.22 为修"无声"绕去 HTML5 (塑料音 + 微信卡); v0.21 给 Web Audio 加 masterGain+静音loop
+// 反而把它弄哑。v0.23: 回最朴素 Web Audio 直连 destination (无 masterGain/无静音loop, 即早期写法),
+// 中频带滤波音色 (丰富有区别 + 手机喇叭放得出); 触发极廉价 → 不卡(含微信)。
+let audioCtx = null, audioReady = false;
 
-function wavURI(samples) {
-  const n = samples.length, ab = new ArrayBuffer(44 + n * 2), v = new DataView(ab);
-  const ws = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
-  ws(0,'RIFF');v.setUint32(4,36+n*2,true);ws(8,'WAVE');ws(12,'fmt ');v.setUint32(16,16,true);
-  v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,A_RATE,true);v.setUint32(28,A_RATE*2,true);
-  v.setUint16(32,2,true);v.setUint16(34,16,true);ws(36,'data');v.setUint32(40,n*2,true);
-  for (let i = 0; i < n; i++) { let x = Math.max(-1, Math.min(1, samples[i])); v.setInt16(44 + i * 2, x * 0x7fff, true); }
-  let bin = ''; const by = new Uint8Array(ab);
-  for (let i = 0; i < by.length; i++) bin += String.fromCharCode(by[i]);
-  return 'data:audio/wav;base64,' + btoa(bin);
+function initAudio() {
+  if (audioCtx) { if (audioCtx.state !== 'running') audioCtx.resume().catch(() => {}); return; }
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  audioCtx.resume().catch(() => {});
+  try { const b = audioCtx.createBuffer(1, 1, 22050), s = audioCtx.createBufferSource(); s.buffer = b; s.connect(audioCtx.destination); s.start(0); } catch (e) {}
+  audioReady = true;
 }
-function synth(dur, fn) { const n = A_RATE * dur | 0, s = new Float32Array(n); for (let i = 0; i < n; i++) s[i] = fn(i / A_RATE, i / n); return s; }
-// 一阶滤波: 在样本上跑一遍 = 预渲染入 WAV, 播放时零成本 (这就是音色"有层次"的来源)
-function lpf(s, cut) { const a = 1 - Math.exp(-2 * Math.PI * cut / A_RATE); let y = 0; for (let i = 0; i < s.length; i++) { y += a * (s[i] - y); s[i] = y; } return s; }
-function hpf(s, cut) { const a = 1 - Math.exp(-2 * Math.PI * cut / A_RATE); let y = 0; for (let i = 0; i < s.length; i++) { const x = s[i]; y += a * (x - y); s[i] = x - y; } return s; }
-function lpfSweep(s, c0, c1) { let y = 0; const n = s.length; for (let i = 0; i < n; i++) { const cut = c0 * Math.pow(c1 / c0, i / n); const a = 1 - Math.exp(-2 * Math.PI * cut / A_RATE); y += a * (s[i] - y); s[i] = y; } return s; }
-function gain(s, g) { for (let i = 0; i < s.length; i++) s[i] *= g; return s; }
-
-// 甩杯 = 带通噪声 whoosh (空灵)
-function sThrow() { let s = synth(0.11, (tt, t) => (Math.random() * 2 - 1) * Math.pow(1 - t, 1.0)); hpf(s, 900); lpf(s, 3400); return gain(s, 0.85); }
-// 命中 = 低通扫频湿噪 + 中音"啵" (厚实乒乓; 与甩杯明显不同)
-function sSplat() {
-  let s = synth(0.18, (tt, t) => (Math.random() * 2 - 1) * Math.pow(1 - t, 1.5)); lpfSweep(s, 3200, 600); gain(s, 0.7);
-  const n = s.length; for (let i = 0; i < n; i++) { const tt = i / A_RATE, t = i / n; s[i] += Math.sin(2 * Math.PI * (250 - 120 * t) * tt) * Math.exp(-tt * 11) * 0.6; } return s;
+function noiseBuf(dur, decay) {
+  const n = Math.floor(audioCtx.sampleRate * dur), buf = audioCtx.createBuffer(1, n, audioCtx.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, decay);
+  return buf;
+}
+// 甩杯 = 带通中频噪声 whoosh (空灵, 与命中明显不同)
+function playThrow() {
+  if (!audioCtx) return;
+  const src = audioCtx.createBufferSource(); src.buffer = noiseBuf(0.12, 1.2);
+  const f = audioCtx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1700; f.Q.value = 0.8;
+  const g = audioCtx.createGain(); g.gain.value = 0.55;
+  src.connect(f).connect(g).connect(audioCtx.destination);
+  src.start(audioCtx.currentTime);
+}
+// 命中 = 低通扫频湿噪 + 中音"啵"(260→130Hz) — 厚实乒乓
+function playSplat() {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  const src = audioCtx.createBufferSource(); src.buffer = noiseBuf(0.18, 1.6);
+  const f = audioCtx.createBiquadFilter(); f.type = 'lowpass';
+  f.frequency.setValueAtTime(3200, now); f.frequency.exponentialRampToValueAtTime(700, now + 0.18);
+  const g = audioCtx.createGain(); g.gain.value = 0.85;
+  src.connect(f).connect(g).connect(audioCtx.destination);
+  src.start(now);
+  const osc = audioCtx.createOscillator(), og = audioCtx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(260, now); osc.frequency.exponentialRampToValueAtTime(130, now + 0.1);
+  og.gain.setValueAtTime(0.6, now); og.gain.exponentialRampToValueAtTime(0.01, now + 0.13);
+  osc.connect(og).connect(audioCtx.destination);
+  osc.start(now); osc.stop(now + 0.13);
 }
 // 开局叮 = 上行两三角音
-function sDing() { return synth(0.42, (tt) => (Math.sin(2 * Math.PI * 660 * tt) * Math.exp(-tt * 7) + (tt > 0.1 ? Math.sin(2 * Math.PI * 990 * (tt - 0.1)) * Math.exp(-(tt - 0.1) * 7) : 0)) * 0.45 * Math.min(1, tt * 100)); }
-// 连击 = 清亮方波叮 (纯乐音, 与噪声类的甩杯/命中拉开区别)
-function sCombo() { return synth(0.12, (tt) => Math.sign(Math.sin(2 * Math.PI * 840 * tt)) * Math.exp(-tt * 22) * 0.3); }
-// 胜利琶音
-function sWin() { return synth(0.72, (tt) => { let v = 0; [523, 659, 784, 1047].forEach((f, k) => { const o = k * 0.1; if (tt > o) v += Math.sign(Math.sin(2 * Math.PI * f * (tt - o))) * Math.exp(-(tt - o) * 5) * 0.16; }); return v; }); }
+function playStartDing() {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  [660, 990].forEach((freq, i) => {
+    const t = now + 0.04 + i * 0.1;
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'triangle'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0, t); g.gain.linearRampToValueAtTime(0.4, t + 0.01); g.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+    o.connect(g).connect(audioCtx.destination); o.start(t); o.stop(t + 0.2);
+  });
+}
+// 连击 = 方波叮, 音高随连击上升 (纯乐音, 与噪声类的甩杯/命中拉开)
+function playComboChime(level) {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = 'square'; o.frequency.setValueAtTime(620 + (level || 0) * 70, now);
+  g.gain.setValueAtTime(0.18, now); g.gain.exponentialRampToValueAtTime(0.01, now + 0.11);
+  o.connect(g).connect(audioCtx.destination); o.start(now); o.stop(now + 0.11);
+}
+// 胜利小号 = 上行琶音, 档越高音越多; 最高档加爆破白噪
+function playVictoryJingle(level) {
+  if (!audioCtx) return;
+  const t0 = audioCtx.currentTime + 0.05, top = SPEEDS.length - 1;
+  const notes = level >= top ? [392, 523, 659, 784, 1047] : level >= top - 1 ? [392, 523, 659, 784] : [523, 659, 784];
+  notes.forEach((f, i) => {
+    const t = t0 + i * 0.09;
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'square'; o.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(0.18, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.22);
+    o.connect(g).connect(audioCtx.destination); o.start(t); o.stop(t + 0.22);
+  });
+  if (level >= top) {
+    const src = audioCtx.createBufferSource(); src.buffer = noiseBuf(0.5, 2);
+    const f = audioCtx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1800;
+    const g = audioCtx.createGain(); g.gain.value = 0.5;
+    src.connect(f).connect(g).connect(audioCtx.destination); src.start(t0);
+  }
+}
 // 列车进站 = 低通锯齿扫频
-function sTrain() { let s = synth(1.0, (tt, t) => (2 * ((( (90 + 130 * t) * tt) % 1)) - 1) * Math.min(1, t * 3) * (1 - t)); lpf(s, 700); return gain(s, 0.6); }
-
-function audPool(uri, size) {
-  const arr = []; for (let i = 0; i < size; i++) { const a = new Audio(); a.src = uri; a.preload = 'auto'; arr.push(a); }
-  let k = 0;
-  return { els: arr, play(vol) { const a = arr[k = (k + 1) % size]; try { a.currentTime = 0; a.volume = vol == null ? 1 : vol; const p = a.play(); if (p) p.catch(() => {}); } catch (e) {} } };
+function playTrainArrive() {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+  osc.type = 'sawtooth'; osc.frequency.setValueAtTime(70, now); osc.frequency.linearRampToValueAtTime(150, now + 0.9);
+  g.gain.setValueAtTime(0.0, now); g.gain.linearRampToValueAtTime(0.22, now + 0.3); g.gain.exponentialRampToValueAtTime(0.01, now + 1.4);
+  const f = audioCtx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 600;
+  osc.connect(f).connect(g).connect(audioCtx.destination); osc.start(now); osc.stop(now + 1.4);
 }
-function buildSfx() {
-  if (SFX) return;
-  SFX = {
-    throw: audPool(wavURI(sThrow()), 4),
-    splat: audPool(wavURI(sSplat()), 4),
-    ding:  audPool(wavURI(sDing()), 1),
-    combo: audPool(wavURI(sCombo()), 3),
-    win:   audPool(wavURI(sWin()), 1),
-    train: audPool(wavURI(sTrain()), 1),
-  };
-}
-// 首次手势里调用: 静音逐个 play→pause 解锁所有 audio (iOS 要求)。开局点屏幕即触发 → 默认有声。
-function initAudio() {
-  buildSfx();
-  if (audioReady) return;
-  audioReady = true;
-  Object.values(SFX).forEach(p => p.els.forEach(a => {
-    const vol = a.volume; a.volume = 0;
-    const pr = a.play();
-    if (pr) pr.then(() => { a.pause(); a.currentTime = 0; a.volume = vol; }).catch(() => { a.volume = vol; });
-    else a.volume = vol;
-  }));
-}
-function playThrow() { if (SFX) SFX.throw.play(0.6); }
-function playSplat() { if (SFX) SFX.splat.play(0.95); }
-function playStartDing() { if (SFX) SFX.ding.play(0.95); }
-function playComboChime() { if (SFX) SFX.combo.play(0.7); }
-function playVictoryJingle() { if (SFX) SFX.win.play(0.95); }
-function playTrainArrive() { if (SFX) SFX.train.play(0.9); }
 
 // ============== Canvas ==============
 const canvas = document.getElementById('canvas');
@@ -924,7 +945,8 @@ function update() {
 
     // spawn — rate escalates over the round
     // v0.8: 提速 + 按 lane 数补密度; v0.9: 速度档进一步加密
-    const interval = (900 - progress() * 560) / PACE / (LANES.length / 3) / densMult(); // v0.20 密度用 dens
+    // v0.23: 道数→密度 改用 sqrt 放缓 (竖屏6道不再硬翻倍, 否则桃心被冲爆); 密度用 dens
+    const interval = (900 - progress() * 560) / PACE / Math.sqrt(LANES.length / 3) / densMult();
     if (now - state.lastSpawnTime > interval) {
       spawnPerson();
       state.lastSpawnTime = now;
