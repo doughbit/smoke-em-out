@@ -2,11 +2,3519 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="refresh" content="0; url=https://herstory.doughbit.ai/game/">
-<script>location.replace('https://herstory.doughbit.ai/game/');</script>
-<title>HERSTORY</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>HERSTORY — 十八棒接力 · 1848→2026</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: #2b2218;
+    font-family: Georgia, "Songti SC", "STSong", SimSun, serif;
+    color: #2b2218;
+    display: flex;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  #app {
+    width: 100%;
+    max-width: 430px;
+    min-height: 100%;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(255,250,235,0.55), rgba(0,0,0,0) 70%),
+      linear-gradient(180deg, #efe5cd 0%, #e8dcc0 55%, #ded0b0 100%);
+    box-shadow: 0 0 60px rgba(0,0,0,0.6);
+    display: flex;
+    flex-direction: column;
+    padding: 12px 16px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  #masthead { text-align: center; border-bottom: 3px double #5a4a32; padding-bottom: 6px; margin-bottom: 8px; }
+  #masthead h1 { font-size: 21px; letter-spacing: 6px; font-weight: normal; color: #3a2d1c; }
+  #masthead .sub { font-size: 10.5px; color: #7a684c; letter-spacing: 2px; margin-top: 2px; }
+  #stats { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 8px; }
+  .stat { flex: 1; text-align: center; position: relative; }
+  .stat .dot { height: 16px; font-size: 12px; line-height: 16px; color: #6b4a1f; opacity: 0; transition: opacity 0.1s; }
+  .stat .icon { font-size: 20px; line-height: 1.1; filter: sepia(0.4); }
+  .stat .label { font-size: 10px; color: #6a5a3e; letter-spacing: 1px; }
+  .stat .bar { height: 6px; background: rgba(90,74,50,0.25); border: 1px solid #5a4a32; margin-top: 2px; }
+  .stat .fill { height: 100%; background: #6b4a1f; transition: width 0.3s ease; }
+  .stat.flash-up .fill { background: #3e6b2f; }
+  .stat.flash-down .fill { background: #9c2f22; }
+  #dateline { text-align: center; font-size: 12.5px; font-style: italic; color: #6a5a3e; margin-bottom: 8px; min-height: 16px; }
+  #stage { flex: 1; position: relative; min-height: 350px; }
+  .card {
+    position: absolute; inset: 0; margin: auto;
+    width: 100%; max-width: 360px; height: 100%; max-height: 410px;
+    background: linear-gradient(180deg, #faf3e0, #f0e6cb);
+    border: 1px solid #8a7654;
+    box-shadow: 0 0 0 4px #faf3e0, 0 0 0 5px #8a7654, 0 14px 30px rgba(40,28,12,0.45);
+    padding: 16px 18px 50px;
+    display: flex; flex-direction: column; align-items: center;
+    touch-action: none; cursor: grab;
+  }
+  .card.behind { transform: scale(0.94) translateY(10px); filter: brightness(0.96); pointer-events: none; }
+  .card.special { background: linear-gradient(180deg, #efe2c4, #e2d2ac); }
+  .cameo {
+    width: 58px; height: 70px; border-radius: 50%;
+    background: radial-gradient(circle at 38% 32%, #4a3a26, #2b2218 75%);
+    border: 3px solid #8a7654; box-shadow: inset 0 0 12px rgba(0,0,0,0.7);
+    display: flex; align-items: center; justify-content: center;
+    color: #e8dcc0; font-size: 22px; margin-bottom: 6px; flex: 0 0 auto;
+  }
+  .speaker { font-size: 15px; font-weight: bold; color: #3a2d1c; text-align: center; }
+  .role { font-size: 11px; color: #7a684c; font-style: italic; text-align: center; margin-bottom: 8px; }
+  .quote {
+    font-size: 12.5px; font-style: italic; color: #5a4a32; text-align: center;
+    border-top: 1px solid rgba(138,118,84,0.45); border-bottom: 1px solid rgba(138,118,84,0.45);
+    padding: 6px 4px; margin-bottom: 8px; line-height: 1.5;
+  }
+  .text { font-size: 15.5px; line-height: 1.8; color: #2b2218; text-align: justify; overflow-y: auto; }
+  .hintL, .hintR { /* 浮现在卡片中上部(盖住头像图标位), 划出屏幕也看得见且显眼 */
+    position: absolute; top: 10%; left: 50%; transform: translateX(-50%);
+    font-size: 14.5px; font-weight: bold; text-align: center;
+    padding: 8px 14px; border: 1px solid #8a7654; background: rgba(250,243,224,0.97);
+    box-shadow: 0 2px 10px rgba(40,28,12,0.35);
+    opacity: 0; transition: opacity 0.1s; max-width: 84%; pointer-events: none; z-index: 6;
+  }
+  .hintL { color: #7a2d22; }
+  .hintR { color: #2d5a2a; }
+  .notesBtn { /* 本棒史实注脚: 卡底横幅按钮, 点开浮层/再点收起, 不挡结束语不碍滑卡 */
+    position: absolute; left: 12px; right: 12px; bottom: 10px;
+    font-size: 11px; letter-spacing: 1px; text-align: center;
+    padding: 6px 4px; border: 1px solid #8a7654; background: rgba(250,243,224,0.95);
+    color: #6b4a1f; cursor: pointer; z-index: 4;
+  }
+  .notesBtn:active { background: #d9c9a3; }
+  .notesPanel {
+    position: absolute; left: 8px; right: 8px; top: 8px; bottom: 44px;
+    background: linear-gradient(180deg, #faf3e0, #f0e6cb);
+    border: 1px solid #8a7654; box-shadow: 0 6px 18px rgba(40,28,12,0.4);
+    padding: 10px 12px; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    touch-action: pan-y; display: none; z-index: 5;
+  }
+  .notesPanel.open { display: block; }
+  .cardNotesHead { font-size: 10px; letter-spacing: 2px; color: #7a684c; text-align: center; margin-bottom: 3px; }
+  #muteBtn {
+    position: fixed; top: 8px; right: 8px; z-index: 40;
+    font-family: inherit; font-size: 13px; padding: 3px 8px; cursor: pointer;
+    background: rgba(250,243,224,0.75); border: 1px solid #8a7654; color: #6b4a1f;
+  }
+  #coverScreen { /* 封面: 标题+三行+点任意处开始 (Reigns 式零说明书, 机制让头几张卡自己教) */
+    position: absolute; inset: 0; z-index: 50; cursor: pointer;
+    background: linear-gradient(180deg, #efe5cd, #ded0b0);
+    display: none; flex-direction: column; justify-content: center; align-items: center;
+    padding: 30px 26px; text-align: center;
+  }
+  #coverScreen.show { display: flex; }
+  #coverTitle { font-size: 34px; letter-spacing: 8px; color: #3a2d1c; font-weight: normal; margin: 0 0 6px; }
+  #coverYears { font-size: 13px; letter-spacing: 4px; color: #7a684c; border-top: 3px double #5a4a32; border-bottom: 3px double #5a4a32; padding: 6px 14px; margin-bottom: 26px; }
+  .coverLine { font-size: 14px; line-height: 1.9; color: #2b2218; max-width: 340px; margin-bottom: 14px; }
+  .coverHint { font-size: 12px; color: #7a684c; }
+  #coverCta { margin-top: 30px; font-size: 14px; letter-spacing: 3px; color: #6b4a1f; animation: coverPulse 1.6s ease-in-out infinite; }
+  @keyframes coverPulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+  #choices { display: flex; gap: 10px; margin-top: 10px; min-height: 58px; }
+  .choiceBtn {
+    flex: 1; font-family: inherit; font-size: 13px; line-height: 1.4;
+    padding: 8px 9px; background: rgba(250,243,224,0.7);
+    border: 1px solid #8a7654; color: #3a2d1c; cursor: pointer;
+  }
+  .choiceBtn:active { background: #d9c9a3; }
+  .choiceBtn .arrow { font-size: 10.5px; color: #9a8662; display: block; margin-bottom: 2px; }
+  #foot { text-align: center; font-size: 10px; color: #8a7a5c; margin-top: 8px; line-height: 1.5; }
+  kbd { border: 1px solid #8a7654; padding: 0 4px; font-family: inherit; background: rgba(250,243,224,0.7); }
+  #endScreen {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, #efe5cd, #ded0b0);
+    display: none; flex-direction: column;
+    padding: 24px 22px 18px; overflow-y: auto; z-index: 30;
+  }
+  #endScreen.show { display: flex; }
+  #endTitle {
+    font-size: 25px; letter-spacing: 4px; text-align: center; color: #3a2d1c;
+    border-bottom: 3px double #5a4a32; padding-bottom: 9px; margin-bottom: 12px; font-weight: normal;
+  }
+  #endBody { font-size: 14px; line-height: 1.75; text-align: justify; color: #2b2218; }
+  .genline { margin-top: 7px; padding-left: 10px; border-left: 3px solid #8a7654; font-size: 13.5px; line-height: 1.6; }
+  .mile { display: inline-block; margin: 3px 4px 0 0; padding: 2px 8px; font-size: 12px;
+          border: 1px solid #8a7654; background: rgba(250,243,224,0.8); color: #6b4a1f; }
+  .mile.off { opacity: 0.35; border-style: dashed; }
+  #endNoteHead { margin-top: 16px; font-size: 12px; letter-spacing: 3px; color: #7a684c;
+    border-bottom: 1px solid #8a7654; padding-bottom: 4px; }
+  .footnote { font-size: 12px; line-height: 1.6; color: #4a3c28; margin-top: 8px;
+    padding-left: 11px; border-left: 2px solid rgba(138,118,84,0.5); }
+  #restart {
+    margin: 20px auto 4px; font-family: inherit; font-size: 15px; letter-spacing: 3px;
+    padding: 10px 30px; background: #3a2d1c; color: #e8dcc0; border: 1px solid #8a7654; cursor: pointer;
+  }
+</style>
 </head>
-<body>
-<p><a href="https://herstory.doughbit.ai/game/">&rarr; HERSTORY</a></p>
+<body><div id="app">
+  <div id="masthead">
+    <h1>HERSTORY</h1>
+    <div class="sub" id="eraBanner">四波 · 十八棒 · 1848 → 2026</div>
+  </div>
+  <button id="muteBtn" title="音效开关">🔊</button>
+  <div id="coverScreen" class="show">
+    <h2 id="coverTitle">HERSTORY</h2>
+    <div id="coverYears">1848 — 2026</div>
+    <div class="coverLine">一场 178 年的接力：十八棒，每棒一位女性。<br>左滑右滑，替她做选择。</div>
+    <div class="coverLine">五条刻度——空了会死，满了也会死。<br>死了不要紧：下一棒，接着跑。</div>
+    <div class="coverHint">一棒约一分钟 · 中途退出，回来可从当前棒继续</div>
+    <div id="coverCta">—— 点任意处，接过第一棒 ——</div>
+  </div>
+  <div id="stats"></div>
+  <div id="dateline"></div>
+  <div id="stage"></div>
+  <div id="choices">
+    <button class="choiceBtn" id="btnL"><span class="arrow">◀ 左滑</span><span id="btnLText"></span></button>
+    <button class="choiceBtn" id="btnR"><span class="arrow">右滑 ▶</span><span id="btnRText"></span></button>
+  </div>
+  <div id="foot">
+    拖卡片 / 点选项 / <kbd>←</kbd><kbd>→</kbd><br>
+    空了会死，满了会死，有些卡看着无害——也会死。死了，下一代接着来。
+  </div>
+  <div id="endScreen">
+    <h2 id="endTitle"></h2>
+    <div id="endBody"></div>
+    <div id="endNoteHead">史 实 注 脚</div>
+    <div id="endNotes"></div>
+    <button id="restart">再 来 一 次 接 力</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+//  HERSTORY — 女性运动史滑卡游戏 · 18 棒接力 1848→2026
+
+const FX_SCALE = 1.6;
+
+// ---------------- 音效 (Web Audio 程序合成 · 零素材零授权) ----------------
+let audioCtx = null;
+let muted = false;
+try { muted = localStorage.getItem('herstory_mute') === '1'; } catch (e) {}
+function ac() {
+  if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+function sfxTone(freq, dur, type, vol, when, slideTo) {
+  const ctx = ac(); if (!ctx || muted) return;
+  const t0 = ctx.currentTime + (when || 0);
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type || 'sine';
+  o.frequency.setValueAtTime(freq, t0);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol || 0.12, t0 + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(ctx.destination);
+  o.start(t0); o.stop(t0 + dur + 0.05);
+}
+function sfxNoise(dur, vol, freq) { // 纸页摩挲
+  const ctx = ac(); if (!ctx || muted) return;
+  const len = Math.floor(ctx.sampleRate * dur);
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq || 2400; f.Q.value = 0.8;
+  const g = ctx.createGain(); g.gain.value = vol || 0.1;
+  src.connect(f); f.connect(g); g.connect(ctx.destination);
+  src.start();
+}
+const SFX = {
+  death() { // "下坠但有喜感": 长号式 wah-wah-wah-waaah 四连降 (游戏不想太沉重)
+    sfxTone(294, 0.18, 'triangle', 0.13, 0,    277);
+    sfxTone(277, 0.18, 'triangle', 0.13, 0.20, 262);
+    sfxTone(262, 0.18, 'triangle', 0.13, 0.40, 247);
+    sfxTone(247, 0.70, 'triangle', 0.14, 0.60, 175); // 末音长拖下滑
+  },
+  era()   { sfxTone(392, 0.22, 'triangle', 0.09); sfxTone(523.25, 0.30, 'triangle', 0.09, 0.16); },   // 两音上行=接棒
+  survive() { // 活过时代: 明朗大三和弦琶音 + 顶端一点闪光
+    sfxTone(523.25, 0.16, 'triangle', 0.10);
+    sfxTone(659.25, 0.16, 'triangle', 0.10, 0.11);
+    sfxTone(783.99, 0.30, 'triangle', 0.11, 0.22);
+    sfxTone(1567.98, 0.35, 'sine', 0.05, 0.30);
+  },
+  notesOpen() { // "开卷": 博物馆讲解器式双音铃 = cue 进补充材料层
+    sfxTone(880, 0.18, 'sine', 0.08);
+    sfxTone(1174.66, 0.5, 'sine', 0.08, 0.14);
+    sfxTone(2349.3, 0.4, 'sine', 0.025, 0.14); // 高八度泛音, 一点铃感
+  },
+  notesClose() { // "合卷": 反向短铃
+    sfxTone(1174.66, 0.12, 'sine', 0.06);
+    sfxTone(880, 0.3, 'sine', 0.06, 0.10);
+  },
+};
+let skipEraSfx = false; // 善终琶音之后, 紧跟的转场卡不再叠接棒音
+
+const STATS = [
+  { key: 'body',   icon: '🫀', label: '身体' },
+  { key: 'money',  icon: '💰', label: '钱' },
+  { key: 'voice',  icon: '📣', label: '话语' },
+  { key: 'people', icon: '🤝', label: '人缘' },
+  { key: 'self',   icon: '🔥', label: '自我' },
+];
+
+const ERAS = [
+// ═══════════════ N01: 1848 Seneca Falls ═══════════════
+{
+  id: 'N01', banner: '第 1 棒 · 1848 · 纽约州 Seneca Falls',
+  protag: '手套女工，19 岁',
+  transitionIn: null,
+  open: {
+    id: 'N01-OPEN',
+    d: '1848 年 7 月 · Seneca Falls', sp: '父亲', role: '收工钱的人', cameo: '♠',
+    t: '"丫头，手套钱我先替你存着——你迟早要嫁人，到时候嫁妆上，爹还能亏待你？"他把钱袋收进怀里，等你点头。',
+    L: { lab: '"……谢谢爹。"', fx: { money: -4, self: -5, people: +3 } },
+    R: { lab: '"存着的钱，我能看一眼吗？"', fx: { money: +2, self: +5 } },
+    note: 'Coverture（婚内隐没）：已婚女性法律人格并入丈夫。Blackstone："夫妻在法律上是一个人，而那个人是丈夫。"——这不是讽刺，是当年的法学教科书。',
+  },
+  packs: [
+  [ // P1 大会
+    { id: 'N01-P1-C1',
+      d: '7 月 19 日 清晨', sp: 'McClintock 家的女儿', role: '锁着的教堂门外', cameo: '☙',
+      t: '"门锁了！钥匙找不着，全镇都堵在外头——嘿，就你最瘦。那扇窗……你敢不敢？"',
+      L: { lab: '"我不敢。"', fx: { people: +3, self: -4 } },
+      R: { lab: '"扶我一把。"', fx: { voice: +7, self: +6, people: -3 } },
+      note: '史实：1848-07-19 教堂门确实锁了，是人从窗户爬进去开的门。女权运动的物理起点：一扇没锁严的窗。' },
+    { id: 'N01-P1-C2',
+      d: '7 月 20 日 表决', sp: 'Lucretia Mott', role: '盟友 · 也是反对这一条的人', cameo: 'M',
+      q: '“Lizzie, thee will make us ridiculous.”',
+      t: '"孩子，十一项都过了。第九项——投票权——会让我们沦为笑柄。我会投反对。你呢？"',
+      L: { lab: '"您说得对。"', fx: { people: +6, voice: -7, self: -6 } },
+      R: { lab: '（举手）', fx: { voice: +8, self: +7, people: -6 }, mile: 'res9' },
+      note: '第九项决议差点被否决——"会显得我们荒唐"。后来历史证明：荒唐的是另一边。' },
+    { id: 'N01-P1-C3',
+      d: '7 月 20 日 傍晚', sp: 'Elizabeth Cady Stanton', role: '递笔的人', cameo: 'S',
+      t: '"已经有一百个名字了。想清楚——上了这张纸，你的名字就再也擦不掉了。签吗？"',
+      L: { lab: '"我的名字不重要。"', fx: { people: +4, self: -8 } },
+      R: { lab: '（接过笔）', fx: { voice: +7, self: +7, money: -5, people: -5 }, mile: 'sign1848' },
+      note: '约 100 人签署。19 岁手套女工 Charlotte Woodward 也签了——72 年后，她是唯一活着看到第十九修正案的签署者。' },
+  ],
+  [ // P2 家
+    { id: 'N01-P2-C1',
+      d: '7 月 12 日', sp: '父亲', role: '晚饭桌上', cameo: '♠',
+      t: '"教堂里都说那大会是出闹剧。再去——这个月的工钱你一分别想见着。听见没有？"',
+      L: { lab: '"听见了。"', fx: { money: +6, people: +4, self: -8, voice: -5 } },
+      R: { lab: '"那钱我本来也见不着。"', fx: { self: +8, money: -7 } },
+      note: '1848 年 4 月纽约州刚通过《已婚妇女财产法》——只保继承财产。女儿挣的工资归父亲，这不在改革清单上。' },
+    { id: 'N01-P2-C2',
+      d: '7 月 30 日', sp: '邻镇农场主', role: '求婚者 · 诚意满满', cameo: '♞',
+      q: '“My wife works as hard as I do; but the farm is mine.”',
+      t: '"四十亩地，两头牛。嫁给我，你这辈子都不用为钱操心——操心是男人的事，你只管把家照顾好。点个头？"',
+      L: { lab: '（点头）', fx: { money: +7, people: +6, self: -9, body: -5 } },
+      R: { lab: '"让我再想想。"', fx: { self: +6, people: -5, money: -4 } },
+      note: 'Coverture 的字面意思是"covered"——婚后的女人被丈夫"罩着"，法律上不再存在。求婚是这个时代唯一合法的并购要约。' },
+    { id: 'N01-P2-C3',
+      d: '7 月 31 日 深夜', sp: '母亲', role: '烛火边', cameo: '♡',
+      t: '她替你掖好被角，像小时候那样。"我这辈子，就这样过来的。也没什么不好。——你为什么偏偏不能？"',
+      L: { lab: '"……也许您是对的。"', fx: { people: +5, self: -9 } },
+      R: { lab: '"妈，你值得更多。"', fx: { self: +7, body: -3 } },
+      note: '最沉默的阻力是被这套秩序消耗一生、因而必须相信它有意义的人——否定它，等于否定她自己的一生。' },
+  ],
+  [ // P3 生计
+    { id: 'N01-P3-C1',
+      d: '7 月 29 日', sp: '洛厄尔工厂代理人', role: '金表链 · 慈善家口吻', cameo: '$',
+      t: '"基督教宿舍！固定工资！攒嫁妆！一周一块七毛五，姑娘——签个字，明天就跟车走？"',
+      L: { lab: '"我留下缝手套。"', fx: { body: +4, money: -4 } },
+      R: { lab: '"我去。"', fx: { money: +10, body: -9, self: +4 } },
+      note: '他没提的：十三小时工班，棉絮飞进肺里。Lowell mill girls 用美国最早的女性罢工（1834/1836）回应了这份"恩惠"。' },
+    { id: 'N01-P3-C2',
+      d: '8 月 2 日', sp: 'Catharine Beecher', role: '名教育家 · 反投票权', cameo: 'B',
+      q: '“Her empire is the heart, not the ballot.”',
+      t: '"我可以举荐你去女校执教——体面，有薪水。条件只有一个：离开那场大会的圈子。我这是在保护你，孩子。你接受吗？"',
+      L: { lab: '"我接受。"', fx: { money: +9, voice: -8, self: -6 } },
+      R: { lab: '"谢谢您的笼子。"', fx: { self: +7, money: -5 } },
+      note: 'Beecher 支持女性受教育、反对女性投票——"我们是在保护女性真正的力量"。这套话术 130 年后还能用，Schlafly 试过，好使。' },
+    { id: 'N01-P3-C3',
+      d: '8 月 5 日', sp: '父亲', role: '听说了遗嘱的事', cameo: '♠',
+      t: '"你外婆老糊涂了。地登在丫头名下，往后给你说亲都难——爹这是为你着想。明天去把登记改了，啊？"',
+      L: { lab: '"……改了吧。"', fx: { people: +4, money: -5, self: -5 } },
+      R: { lab: '"四月的新法说，可以归我。"', fx: { money: +8, people: -5, self: +5 } },
+      note: 'MWPA 1848：已婚女性可以保留继承财产了。有趣的边界：外婆给的地可以归你；你自己挣的工钱——归父亲。' },
+  ],
+  [ // P4 风暴
+    { id: 'N01-P4-C1',
+      d: '7 月 23 日 礼拜日', sp: '本镇牧师', role: '散场后拦住你', cameo: '✝',
+      q: '“Suffer not a woman to teach... but to be in silence.”',
+      t: '"姐妹，今天的经文你听见了。回到你的本分——这件事，到此为止。好吗？"',
+      L: { lab: '（低头）', fx: { people: +7, voice: -8, self: -6 } },
+      R: { lab: '"经文我自己会读。"', fx: { people: -10, voice: +6, self: +8 } },
+      note: '讲坛是那个年代覆盖率最高的每周定向推送。被教会除名 ≈ 小镇社交性死亡——算法封号的 1848 年版本。' },
+    { id: 'N01-P4-C2',
+      d: '7 月 26 日', sp: '邻家姑娘', role: '攥着报纸跑来', cameo: '☙',
+      q: '“The most shocking and unnatural incident in the history of womanity.”',
+      t: '"报上管咱们叫『穿衬裙的政客』，还现造了个词骂咱们！已经有人去撤名字了……你撤吗？"',
+      L: { lab: '"撤。求个清净。"', fx: { people: +6, self: -11, voice: -6 } },
+      R: { lab: '"名字留着。"', fx: { self: +8, people: -6 } },
+      note: '为了嘲讽你们，报纸现造了一个词（womanity）。嘲讽性转载反而让宣言传遍全国——黑红也是红，1848 年就是这样了。' },
+    { id: 'N01-P4-C3',
+      d: '8 月 1 日', sp: 'James G. Bennett', role: '《纽约先驱报》创办人', cameo: '※',
+      t: '"我会全文刊登你们的宣言——配上我的标题：『亚马逊女人国大会』。怎么样，要出名吗，小姑娘？"',
+      L: { lab: '"不要这种名。"', fx: { self: -6, voice: -3 } },
+      R: { lab: '"印吧。替你数着发行量。"', fx: { voice: +8, self: +4 } },
+      note: 'Bennett 一边骂"荒唐"一边全文转载——嘲讽 = 销量 = 传播。注意力经济不是新发明，只是换了服务器。' },
+  ],
+  ],
+  hazards: [
+    { id: 'N01-HAZ-A',
+      d: '1849 年夏', sp: '邻居大婶', role: '提着两只木桶', cameo: '☂',
+      t: '"牧师家的井今儿全镇都去打水，就数它旺！我帮你也捎一桶？"',
+      L: { lab: '"家里水缸还满着。"', fx: { people: -2 } },
+      R: { lab: '"那敢情好。"', kill: 'cholera' },
+      note: '1849 年纽约州霍乱大流行，经水传播。当时主流医学坚信霍乱来自"瘴气"，喝水没事——疫情地图上，死的全是水井周围的人。' },
+    { id: 'N01-HAZ-B',
+      d: '某个深夜', sp: '产婆', role: '拍门声', cameo: '☾',
+      t: '"隔壁难产！医生在二十里外——快搭把手，就缺你一双手！"',
+      L: { lab: '"我、我不敢看血……"', fx: { people: -4, self: -3 } },
+      R: { lab: '"来了！"', kill: 'fever' },
+      note: '产褥热经接生者的双手传播。Semmelweis 1847 年刚提出"洗手能救命"，被全欧洲医学界群嘲——绅士的手，怎么会脏呢。' },
+  ],
+  finale: {
+    id: 'N01-FIN',
+    d: '8 月 1 日', sp: 'Amy Post', role: 'Rochester 贵格会', cameo: 'P',
+    t: '"两周后 Rochester 再开一场——这次主席由女人担任。他们说天要塌。你来看吗？"',
+    L: { lab: '"这个夏天够长了。"', fx: { self: -5, voice: -4 } },
+    R: { lab: '"去看天塌。"', fx: { voice: +7, self: +6, people: +4 }, mile: 'rochester' },
+    note: '1848-08-02，Abigail Bush 成为美国第一位主持公共会议的女性。天没有塌。',
+  },
+},
+// ═══════════════ N02: 1851–1896 美国 ═══════════════
+{
+  id: 'N02', banner: '第 2 棒 · 1851–1896 · 俄亥俄 → 孟菲斯 → 华盛顿',
+  protag: '自由黑人女裁缝',
+  transitionIn: {
+    t: '三年后，俄亥俄。另一个女人接过故事。北方是"自由"的——自由地给白人缝衣裳，或者，在烧得掉的校舍里教自由民认字。',
+  },
+  // 职业随机: 裁缝(原线) / 自由民学校教师 (重建期数千黑人女教师)
+  roles: [
+    { protag: '自由黑人女裁缝', packs: [0, 1, 2, 3] },
+    { protag: '自由民学校教师，24 岁', packs: [4, 0, 1],
+      open: {
+        id: 'N02-OPEN-B',
+        d: '1866 年 · 自由民学校', sp: '学校督导', role: '北方来的 · 翻着点名册', cameo: '♔',
+        t: '"六十个学生，从六岁到六十岁，全都要从字母学起。薪水是白人教师的一半——你还干吗？"',
+        L: { lab: '"一半也比没有强。"', fx: { money: +2, self: -2 } },
+        R: { lab: '"干。但请把『一半』写进报告——我每年都会问一次。"', fx: { voice: +4, self: +5, money: -1 } },
+        note: '重建期的自由民学校：数千名黑人女教师在校舍被烧毁与重建之间教书。识字曾经是非法的——所以每一个字母都是政治。',
+      },
+    },
+  ],
+  open: {
+    id: 'N02-OPEN',
+    d: '1851 年 5 月 · 阿克伦', sp: '白人太太', role: '客厅女主人', cameo: '♛',
+    t: '"玛丽，把茶续上——我们正在讨论妇女的权利呢，多么激动人心的时代！"她们讨论了一下午，没人问你坐哪。',
+    L: { lab: '（续茶）', fx: { self: -5, money: +3 } },
+    R: { lab: '"太太——哪些妇女？"', fx: { self: +5, voice: +3 } },
+    note: '1851 年阿克伦妇女权利大会前夜。"妇女"这个词指谁，马上要被现场检验。',
+  },
+  packs: [
+  [ // P1 阿克伦
+    { id: 'N02-P1-C1',
+      d: '1851 年 5 月 29 日', sp: '大会主持人', role: '为难地环视全场', cameo: '♛',
+      q: '“I am a woman\'s rights.” — 她即将说出的话',
+      t: '高个子黑人女性起身要发言。白人席炸了："别让她讲，议题会被搅混！"主持人看向后排——看向你们。"诸位的意思是？"',
+      L: { lab: '（沉默）', fx: { self: -7, people: +3 } },
+      R: { lab: '"让她讲！"', fx: { voice: +7, self: +7, people: -3 }, mile: 'akron' },
+      note: '同时代记录里 Truth 说的是 "I am a woman\'s rights"；流传更广的 "Ain\'t I a Woman" 是 12 年后白人编辑加工的版本——连她的名言都被人代笔了。' },
+    { id: 'N02-P1-C2',
+      d: '会后', sp: 'Sojourner Truth', role: '走廊里拦住你', cameo: 'T',
+      t: '"十一个孩子，卖掉了好几个。我走过的路比这大会长。——你识字吗，姑娘？"',
+      L: { lab: '（摇头走开）', fx: { self: -5 } },
+      R: { lab: '"我偷学的。"', fx: { voice: +5, self: +6 } },
+      note: 'Truth 生于纽约州，母语是荷兰语——后人把她改写成"南方黑人口音"。她本人从未去过南方种植园。' },
+    { id: 'N02-P1-C3',
+      d: '1852 年', sp: '白人女士', role: '缝纫互助会 · 满脸诚恳', cameo: '♛',
+      t: '"亲爱的，我们想邀请你入会！"她顿了顿。"只是聚会时你坐后排——姐妹情谊嘛，你理解的，对吧？"',
+      L: { lab: '"……后排也是进门。"', fx: { people: +5, voice: -4, self: -6 } },
+      R: { lab: '"我们自己办一个。"', fx: { people: -3, voice: +5, self: +7 } },
+      note: '"姐妹情谊，但社交安排分开"——1899 年白人妇女俱乐部总会正式投票把这句话变成了制度。' },
+  ],
+  [ // P2 决裂 1869
+    { id: 'N02-P2-C1',
+      d: '1869 年', sp: '姐妹会成员', role: '把报纸拍在你面前', cameo: '☙',
+      q: '“Give it to the most intelligent first.” — Anthony',
+      t: '"看看她们写的——『Sambo 凭什么先于我们投票』。为女权奋斗二十年的人写的。这就是跟咱们『共同奋斗』的姐妹？"',
+      L: { lab: '"她们也是急的。"', fx: { self: -8, people: +3 } },
+      R: { lab: '"这话，我记下了。"', fx: { self: +7, voice: +3 } },
+      note: 'Stanton 1869 年的原话登在她自己的报纸上。这份报纸的金主是一位民主党种族主义富商——运动的钱包决定运动的嘴。' },
+    { id: 'N02-P2-C2',
+      d: '1869 年 5 月 · 决裂日', sp: '邻座女人', role: '扯你的袖子', cameo: '☙',
+      q: '“White women are not dew-drops just exhaled from the skies.”',
+      t: '"Harper 夫人站起来了！全场都在嘘她——你快坐下，别跟着出头！"',
+      L: { lab: '（坐着）', fx: { voice: -7, self: -7 } },
+      R: { lab: '（起立，鼓掌）', fx: { voice: +7, people: -5, self: +8 }, mile: 'aera' },
+      note: 'Harper 当天的原话："当问题是种族时，Stanton 夫人就放下了性别这个\'次要问题\'。"——race 还是 sex 的二选一，本身就是只有白人才有的选项。' },
+    { id: 'N02-P2-C3',
+      d: '同日', sp: 'Frederick Douglass', role: '21 年前为女人的票站起来的人', cameo: 'D',
+      q: '“It is a question of life and death.”',
+      t: '"二十一年前我为你们的票站起来。今天，黑人男人吊在灯柱上——他的票等不起。你能两个都信吗？"',
+      L: { lab: '"你背叛了我们。"', fx: { people: -4, self: -3 } },
+      R: { lab: '"两边都是真的。"', fx: { self: +8, people: +3 } },
+      note: '为第九决议救场的 Douglass，1869 年站到了 Stanton 对面。没人变坏——是 zero-sum 的制度逼盟友排队进窄门。' },
+  ],
+  [ // P3 真相 1892
+    { id: 'N02-P3-C1',
+      d: '1892 年 · 孟菲斯', sp: 'Ida B. Wells', role: '报馆余烬前', cameo: 'W',
+      q: '“The way to right wrongs is to turn the light of truth upon them.”',
+      t: '"他们烧得掉我的印刷机，烧不掉我的账本。稿子得有人带去北方——你的裙撑，借我？"',
+      L: { lab: '"太危险了。"', fx: { body: +2, self: -7 } },
+      R: { lab: '"来，我缝。"', fx: { body: -7, voice: +8, self: +8 }, mile: 'wells' },
+      note: 'Wells《Southern Horrors》(1892)：私刑多数源于经济竞争，"保护白人女性"是借口。反驳她统计的方式是烧掉她的报馆——论据十分有力。' },
+    { id: 'N02-P3-C2',
+      d: '1870 年代', sp: '班上最小的孩子', role: 'AME 学校 · 墙上钉着字条', cameo: '✗',
+      q: '字条上只有四个词：“We rode last night.”',
+      t: '邻县的学校昨夜烧成了灰。孩子仰头问你："老师——明天，还上课吗？"',
+      L: { lab: '"停课。先避一避。"', fx: { body: +3, people: -3, self: -2 } },
+      R: { lab: '"上。八点别迟到。"', fx: { body: -8, voice: +5, people: +6, self: +7 }, mile: 'school' },
+      note: 'Reconstruction 时期黑人学校被大量烧毁，女教师是重点目标。国会为此开了听证会，证词装订成 13 卷——然后该烧的继续烧。' },
+    { id: 'N02-P3-C3',
+      d: '1880 年代', sp: '售票员', role: '车站窗口', cameo: '❦',
+      t: '"北上单程，三块七。"他瞥了眼你身后送行的孩子们。"北边冷，姑娘。——买吗？"',
+      L: { lab: '"……不买了。"', fx: { people: +5, body: -4 } },
+      R: { lab: '"一张。"', fx: { money: -5, body: +4, self: +5 } },
+      note: '大迁徙第一波——数十万黑人北上。带不走的是南方攒下的全部人脉；铁路公司为此加印了车票，生意是生意。' },
+  ],
+  [ // P4 攀登 1896
+    { id: 'N02-P4-C1',
+      d: '1896 年 · 华盛顿', sp: 'Mary Church Terrell', role: 'NACW 创立大会 · 签到桌', cameo: 'C',
+      q: '“Lifting as we climb.”',
+      t: '"白人联盟不收我们？省了会费。我们自己建。"她把名册转向你。"入会一块钱。——交吗？"',
+      L: { lab: '"一块钱是三天工钱……"', fx: { money: +1, self: -4 } },
+      R: { lab: '（按下硬币）', fx: { money: -4, voice: +6, people: +8, self: +7 }, mile: 'nacw' },
+      note: 'NACW 1896 年成立。Terrell 后来用三种语言在柏林演讲，89 岁打赢了华盛顿餐厅的去隔离官司——被排斥者活得比排斥者的制度长。' },
+    { id: 'N02-P4-C2',
+      d: '1897 年', sp: '会刊编辑姐妹', role: '桌上摊着两份报纸', cameo: '☙',
+      t: '"白人报纸骂咱们『想当白人』，黑人报纸骂咱们『女人抛头露面』——两边的编辑都觉得自己可勇了。咱们的会刊，还办吗？"',
+      L: { lab: '"先低调做事。"', fx: { voice: -5, people: +3 } },
+      R: { lab: '"办。下期加印。"', fx: { voice: +7, money: -3, self: +5 } },
+      note: '两头挨骂——race 运动里你是女人，女权运动里你是黑人。92 年后 Crenshaw 给这个处境起了名字：交叉性。' },
+    { id: 'N02-P4-C3',
+      d: '多年后', sp: '孙女', role: '裁缝铺里', cameo: '♡',
+      t: '"奶奶——投票权呢？"你看着她：识字，有工钱，名下有半间铺子。三样在你出生时都是非法的。',
+      L: { lab: '"别折腾了，孩子。"', fx: { self: -6 } },
+      R: { lab: '"还没有。接着爬。"', fx: { self: +7, people: +4 } },
+      note: '1920 年修正案通过后，南方用 Jim Crow 把黑人女性的选票实际架空了 45 年。纸面权利与真实权利之间，隔着一代人。' },
+  ],
+  [ // P5 教席 (自由民学校教师专属)
+    { id: 'N02-P5-C1',
+      d: '晚上九点 · 夜校', sp: '下了工的学生们', role: '白天摘棉花的手捏着粉笔', cameo: '☘',
+      t: '最年长的学生 61 岁。她说："我想在死前自己读一遍《圣经》——不用等别人念给我听。"',
+      L: { lab: '（今晚教到十点就好）', fx: { body: +2, self: +1 } },
+      R: { lab: '（教到她读出第一段为止）', fx: { body: -3, people: +5, self: +5 } },
+      note: '重建期黑人识字率的攀升，靠的就是这些下工后的夜校。"自己读"，是从奴隶制手里夺回的第一项主权。' },
+    { id: 'N02-P5-C2',
+      d: '凌晨', sp: '邻居', role: '敲窗', cameo: '✗',
+      t: '"河对岸的学校昨夜被烧了。他们留了话：下一所，就是你们的。"',
+      L: { lab: '（停课一周，避避风头）', fx: { self: -5, voice: -2 } },
+      R: { lab: '（照常上课，请家长轮流在门口守着）', fx: { people: +4, self: +6, body: -2 }, mile: 'school' },
+      note: '重建期针对黑人学校的纵火是系统性恐吓。"明早照常上课"这处火种，裁缝线和教师线都路得过——因为它属于整个社区。' },
+    { id: 'N02-P5-C3',
+      d: '春天', sp: '十二岁的学生', role: '攥着一张纸', cameo: '♡',
+      t: '她写给被卖到德州的母亲的信——第一封自己写的信。"老师，地址……该怎么写？"',
+      L: { lab: '（替她把地址写好）', fx: { people: +2, self: +2 } },
+      R: { lab: '（教她自己写，然后陪她走到邮局）', fx: { people: +4, self: +6, money: -1 } },
+      note: '重建期，数以万计的黑人家庭靠报纸寻人启事和书信寻找被卖散的亲人。识字的第一个用途，常常是找回家人。' },
+  ],
+  ],
+  hazards: [
+    { id: 'N02-HAZ-A',
+      d: '1878 年 · 孟菲斯', sp: '教会执事', role: '黄热病之夏', cameo: '✝',
+      t: '"白人全城跑光了，病人没人管。教会要留人——大家都说咱们黑人不怕这病。你留吗？"',
+      L: { lab: '"我也走。"', fx: { body: +3, people: -4, self: -3 } },
+      R: { lab: '"我留。"', kill: 'yellow' },
+      note: '1878 年孟菲斯黄热病：白人撤离后，黑人社区因"天生免疫"的传言留下照护病人——传言是假的，死亡名单是真的。' },
+    { id: 'N02-HAZ-B',
+      d: '1850 年代', sp: '陌生白人男子', role: '拦在路中央', cameo: '✗',
+      t: '"琳达！可算找着你了——你家主人悬赏五十块呢！"你从没见过这个人，你也不叫琳达。',
+      L: { lab: '（转身就跑）', fx: { body: -4, self: +2 } },
+      R: { lab: '"我有自由证明！"（掏纸）', kill: 'erased' },
+      note: '1850 年《逃奴法》后，职业绑架者在北方街头掳走自由黑人卖往南方（Solomon Northup 案）。证明你自由的那张纸，比你本人更容易销毁。' },
+  ],
+  finale: {
+    id: 'N02-FIN',
+    d: '1896 年 · 散会', sp: 'Harriet Tubman', role: '74 岁 · 拄着杖的传奇', cameo: '★',
+    t: '散场。Tubman 拄杖走过你们——逃奴、地下铁路、内战军官、如今的元老。她在你面前停了半步，点了点头。',
+    L: { lab: '（目送）', fx: { self: +3 } },
+    R: { lab: '（上前扶她）', fx: { people: +5, self: +4 } },
+    note: 'Tubman 真的出席了 1896 年 NACW 创立大会。从奴隶到元老的一生，刚好是 "Lifting as we climb" 的全部释义。',
+  },
+},
+// ═══════════════ N03: 1903–1913 英格兰 ═══════════════
+{
+  id: 'N03', banner: '第 3 棒 · 1903–1913 · 曼彻斯特 → 伦敦',
+  protag: '纺织女工，24 岁',
+  transitionIn: {
+    t: '大西洋彼岸，曼彻斯特。新世纪了——工厂的烟囱更高了，女人的工资还是男人的一半。进步是有的，看跟谁比。',
+  },
+  open: {
+    id: 'N03-OPEN',
+    d: '1905 年 10 月 · 自由贸易厅', sp: 'Annie Kenney', role: '同车间的女工 · 围裙里藏着横幅', cameo: 'A',
+    t: '"横幅我藏好了。等台上讲到『自由属于每个英国人』——咱们就喊。"她看着你。"你喊，还是我喊？"',
+    L: { lab: '"我……喊不出口。"', fx: { self: -6, voice: -4 } },
+    R: { lab: '"包括女人吗！"', fx: { voice: +8, body: -4, self: +8 }, mile: 'fthall' },
+    note: '1905-10-13：Christabel Pankhurst 和纺织女工 Annie Kenney 在集会上问了这个问题，然后被捕——罪名是"妨碍治安"。问问题，妨碍治安。',
+  },
+  packs: [
+  [ // P1 行动
+    { id: 'N03-P1-C1',
+      d: '1906 年', sp: 'Emmeline Pankhurst', role: 'WSPU · 创立于自家厨房', cameo: 'E',
+      q: '“Deeds, not words.”',
+      t: '"入会条件就一条：服从纪律，随时准备坐牢。福利：没有。"她把表格推过来。"签吗？"',
+      L: { lab: '"家里还有弟妹……"', fx: { money: +3, self: -5 } },
+      R: { lab: '（签）', fx: { people: +5, self: +6, voice: +4 }, mile: 'wspu' },
+      note: 'WSPU 1903 年创立于 Pankhurst 家厨房，1913 年约 2,000 人；温和派 NUWSS 有 50,000 人。上头条的总是那两千个。' },
+    { id: 'N03-P1-C2',
+      d: '1912 年', sp: '行动小队长', role: '牛津街拐角 · 发石头', cameo: '✉',
+      q: '“The argument of the broken window pane.” — Pankhurst',
+      t: '"和平请愿四十七年，议会没听见。今晚的论据是这个。"她往你手里塞了三块石头。"你的窗户，是哪扇？"',
+      L: { lab: '"我做不到。"', fx: { self: -6, people: -4 } },
+      R: { lab: '"这扇。"', fx: { voice: +7, body: -5, money: -4, self: +6 } },
+      note: 'Pankhurst 在法庭上说："我们在这里不是因为我们犯法，是为了成为立法者。"法官听完，判了她九个月。' },
+    { id: 'N03-P1-C3',
+      d: '1910 年 11 月 18 日', sp: '身边的女工', role: '议会广场 · "黑色星期五"', cameo: '☙',
+      t: '警察的手段比逮捕下流——专挑说不出口的地方下手。她死死抓住你的胳膊："别松开我。听见没有！"',
+      L: { lab: '（松手，退出去）', fx: { body: +3, self: -7 } },
+      R: { lab: '"死也不松。"', fx: { body: -8, people: +7, self: +8 } },
+      note: '1910 Black Friday：大量性羞辱性袭击有照片有证词；官方调查的结论是"无需调查"。首相拒绝接见请愿团——他日程很满。' },
+  ],
+  [ // P2 牢与针
+    { id: 'N03-P2-C1',
+      d: '1909 年', sp: '隔壁牢房', role: 'Holloway 监狱 · 敲击声', cameo: '▦',
+      t: '墙上的敲击声拼出暗号：绝——食。你的碗还冒着热气。监狱里唯一完全属于你的东西，是你的胃。',
+      L: { lab: '（吃。出去还要干活）', fx: { body: +6, self: -5 } },
+      R: { lab: '（推开碗）', fx: { body: -10, voice: +6, self: +4 }, mile: 'hunger' },
+      note: '绝食把监狱变成战场——身体是她们最后、也是唯一的主权领土。' },
+    { id: 'N03-P2-C2',
+      d: '数日后', sp: '狱医', role: '器械盘已经备好', cameo: '✗',
+      t: '"别挣扎。这是营养支持，为你好。"四个人按住你。"——自己张嘴，还是我们来？"',
+      L: { lab: '"我签悔过书……"', fx: { body: +6, self: -8, people: -3 } },
+      R: { lab: '（咬紧牙关）', fx: { body: -9, voice: +7, self: +4 } },
+      note: 'Emily Davison 被"营养支持"了 49 次。医学界当时管这叫治疗，现在管这叫酷刑——术语会进步的。' },
+    { id: 'N03-P2-C3',
+      d: '1913 年', sp: '邻居', role: '你家门口 · 压低声音', cameo: '☂',
+      t: '"鸡蛋是谁放的，没人认。"她朝街角努努嘴。"那俩生面孔，蹲第三天了。——你养好了……还回去吗？"',
+      L: { lab: '"先躲去乡下。"', fx: { body: +6, voice: -4 } },
+      R: { lab: '"养好了就回去。"', fx: { body: -4, people: +5, self: +6 } },
+      note: '1913《猫鼠法》，官方名称《囚犯（健康问题暂释）法》——给猫捉老鼠起一个体面的名字，立法技术的胜利。' },
+  ],
+  [ // P3 路线之争
+    { id: 'N03-P3-C1',
+      d: '1912 年', sp: 'Millicent Fawcett', role: 'NUWSS 五万人 · 和平路线', cameo: 'F',
+      q: '“Courage calls to courage everywhere.”',
+      t: '"我游说了四十七年，孩子。体面地、合法地、礼貌地。"她看着你袖口的紫白绿。"暴力让我们倒退——你真觉得砸窗比请愿快？"',
+      L: { lab: '"您说得对。"', fx: { people: +4, voice: -4, self: -3 } },
+      R: { lab: '"四十七年，门还锁着。"', fx: { voice: +5, self: +5 } },
+      note: 'Fawcett 批评 WSPU 的手段，但拒绝谴责她们，还承认"没有她们的激进我们到不了今天"。两条路线互相嫌弃，互相成全。' },
+    { id: 'N03-P3-C2',
+      d: '1913 年', sp: '同行队员', role: '空置别墅前 · 递来火把', cameo: '✉',
+      t: '"就这栋，确认没人住。"火光照着她的脸。"Sylvia 为反对这个被开除了。——点，还是不点？"',
+      L: { lab: '（放下火把）', fx: { self: +4, people: -5 } },
+      R: { lab: '（点）', fx: { voice: +4, self: -6, people: -3 } },
+      note: '纵火令让 WSPU 连环开除自己人：先是金主夫妇，然后是创始人的亲女儿。运动的忠诚测试从不缺考题——这张卡两边都扣分，故意的。' },
+    { id: 'N03-P3-C3',
+      d: '1914 年', sp: 'Sylvia Pankhurst', role: '被亲妈开除的人', cameo: 'S',
+      q: '“I am not prepared to belong to an organisation in which the rank and file have no voice.”',
+      t: '"东区的女工一周挣男人一半的钱——你的同类。跟我去组织她们。"她笑了笑。"代价是 WSPU 除名。来吗？"',
+      L: { lab: '"我留在 WSPU。"', fx: { people: +4, self: -4 } },
+      R: { lab: '"去东区。"', fx: { body: -2, people: +5, voice: +4, self: +5 } },
+      note: '为女工说话的组织，开除了去组织女工的人。阶级裂痕与种族裂痕是同一种病的两个症状——每个时代的运动都要重新感染一次。' },
+  ],
+  [ // P4 德比日
+    { id: 'N03-P4-C1',
+      d: '1913 年 6 月 3 日', sp: 'Emily Davison', role: '被"营养支持"过 49 次的人', cameo: '☘',
+      t: '她把手袋摊开给你看：回程火车票、舞会票、两面会旗。"就去给国王的马挂面旗子——晚上还有舞会呢。帮我把旗边缝好？"',
+      L: { lab: '"别去了，Emily。"', fx: { people: +3, self: -2 } },
+      R: { lab: '（穿针引线）', fx: { people: +5, self: +4 }, mile: 'davison' },
+      note: '手袋里的回程票和舞会票，是 2013 年法医纪录片认定"她没打算死"的证据。她计划的是个恶作剧级的行动，遇上的是赛马的速度。' },
+    { id: 'N03-P4-C2',
+      d: '1913 年 6 月 4 日', sp: '旁白', role: '埃普瑟姆德比 · 转弯处', cameo: '❦',
+      t: '马蹄声像雷。她钻过栏杆。白帽子，紫白绿的旗——然后整个世界撞了上来。看台上，绅士们更担心马。',
+      L: { lab: '（闭上眼）', fx: { self: -4, body: -2 } },
+      R: { lab: '（记住这一幕）', fx: { voice: +6, self: +5 } },
+      note: '当天部分报纸的头条关切是国王的马是否受惊。马没事。Davison 四天后去世。' },
+    { id: 'N03-P4-C3',
+      d: '1913 年 6 月 14 日', sp: '队列里的陌生女人', role: '伦敦 · 葬礼', cameo: '☙',
+      t: '五千名白衣女人列队，五万人围观，警察立正没动。队列经过你时，一个陌生女人朝你伸出手："还缺人。——进来吗？"',
+      L: { lab: '（在人行道上哭）', fx: { self: +2 } },
+      R: { lab: '（握住她的手）', fx: { voice: +7, people: +6, self: +5 }, mile: 'funeral' },
+      note: 'Davison 葬礼是运动最大的公开展示之一。紫、白、绿从此成为符号——以及一百年后快时尚的 T 恤印花。' },
+  ],
+  ],
+  hazards: [
+    { id: 'N03-HAZ-A',
+      d: '1911 年', sp: '车间领班', role: '怀表在手里晃', cameo: '$',
+      t: '"今天订单提速两成！别磨蹭——头发飘着、围裙带子散着，都别管，先赶工！"',
+      L: { lab: '（停半分钟，扎紧头发）', fx: { money: -4 } },
+      R: { lab: '（跟上速度）', kill: 'loom' },
+      note: '纱机绞入是 1900s 纺织女工的主要工伤死因之一，常见原因：头发和围裙带。停下来扎头发要扣工钱——所以很多人没停。' },
+    { id: 'N03-HAZ-B',
+      d: '1908 年', sp: '街角的男人们', role: '你正站在木箱上演讲', cameo: '✗',
+      t: '人群后面起了骚动，有东西朝这边飞——头一颗是臭鸡蛋。下一颗，看分量就不是了。',
+      L: { lab: '（跳下木箱，躲）', fx: { voice: -4, body: +2 } },
+      R: { lab: '（站着，把这句讲完）', kill: 'brick' },
+      note: '街头演讲的 suffragette 被扔石块、砖头是常态；报纸的评论一般是"她们自找的"。' },
+  ],
+  finale: {
+    id: 'N03-FIN',
+    d: '1918 年', sp: '庆功的同伴', role: '举着酒杯愣住', cameo: '☙',
+    t: '"我们赢了！30 岁以上有财产的女性——"她看见你的表情，停住了。"……你今年 29，是吧。还没财产。——明年呢？"',
+    L: { lab: '"就这样吧。"', fx: { self: -3 } },
+    R: { lab: '"接着推。还差一半人。"', fx: { voice: +5, self: +6 } },
+    note: '1918 年法案同时给了所有 21 岁以上男性投票权——给女性的版本带年龄和财产门槛。全部成年女性要等到 1928 年。',
+  },
+},
+// ═══════════════ N04: 1920 田纳西州纳什维尔 ═══════════════
+{
+  id: 'N04', banner: '第 4 棒 · 1920 · 田纳西州纳什维尔',
+  protag: '烟草厂女工，21 岁',
+  transitionIn: {
+    t: '战争结束了。大西洋彼岸，纳什维尔——八月热得像蒸笼。三十五个州已批准修正案，只差最后一个。烟草厂和写字楼里的女人，都在等同一个结果。',
+  },
+  // 职业随机: 烟草厂女工(原线) / 打字员 (1920s 文员大规模女性化)
+  roles: [
+    { protag: '烟草厂女工，21 岁', packs: [0, 1, 2, 3] },
+    { protag: '保险公司打字员，22 岁', packs: [4, 0, 1],
+      open: {
+        id: 'N04-OPEN-B',
+        d: '周一 · 保险公司', sp: '主管', role: '拿着你的速记考卷', cameo: '♔',
+        t: '"一分钟 80 词，全办公室最快。涨薪就别想了——你们姑娘干两年就嫁人，培养你们是赔本买卖。"',
+        L: { lab: '（低头继续打字）', fx: { money: +2, self: -3 } },
+        R: { lab: '"那您见过哪个男文员，一分钟 80 词？"', fx: { voice: +4, self: +5 } },
+        note: '1920 年代文员岗位大规模女性化：商科课程三分之二是女生。"反正要嫁人"既是不涨薪的理由，也是婚姻禁令的理由——两头堵。',
+      },
+    },
+  ],
+  open: {
+    id: 'N04-OPEN',
+    d: '1920 年 8 月 · 烟草厂', sp: '工友', role: '车间里压低声音', cameo: '❀',
+    t: '"大会在招志愿者——戴黄玫瑰的。对面红玫瑰的太太们也在招人，管饭。"她看着你的空衣领。"你戴哪朵？"',
+    L: { lab: '"红玫瑰管饭……"', fx: { money: +3, self: -6, voice: -3 } },
+    R: { lab: '"黄的。"', fx: { self: +6, voice: +4 } },
+    note: '1920 年 8 月纳什维尔"玫瑰之战"：支持批准戴黄玫瑰，反对戴红玫瑰——立场直接别在胸前，全城都是裁判。',
+  },
+  packs: [
+  [ // P1 玫瑰之战
+    { id: 'N04-P1-C1',
+      d: '8 月 10 日', sp: 'Carrie Chapman Catt', role: 'Hermitage 酒店 309 房', cameo: 'C',
+      t: '"把这些材料送到议员桌上。别走八楼——八楼是他们的地盘。"她头也不抬。"能办到吗？"',
+      L: { lab: '"我只是个厂妹……"', fx: { self: -6, voice: -3 } },
+      R: { lab: '"交给我。"', fx: { voice: +6, self: +5, body: -2 } },
+      note: 'Catt 坐镇 Hermitage 酒店 309 房指挥；反对派盘踞八楼 812 房"威士忌套房"——禁酒令下当酒吧用，免费给议员灌波本。酒精+种族焦虑+州权论，三合一鸡尾酒。' },
+    { id: 'N04-P1-C2',
+      d: '8 月 16 日', sp: '八楼下来的议员', role: '走廊里拦住你', cameo: '♔',
+      t: '"小姑娘，812 房有冰镇的好东西。回去告诉 Catt 太太——田纳西不会让黑女人也摸到选票的。上来喝一杯？"',
+      L: { lab: '（陪笑，不接话）', fx: { people: +3, self: -7 } },
+      R: { lab: '"我们楼下等着数票。"', fx: { self: +7, people: -4 } },
+      note: '反对派论调分三层：明面上喊"州权"，走廊里讲种族恐惧，酒杯边说"我老婆也不想投票"。812 威士忌套房是真实存在的——酒店自己的史料记着。' },
+    { id: 'N04-P1-C3',
+      d: '8 月 18 日 · 表决', sp: '旁听席', role: '州议会大厅 · 48 比 48', cameo: '✉',
+      t: '唱到那个 24 岁的红玫瑰议员了——Burn。他口袋里露出一封信的边角。全场安静得能听见电扇。',
+      L: { lab: '"红玫瑰，完了……"（闭眼）', fx: { self: -3 } },
+      R: { lab: '——他说了"赞成"。', fx: { voice: +7, self: +6 }, mile: 't36' },
+      note: 'Harry Burn 当天早上收到母亲 Febb 的七页长信，最后一页写着："投赞成票，别让她们悬着……记得做个好孩子。"他改投，僵局破了，田纳西成为第 36 州。他事后说："听妈妈的话总是最稳妥的。"' },
+  ],
+  [ // P2 胜利即散伙
+    { id: 'N04-P2-C1',
+      d: '8 月底 · 庆功会', sp: '联盟会长', role: '黄玫瑰还别在胸前', cameo: '♛',
+      t: '"我们赢了，姑娘们！联盟下月改组成女选民联盟——教大家用好选票。至于 Paul 小姐还要折腾的什么新修正案……仗打完了，回家吧。"',
+      L: { lab: '"仗打完了。"', fx: { people: +4, self: -5, voice: -4 } },
+      R: { lab: '"打完了吗？"', fx: { self: +6 } },
+      note: '胜利当月运动就开始散伙：Catt 转向选民教育，Paul 1923 年提出 ERA。胜利是最高效的散伙饭——这个模式在运动史上反复出现。' },
+    { id: 'N04-P2-C2',
+      d: '1923 年', sp: 'Alice Paul', role: 'Seneca Falls 75 周年纪念会', cameo: 'P',
+      t: '"投票权只是第一章。新修正案我起草好了——法律之下的平等，不得因性别剥夺。"她环视全场。"所有人都说太早。你说呢？"',
+      L: { lab: '"刚赢就别吓人了。"', fx: { people: +4, voice: -4, self: -4 } },
+      R: { lab: '"七十二年都等了。"', fx: { voice: +6, self: +6 }, mile: 'era' },
+      note: 'Paul 1923 年提出 ERA（平等权利修正案）。她 1977 年去世时它没通过；到今天（2026）它仍未写进宪法。' },
+    { id: 'N04-P2-C3',
+      d: '同年冬', sp: '工会的姐妹', role: '拿着 ERA 传单皱眉', cameo: '☙',
+      t: '"平等？我们刚争来十小时工时上限、夜班禁令——她那个修正案一刀切，这些保护全完蛋。Paul 小姐坐办公室，我们站车间。你站哪边？"',
+      L: { lab: '"保护要紧。"', fx: { people: +4, money: +2, self: -2 } },
+      R: { lab: '"那就让车间的人自己上桌。"', fx: { voice: +4, self: +5, people: -3 } },
+      note: 'ERA 派（受教育中产）对保护派（工厂女工）——这场分裂持续 60 年，运动因此休眠 40 年。两边都没说错，这才是最难的地方。' },
+  ],
+  [ // P3 没轮到的人
+    { id: 'N04-P3-C1',
+      d: '登记日清晨', sp: 'Lottie', role: '同车间的黑人女工', cameo: 'L',
+      t: '"我去登记了。他们让我当场解释宪法第十四修正案的法理——我解释完了，他们说我『理解有误』。"她顿了顿。"陪我再去一次吗？"',
+      L: { lab: '"别去了，会出事的。"', fx: { body: +2, self: -6 } },
+      R: { lab: '"走。这次我作证。"', fx: { people: +5, self: +6, voice: +3 }, mile: 'register' },
+      note: '1920 年后，南方用识字测试、人头税和"祖父条款"把黑人女性的选票实际架空了 45 年——直到 1965 年《投票权法》。' },
+    { id: 'N04-P3-C2',
+      d: '一周后', sp: '联盟的白人姐妹', role: '办公室里 · 语气诚恳', cameo: '♛',
+      t: '"Lottie 的事我们也难过。但联盟刚成立，南方分会说那是『州的问题』，我们不便插手——你能理解吧？"',
+      L: { lab: '"……理解。大局要紧。"', fx: { people: +4, self: -8 } },
+      R: { lab: '"1869 年她们也是这么说的。"', fx: { self: +7, people: -5 } },
+      note: '为"可尊重性"牺牲最边缘的人，这是第三次了：1869 年的 Stanton、1913 年游行让黑人女性走队尾的 Paul、1920 年说"州的问题"的联盟南方分会。' },
+    { id: 'N04-P3-C3',
+      d: '大选日门口', sp: '叼牙签的男人', role: '投票站台阶上', cameo: '✗',
+      t: '"投吧投吧。反正你们投谁，家里还不是你男人说了算——一家一票变一家两票，多跑一趟罢了。"',
+      L: { lab: '（懒得理他）', fx: { self: -2 } },
+      R: { lab: '"那您可得盯紧您家那票。"', fx: { voice: +4, self: +6, people: -2 } },
+      note: '"女性选票集团"从未出现——女性按阶级、种族、地区分裂投票，和男性一样。1920 年女性投票率约 36%，和男性持平要等到 1964 年。' },
+  ],
+  [ // P4 新世界
+    { id: 'N04-P4-C1',
+      d: '1921 年春', sp: '表妹', role: '剪了短发回家', cameo: '☙',
+      t: '"我把头发剪了！发廊里说裙子明年还要短。妈骂我这样嫁不出去——你说呢？"',
+      L: { lab: '"先别气你妈。"', fx: { people: +3, self: -3 } },
+      R: { lab: '"好看。下周我也剪。"', fx: { self: +5, people: -3, voice: +2 } },
+      note: '1920 年代"新女性"：短发、短裙、自己挣钱上街。时尚是政治的毛细血管——剪刀比传单传播得快。' },
+    { id: 'N04-P4-C2',
+      d: '1920 年 11 月 2 日', sp: '登记员', role: '投票站 · 大选日', cameo: '❦',
+      t: '"名字？年龄？——填这儿。下一位！"轮到你了。铅笔在手里，比想象中轻。',
+      L: { lab: '（手一直在抖）', fx: { self: +3, voice: +2 } },
+      R: { lab: '（按住纸，一笔一划）', fx: { voice: +5, self: +6 }, mile: 'vote1920' },
+      note: '1920 年 11 月 2 日，美国女性第一次全国性投票。从 Seneca Falls 那张签名桌算起，正好七十二年。' },
+    { id: 'N04-P4-C3',
+      d: '1922 年', sp: '办公室主任', role: '打字员面试', cameo: '$',
+      t: '"会打字？很好。结了婚就得辞职——公司规矩。婚前这几年，一周十八块。干不干？"',
+      L: { lab: '"干。先挣着。"', fx: { money: +8, self: -3 } },
+      R: { lab: '"规矩是谁定的？"', fx: { voice: +4, self: +5, money: -4 } },
+      note: '"婚姻禁令"（marriage bar）在 1920-1950 年代的美国白领行业普遍存在：已婚女性不得受雇。你的职业生涯，以婚礼为限。' },
+  ],
+  [ // P5 打字间 (打字员专属)
+    { id: 'N04-P5-C1',
+      d: '午休 · 化妆间', sp: '同事', role: '对着镜子撇嘴', cameo: '☙',
+      t: '"楼下来了个记者，要拍『现代职业女郎』专题——短发、口红、踩着打字机。他说我们是『新女性』。"她顿了顿。"周薪十八块的新女性。"',
+      L: { lab: '（补个口红去拍）', fx: { self: +2, money: +1 } },
+      R: { lab: '"让他拍工资单。"', fx: { voice: +4, self: +5 } },
+      note: '1920s 媒体热捧"新女性"：短发、办公室、香烟。形象是新的，薪水和天花板是旧的——宣传与处境之间，隔着一张工资单。' },
+    { id: 'N04-P5-C2',
+      d: '加班', sp: '老板', role: '关上会议室门', cameo: '♔',
+      t: '"今晚留下来给董事会做速记。内容嘛——出了这个门就忘掉。姑娘们最好没有记性。"',
+      L: { lab: '（听到什么都忘掉）', fx: { money: +2, self: -3 } },
+      R: { lab: '（速记本上一字不落——包括压低女工工资的那段）', fx: { self: +5, voice: +2, money: -1 } },
+      note: '打字员和速记员是 1920s 办公室的"隐形人"：在场，但被当作家具。家具听到的东西有时会改变历史——后来不少劳工调查的证词，正来自速记员。' },
+    { id: 'N04-P5-C3',
+      d: '发薪日', sp: '父亲', role: '伸出手', cameo: '♂',
+      t: '"工资上交一半，这是规矩——你住家里。你弟弟不用交，他要『攒钱成家』。"',
+      L: { lab: '（照交）', fx: { money: -3, people: +2, self: -3 } },
+      R: { lab: '"我也要攒钱——攒『不用问谁都能活』的钱。"', fx: { money: +2, self: +5, people: -2 } },
+      note: '1920s 职业女性的工资常被默认为"家庭收入"，兄弟的同等工资则是"他自己的"。钱包的性别，比选票改得慢。' },
+  ],
+  ],
+  hazards: [
+    { id: 'N04-HAZ-A',
+      d: '1919 年冬', sp: '邻居太太', role: '端着一锅热汤', cameo: '☂',
+      t: '"你脸色不太对……来，喝汤。最近镇上倒下不少人，就是个重感冒——发发汗就好！"',
+      L: { lab: '"我还是去医院排队。"', fx: { money: -4, body: +2 } },
+      R: { lab: '"谢谢您，喝完就睡。"', kill: 'flu' },
+      note: '1918-19 年大流感杀死约 67.5 万美国人，孕龄女性死亡率尤其高。"就是个重感冒"是那两年最常见的遗言。' },
+    { id: 'N04-HAZ-B',
+      d: '1917 年 · 华盛顿', sp: '纠察队的姑娘', role: '白宫门前 · 举着标语', cameo: '✉',
+      t: '"我们轮班站岗，举牌，不说话——就是站着。今晚有风声，说要给我们『点教训』。你还站吗？"',
+      L: { lab: '"今晚先回去。"', fx: { self: -5, people: -3 } },
+      R: { lab: '（接过标语牌）', kill: 'terror' },
+      note: '1917-11-14"恐怖之夜"：监狱长下令狱警暴打 33 名白宫纠察队员。73 岁的 Mary Nolan 说："我跟你走，别拖我，我脚跛。"然后她被拖下了台阶。' },
+  ],
+  finale: {
+    id: 'N04-FIN',
+    d: '1920 年 11 月 2 日', sp: '排在你前面的老妇人', role: '投票站 · 拄着拐杖', cameo: '★',
+    t: '"我 1848 年在一张宣言上签过名。那年我 19 岁，缝手套的。"她回头朝你笑了笑。"这个队，我排了七十二年。"',
+    L: { lab: '（扶她进去）', fx: { people: +4, self: +5 } },
+    R: { lab: '"我太奶奶也缝手套。"', fx: { self: +7, voice: +3 } },
+    note: '历史上，1848 年唯一活到 1920 年的签署者 Charlotte Woodward 当天病在床上，没能投出那一票。这张卡是本游戏对历史唯一的一次温柔篡改——把她应得的那一刻还给她。注脚负责坦白。',
+  },
+},
+// ═══════════════ N05: 1949 巴黎 ═══════════════
+{
+  id: 'N05', banner: '第 5 棒 · 1949 · 巴黎左岸',
+  protag: '书店店员，23 岁',
+  transitionIn: {
+    t: '又一场世界大战碾过。巴黎，1949——你在左岸一家书店当店员。法国女人五年前刚拿到投票权，比美国晚了二十四年。',
+  },
+  open: {
+    id: 'N05-OPEN',
+    d: '1949 年 6 月 · 书店', sp: '书店老板', role: '拆开 Gallimard 的新书包裹', cameo: '♛',
+    t: '"《第二性》。报上骂翻天了——Mauriac 说它『卑劣到了极限』，号召教会青年抗议。"他掂了掂书。"摆橱窗，还是塞仓库？"',
+    L: { lab: '"仓库吧，别惹事。"', fx: { money: +3, self: -5, voice: -3 } },
+    R: { lab: '"橱窗。正中间。"', fx: { voice: +6, self: +6, money: -2 }, mile: 'secondsex' },
+    note: '《第二性》1949 年首周卖出 22,000 册——很大程度上要感谢 Mauriac 在《费加罗文学报》上的痛骂。反对派的攻击是最高效的免费宣传。',
+  },
+  packs: [
+  [ // P1 风暴
+    { id: 'N05-P1-C1',
+      d: '出版第二周', sp: '中年顾客太太', role: '环顾四周才开口', cameo: '♡',
+      t: '"小姐……那本书，还有吗？"她声音压得极低。"用报纸包一下——别让人看见封面。"',
+      L: { lab: '"卖完了。"（其实还有）', fx: { self: -6, money: -2 } },
+      R: { lab: '（包好递过去）"夫人，好书。"', fx: { voice: +4, self: +5, money: +2 } },
+      note: '公开拒绝、私下购买——首周两万二的买主大多不是男知识分子。八年后 Friedan 发现"每个主妇都以为只有自己这样"，部分原因正是这些沉默的读者。' },
+    { id: 'N05-P1-C2',
+      d: '某个周一', sp: '本堂神父', role: '进店 · 目光直奔橱窗', cameo: '✝',
+      t: '"孩子，教会很快会把这本书列入禁书目录。卖它的人，和写它的人一样有罪。"他在门口停住。"下周我再来看。"',
+      L: { lab: '"下周它会在仓库。"', fx: { money: +1, people: +4, voice: -5, self: -5 } },
+      R: { lab: '"下周它还在橱窗。"', fx: { money: -2, people: -5, voice: +5, self: +6 } },
+      note: '梵蒂冈 1956 年正式将《第二性》列入《禁书目录》。该目录 1559 年设立，1966 年废除——书比目录活得长。' },
+    { id: 'N05-P1-C3',
+      d: '周末', sp: '男大学生', role: '把书拍在柜台上', cameo: '✗',
+      t: '"退货！我女朋友读了这个，跟我吵了三天——这书侮辱了法国男人，加缪都这么说！"',
+      L: { lab: '（默默退钱）', fx: { money: +1, self: -4 } },
+      R: { lab: '"吵三天，说明她读进去了。"', fx: { voice: +4, self: +6, people: -2 } },
+      note: '加缪——波伏娃的朋友、未来的诺贝尔奖得主——对《第二性》的反应是愤怒，认为它嘲弄了法国男性。1949 年最特别的反派结构：攻击来自同一张咖啡桌。' },
+  ],
+  [ // P2 左岸
+    { id: 'N05-P2-C1',
+      d: '午后', sp: '咖啡馆常客', role: '哲学教师 · 花神咖啡馆二楼', cameo: '♞',
+      t: '"波伏娃？Sartre 的聪明学生罢了。手稿都是他改的——没有他，那就是篇索邦的社会学论文。"他啜了口咖啡。"小姐，你说是吧？"',
+      L: { lab: '"您说得是。"', fx: { people: +3, self: -6 } },
+      R: { lab: '"教师资格考试她全国第二。您呢？"', fx: { voice: +5, self: +6, people: -4 } },
+      note: '"她只是在重复 Sartre"是圈内最常用的稀释话术。事实：1929 年她 21 岁通过哲学教师资格考试，史上最年轻——全国第二，第一名 Sartre 考了两次。' },
+    { id: 'N05-P2-C2',
+      d: '黄昏', sp: 'Simone de Beauvoir', role: '来取预订的书 · 烟在指间', cameo: 'B',
+      q: '“On ne naît pas femme: on le devient.”',
+      t: '"你读了？"她瞥见你围裙口袋里插着的下册。"——哪一句最扎你？"',
+      L: { lab: '"我还没读懂。"', fx: { self: +2 } },
+      R: { lab: '"女人不是天生的。我背下来了。"', fx: { voice: +4, self: +7, people: +2 } },
+      note: '"女人不是天生的，而是被造就的"——这句话把性别从"自然事实"变成"社会建构"，抽掉了整个压迫体系的地基。当代性别研究的半壁江山立在这一句上。' },
+    { id: 'N05-P2-C3',
+      d: '深夜打烊前', sp: '圈子里的女人', role: '某位作家的情人', cameo: '♛',
+      t: '"你别学她。不结婚、不生育、抢男人的行当——她写得根本不像个女人。我们这样的，学不来，也别学。"',
+      L: { lab: '"您说得也是……"', fx: { people: +3, self: -6 } },
+      R: { lab: '"『像个女人』是谁定义的？"', fx: { self: +7, voice: +3, people: -3 } },
+      note: '圈内女性的攻击比男性的更有传播力——它消解了"反对者都是男人"的叙事。1949 年如此，之后的每个时代也如此。' },
+  ],
+  [ // P3 身体
+    { id: 'N05-P3-C1',
+      d: '陪邻居就诊', sp: '家庭医生', role: '诊室 · 墙上挂着全家福', cameo: '✗',
+      t: '"夫人，您已经有四个孩子了——这是福气。避孕的东西？我不能开，违法，也违背我的良知。"他抬起头。"——您丈夫知道您来吗？"',
+      L: { lab: '（拉邻居走，一路沉默）', fx: { body: -2, self: -5, people: +2 } },
+      R: { lab: '"法律错了，医生。"', fx: { voice: +4, self: +5, people: -3 } },
+      note: '法国 1920 年的法律禁止传播避孕信息，1967 年才废除。避孕合法比女性投票权晚了 23 年——身体的解放排在选票后面。' },
+    { id: 'N05-P3-C2',
+      d: '深夜', sp: '邻居 Marthe', role: '敲响后门 · 五个月的肚子还看不出', cameo: '♡',
+      t: '"我又怀上了，第五个。Jeanne 知道一个『天使制造者』的地址……"她攥着你的袖子。"陪我去吗？"',
+      L: { lab: '"别去。求你。"', fx: { people: -3, self: -3 } },
+      R: { lab: '（披上外套）', fx: { body: -7, people: +5, self: +3 } },
+      note: '"天使制造者"（faiseuse d’anges）＝地下堕胎婆。1943 年法国把一名堕胎婆送上了断头台。1971 年波伏娃起草《343 宣言》，343 名女性公开签名"我堕过胎"；1975 年才合法化。' },
+    { id: 'N05-P3-C3',
+      d: '发薪日', sp: '银行职员', role: '柜台后面 · 公事公办', cameo: '$',
+      t: '"开账户？可以，夫人。签字栏在这——还需要您丈夫的签字。没结婚？那需要您父亲的。规定。"',
+      L: { lab: '"……我回去拿。"', fx: { money: -3, self: -3 } },
+      R: { lab: '"钱是我挣的。"（整个大厅都听见了）', fx: { money: +3, voice: +4, self: +4, people: -2 } },
+      note: '法国已婚女性 1965 年才获得不经丈夫同意开户、工作的权利。1949 年的法国女人：能投票选总统，不能自己开账户。' },
+  ],
+  [ // P4 接力
+    { id: 'N05-P4-C1',
+      d: '夏末', sp: '美国女游客', role: '买走橱窗那本', cameo: '☙',
+      t: '"我要带回纽约给同学们传着看——可惜我法语一般。听说英译本还要等几年？"',
+      L: { lab: '"总会有的。"', fx: { voice: +2 } },
+      R: { lab: '"等不及就学法语。"', fx: { self: +3, voice: +3, people: +2 } },
+      note: '1953 年的英译本删了原文约 15%，还错译了大量哲学术语——完整英译要等到 2009 年。美国第二波女权的奠基人读的全是阉割版，仍然被震动。' },
+    { id: 'N05-P4-C2',
+      d: '周四', sp: '报摊老板', role: '隔壁摊位 · 一脸困惑', cameo: '※',
+      t: '"《费加罗》又骂她了，这礼拜第四篇！我说小姐，你们那本书什么来头——骂得越凶，买的人越多？"',
+      L: { lab: '"运气吧。"', fx: { money: +3 } },
+      R: { lab: '"他们在免费替我们打广告。"', fx: { voice: +4, money: +3, self: +3 } },
+      note: 'Mauriac 开炮后，《费加罗文学报》连登约 40 篇读者来信和评论——为期数周的免费全国推广，覆盖每一个读报的中产家庭。' },
+    { id: 'N05-P4-C3',
+      d: '打烊前', sp: '十九岁的女学生', role: '攥着攒了三周的午饭钱', cameo: '☘',
+      t: '"我只买得起一本……上册我在图书馆抄了一半了。您说，先买哪本？"',
+      L: { lab: '"上册。理论打底。"', fx: { voice: +2, people: +2 } },
+      R: { lab: '（把柜台下自己那本塞给她）"半价。"', fx: { money: -3, people: +4, self: +6 } },
+      note: '《第二性》的传播史是一部递书史——从巴黎的柜台，到 1960 年代美国的宿舍，再到今天的读书群。每一棒都有人垫上自己的处境。' },
+  ],
+  ],
+  hazards: [
+    { id: 'N05-HAZ-A',
+      d: '某个清晨', sp: '镜子里的你', role: '第二个没来的日子', cameo: '☾',
+      t: '日历上的圈对不上了。生下来——工作没了，房东会赶人，家里回不去。隔壁 Jeanne 有那个地址。',
+      L: { lab: '生下来。一个人养。', fx: { money: -6, people: -5, self: -3, body: -3 } },
+      R: { lab: '去那个地址。', kill: 'angel' },
+      note: '1949 年的法国：未婚先孕＝失业＋逐出公寓；地下堕胎＝刑事罪＋生命危险。两个选项都不该叫"选项"——但这就是这个时代给女人的全部菜单。' },
+    { id: 'N05-HAZ-B',
+      d: '换班时', sp: '倒班的同事', role: '手帕上有血点', cameo: '☂',
+      t: '"别告诉老板……求你。我妹妹还指着我这份工钱。替我顶两个晚班——就两个。"',
+      L: { lab: '"我告诉老板，送你去疗养院。"', fx: { people: -4, money: -2, self: +2 } },
+      R: { lab: '"顶。你去睡。"', kill: 'tb' },
+      note: '战后巴黎，肺结核仍是年轻女工的头号杀手之一；1949 年青霉素在黑市上比香水贵。工人阶级的互助，以命计价。' },
+  ],
+  finale: {
+    id: 'N05-FIN',
+    d: '1949 年底', sp: 'Simone de Beauvoir', role: '再次进店 · 听说了橱窗的事', cameo: 'B',
+    t: '"听说你把它摆在正中间，一直没撤。"她翻开扉页签了名，推回给你。"——接着摆。"',
+    L: { lab: '"摆到没人再需要它。"', fx: { self: +6, voice: +4 } },
+    R: { lab: '"夫人，下一本写什么？"', fx: { voice: +5, people: +3, self: +4 } },
+    note: '波伏娃 1949 年拒绝"女权主义者"标签——直到 1971 年起草《343 宣言》、1974 年创立女性权利联盟。一本书走在它的作者前面 22 年。',
+  },
+},
+// ═══════════════ N06: 1963 美国郊区 ═══════════════
+{
+  id: 'N06', banner: '第 6 棒 · 1963 · 美国郊区',
+  protag: '全职主妇，29 岁，两个孩子',
+  transitionIn: {
+    t: '新大陆的新郊区，1963。草坪像地毯，厨房亮得能照出人影。这一年的女人有两种标准人生——哪一种，都有人说"你该知足了"。',
+  },
+  // 职业随机: 主妇(原线) / 打字池秘书(working girl 线)
+  roles: [
+    { protag: '全职主妇，29 岁，两个孩子', packs: [0, 1, 2, 3] },
+    { protag: '打字池秘书，26 岁', packs: [4, 0],
+      open: {
+        id: 'N06-OPEN-B',
+        d: '周一 · 打字池', sp: '老板', role: '按了两下铃', cameo: '♔',
+        t: '"好姑娘，两杯咖啡送会议室。对了——你这么聪明，迟早嫁个好人家，何必把眼睛熬坏在打字机上？"',
+        L: { lab: '（端咖啡，微笑）', fx: { people: +2, self: -4 } },
+        R: { lab: '"咖啡在茶水间，先生。您的备忘录我打完第三稿了。"', fx: { voice: +4, self: +5, people: -3 } },
+        note: '1963 年的办公室：女性占文员岗的绝大多数、管理岗的几乎为零。打字池是玻璃天花板的地面层——它甚至不是玻璃的，是水泥的。',
+      },
+    },
+  ],
+  open: {
+    id: 'N06-OPEN',
+    d: '1963 年 · 周一早晨', sp: '丈夫 Bob', role: '出门前亲了下你的额头', cameo: '♠',
+    t: '"亲爱的，你根本不需要工作——我的薪水够用，孩子需要妈妈。你已经拥有一切了，对吧？"',
+    L: { lab: '"对。"（微笑）', fx: { people: +3, money: +2, self: -7 } },
+    R: { lab: '"那为什么我半夜睡不着？"', fx: { self: +6, people: -2 } },
+    note: 'Friedan 给它起了名字："没有名字的问题"——拥有一切的主妇，半夜问自己"就这样了吗"。她们都以为只有自己这样，直到 1963 年 2 月一本书印了出来。',
+  },
+  packs: [
+  [ // P1 没有名字的问题
+    { id: 'N06-P1-C1',
+      d: '周二 · 咖啡晨会后', sp: '邻居 Carol', role: '等其他人都走了才开口', cameo: '♡',
+      t: '"我能说件怪事吗？我每天下午在车库里坐着哭十分钟，然后补好妆去接孩子。"她盯着咖啡杯。"我是不是疯了？"',
+      L: { lab: '"……要不去看看医生？"', fx: { people: +2, self: -4 } },
+      R: { lab: '"我也是。我是星期四。"', fx: { people: +5, self: +6 }, mile: 'noname' },
+      note: 'Friedan 1957 年向大学同学发问卷，发现每个郊区主妇都在独自挣扎、都以为只有自己这样。把"我是不是疯了"变成"原来不止我"——这是一场运动的最小单位。' },
+    { id: 'N06-P1-C2',
+      d: '周三晚', sp: '读书会主持人', role: '把一本书倒扣在茶几上', cameo: '☙',
+      t: '"下本读这个，《女性的奥秘》。先警告：上礼拜 Janet 读完，把烤盘扔进了垃圾桶。"她环视客厅。"要排队的举手。"',
+      L: { lab: '"我先看看再说。"', fx: { self: +2 } },
+      R: { lab: '（举手）', fx: { voice: +3, self: +5, people: +2 } },
+      note: '《女性的奥秘》1963 年 2 月出版，第一年约 100 万册——无数本藏在洗衣篮和烤箱手套下面传阅。' },
+    { id: 'N06-P1-C3',
+      d: '周五 · 丈夫安排的预约', sp: '精神科医生', role: '皮椅 · 笔记本 · 弗洛伊德肖像', cameo: '✗',
+      t: '"您的不满足感，夫人，源于对女性身份的抗拒——经典的『阴茎嫉妒』。每周两次咨询，帮您重新接受自己的天性。"',
+      L: { lab: '"……好的，大夫。"', fx: { money: -4, self: -8 } },
+      R: { lab: '"我嫉妒的是他不用洗碗。"', fx: { voice: +4, self: +7, people: -2 } },
+      note: '1950-60 年代美国主流精神医学用"阴茎嫉妒"解释主妇的一切不满——问题在你，不在社会。"歇斯底里"这个诊断，1980 年才从诊断手册里删除。' },
+  ],
+  [ // P2 完美厨房
+    { id: 'N06-P2-C1',
+      d: '周四上午', sp: '上门推销员', role: '拎着最新款吸尘器', cameo: '$',
+      t: '"夫人！这台机器每周为您省下五个小时！"——"省下来干什么？"——"呃……把地毯吸得更干净呀！"',
+      L: { lab: '（分期买下）', fx: { money: -5, people: +2, self: -2 } },
+      R: { lab: '"五小时还给我，机器您留着。"', fx: { self: +6, voice: +2 } },
+      note: '广告把家务从劳动包装成"爱的表达"：更白的衬衫＝更好的妻子。家电省下的时间立刻被新标准吃掉——现在，地板要能照出人影了。' },
+    { id: 'N06-P2-C2',
+      d: '例行检查', sp: '家庭医生', role: '撕处方的声音很轻快', cameo: '✗',
+      t: '"睡不好？焦虑？正常，主妇都这样。"他递过处方。"镇静剂，『妈妈的小帮手』。一天一片，您会平静下来的。"',
+      L: { lab: '（按时吃）', fx: { body: -3, self: -5, money: -2 } },
+      R: { lab: '（把处方折进口袋，没去取药）', fx: { self: +5, body: +2 } },
+      note: '1950-60 年代，镇静剂被海量开给郊区主妇——与其问"她为什么不快乐"，不如让她安静。1966 年滚石乐队为此写了首歌：《Mother’s Little Helper》。' },
+    { id: 'N06-P2-C3',
+      d: '感恩节', sp: '婆婆', role: '用指尖检查你的银器', cameo: '♛',
+      t: '"亲爱的，火鸡比去年老了三分钟。Bob 工作那么辛苦——家里这点事，就是你的事业。你的事业，懂吗？"',
+      L: { lab: '"明年我注意。"', fx: { people: +4, self: -7 } },
+      R: { lab: '"那您儿子的事业里有洗碗吗？"', fx: { people: -5, self: +7, voice: +2 } },
+      note: '"家就是你的事业"——把无薪劳动加冕为天职，是 mystique 的核心话术。bell hooks 后来补刀：等 Friedan 们都出门上班了，"谁被叫来看孩子"？' },
+  ],
+  [ // P3 重返职场
+    { id: 'N06-P3-C1',
+      d: '周日清晨', sp: '报纸分类广告版', role: '餐桌上摊开', cameo: '※',
+      t: '招聘栏分两列。「诚聘·男性」：经理、工程师、记者。「诚聘·女性」：打字员、接线员、"漂亮前台"。',
+      L: { lab: '（圈了个打字员职位）', fx: { money: +4, self: +2 } },
+      R: { lab: '（给男性栏的记者职位投了简历）', fx: { voice: +4, self: +6, money: -2 }, mile: 'helpwanted' },
+      note: '美国报纸招聘广告按性别分栏，直到 1968 年才被裁定违法，1973 年最高法院补刀。在那之前，你的职业天花板直接印在报纸版式里。' },
+    { id: 'N06-P3-C2',
+      d: '面试', sp: '面试官', role: '写字楼 12 层', cameo: '♞',
+      t: '"履历不错——大学学历，打字一流。就一个问题：孩子病了谁来管？我们可不想培训完就跑人。"',
+      L: { lab: '"我妈妈会帮忙……"', fx: { self: -3, money: +5 } },
+      R: { lab: '"您面试男士时也问这个吗？"', fx: { voice: +5, self: +6, money: -4 } },
+      note: '1964 年民权法案第七章禁止就业性别歧视——但执行机构 EEOC 头几年把性别条款当"玩笑"拒绝执行。NOW 1966 年成立的直接导火索之一，就是这个玩笑。' },
+    { id: 'N06-P3-C3',
+      d: '银行', sp: '信贷员', role: '柜台后 · 笑容标准', cameo: '$',
+      t: '"信用卡？当然可以，夫人——让您丈夫在这里签个字就行。他不签？那真不行，银行政策。"',
+      L: { lab: '"我回去问问他。"（卡是办成了）', fx: { money: +3, self: -6 } },
+      R: { lab: '"存折上的钱是我婚前挣的。"（卡没办成）', fx: { money: -2, voice: +4, self: +5 } },
+      note: '美国已婚女性不经丈夫联署独立办信用卡，要等到 1974 年《平等信贷机会法》——比人类登月还晚五年。' },
+  ],
+  [ // P4 客厅革命
+    { id: 'N06-P4-C1',
+      d: '星期四 · 你家客厅', sp: 'Carol', role: '七个女人 · 窗帘拉上了', cameo: '♡',
+      t: '"规则我念一遍：每人十分钟，说真话，不打断，不出这个门。"她深吸一口气。"——谁先来？"',
+      L: { lab: '"我先听着。"', fx: { people: +2, self: +2 } },
+      R: { lab: '"我来。"', fx: { voice: +5, self: +6, people: +3 } },
+      note: '"意识觉醒小组"：客厅里的十分钟真话。这套客厅基础设施后来被提炼成一句口号——"个人的即政治的"。' },
+    { id: 'N06-P4-C2',
+      d: '1966 年 6 月 · 晚间档', sp: '电视新闻', role: 'Bob 在换台', cameo: '※',
+      t: '播音员语带嘲讽："华盛顿成立了个『全国妇女组织』，简称 NOW——现在。这些女士们想要什么？现在就要？"',
+      L: { lab: '（Bob 笑了，你跟着笑了）', fx: { people: +2, self: -6 } },
+      R: { lab: '（你在信封背面记下了地址）', fx: { voice: +3, self: +6 }, mile: 'now1966' },
+      note: 'NOW 1966 年成立，名字写在一张餐巾纸上。第二任主席 Aileen Hernandez 是工会出身的黑人女性——她的历史可见度不到 Friedan 的十分之一。' },
+    { id: 'N06-P4-C3',
+      d: '睡前', sp: '女儿', role: '数学作业摊在床上', cameo: '☘',
+      t: '"妈妈，老师说女孩学不好数学也没关系，反正以后用不上。"她咬着铅笔头。"——你小时候想当什么呀？"',
+      L: { lab: '"想当……就当妈妈呀。"（关灯）', fx: { people: +2, self: -8 } },
+      R: { lab: '"会计师。明天我去找你们老师。"', fx: { self: +7, voice: +4, people: -2 }, mile: 'daughter' },
+      note: 'mystique 的代际传递机制，就藏在"反正用不上"这五个字里。打断它的方法只有一个：当着下一代的面，说出真话。' },
+  ],
+  [ // P5 打字池 (秘书专属)
+    { id: 'N06-P5-C1',
+      d: '发薪日', sp: '两张工资单', role: '隔壁桌的新人又来问表格怎么做', cameo: '$',
+      t: '新来的男文员，干一样的活，工资单比你厚三分之一——他还总来请教"这个表格怎么做"。',
+      L: { lab: '（继续教他做表）', fx: { people: +2, self: -4, money: -1 } },
+      R: { lab: '（拿着两张工资单去找主管）', fx: { voice: +4, self: +5, money: +2, people: -2 } },
+      note: '《同工同酬法》恰在 1963 年签署——执行是另一回事：用"职位名称不同"绕开它，是此后六十年的标准操作。' },
+    { id: 'N06-P5-C2',
+      d: '年度评估', sp: '人事主管', role: '语气是夸你的', cameo: '♔',
+      t: '"你是全所最好的秘书！所以——为什么要申请管理培训生？那是给有家要养的男孩子准备的。"',
+      L: { lab: '"您说得对，我想岔了。"', fx: { self: -6 } },
+      R: { lab: '"我养我自己，先生。"', fx: { self: +6, voice: +3, money: +1 } },
+      note: '"男人要养家"是低工资和不晋升的万能理由——哪怕这位"男孩子"刚来三个月，报表还是你替他改的。' },
+    { id: 'N06-P5-C3',
+      d: '午休', sp: '前台的姑娘们', role: '围着看戒指', cameo: '☙',
+      t: '"Carol 订婚了！戒指真漂亮——可惜，老板已经开始物色接替她的人了。这儿的规矩：结婚就请辞，『为家庭着想』。"',
+      L: { lab: '（祝福 Carol，没接话）', fx: { people: +2, self: -3 } },
+      R: { lab: '"规矩没写在任何合同里。她可以不辞。"', fx: { voice: +4, self: +4, people: -2 } },
+      note: 'marriage bar 在 1950-60 年代不少行业仍是潜规则；空乘业更是明文——结婚即解雇，到 1960 年代末才被逐步拆除。' },
+  ],
+  ],
+  hazards: [
+    { id: 'N06-HAZ-A',
+      d: '续药提醒', sp: '医生（电话里）', role: '语气一如既往地体贴', cameo: '✗',
+      t: '"『小帮手』快吃完了吧？我给您续了双倍剂量。对了——晚上配一小杯雪利酒助眠也无妨，很多太太都这样。"',
+      L: { lab: '"剂量是不是太大了？"（换医生）', fx: { money: -3, self: +3 } },
+      R: { lab: '"谢谢大夫。"（照单全收）', kill: 'valium' },
+      note: '镇静剂加酒精，是 1960 年代郊区最安静的死法。讣告通常写"安详离世"。没人统计这个数字——统计它，就得先承认问题存在。' },
+    { id: 'N06-HAZ-B',
+      d: '浴室', sp: '日历', role: '第四个迟到的圆圈', cameo: '☾',
+      t: 'Bob 说过："孩子越多越像个家。"城里有个号码——厨房桌子，三百块，不问名字。',
+      L: { lab: '生。第四个。', fx: { body: -6, self: -5, money: -4 } },
+      R: { lab: '（拨那个号码）', kill: 'backalley' },
+      note: '距离 Roe 案还有十年。1960 年代美国每年估计有数十万例非法堕胎、数千名女性死亡——数字模糊，因为死亡证明从来不写真话。' },
+  ],
+  finale: {
+    id: 'N06-FIN',
+    d: '1966 年深秋 · 厨房', sp: '收音机', role: '晚饭在灶上', cameo: '※',
+    t: '新闻在念一份新组织的成立宣言："……使女性作为人类的全部潜能得以实现。"你关小了火，把音量调大。',
+    L: { lab: '"晚饭要糊了。"', fx: { self: -3 } },
+    R: { lab: '"让它糊一次。"', fx: { voice: +4, self: +6 } },
+    note: 'NOW《成立宣言》由 Friedan 与 Pauli Murray 共同起草。Murray：黑人、酷儿、律师、后来的圣公会首位黑人女牧师——她的"Jane Crow"概念比"交叉性"早了近 50 年。运动史欠她一张正脸。',
+  },
+},
+// ═══════════════ N07: 1968-1970 纽约 ═══════════════
+{
+  id: 'N07', banner: '第 7 棒 · 1968–1970 · 曼哈顿',
+  protag: '杂志社打字员，26 岁',
+  transitionIn: {
+    t: '两年后，曼哈顿。全城都在游行——反战的、民权的。每一场游行里，女人都在队伍后排发传单、煮咖啡。有人开始问：那我们的游行呢？',
+  },
+  // 职业随机: 杂志社打字员(原线) / 空乘 (制服行业: 1968 EEOC 开始拆婚姻禁令/年龄线/体重表)
+  roles: [
+    { protag: '杂志社打字员，26 岁', packs: [0, 1, 2] },
+    { protag: '航空公司空乘，26 岁', packs: [3, 0],
+      open: {
+        id: 'N07-OPEN-B',
+        d: '航前检查', sp: '乘务长', role: '拿着体重表和卷尺', cameo: '♛',
+        t: '"过磅。裙长检查。婚戒摘了？公司规定：已婚不飞、超重不飞、32 岁退休。——笑容呢？乘客可不买愁眉苦脸的票。"',
+        L: { lab: '（站上秤，微笑）', fx: { body: -2, self: -4 } },
+        R: { lab: '"32 岁退休这条，联邦刚裁定违法——您知道吧？"', fx: { money: -2, voice: +5, self: +5, people: -2 } },
+        note: '1960s 空乘的真实合同：已婚解雇、定期称重、30 出头强制退休。1968 年起 EEOC 陆续裁定这些规定违法——裁定与执行之间，隔着每一次航前检查。',
+      },
+    },
+  ],
+  open: {
+    id: 'N07-OPEN',
+    d: '1968 年春 · 杂志社', sp: '隔壁桌的姑娘', role: '楼上写社论的全是男人', cameo: '☙',
+    t: '"周二晚上有个小组，就在 Judy 家客厅。规则跟教堂相反：每人十分钟，只说真话，不出这个门。"她压低声音。"你来吗？"',
+    L: { lab: '"听着像传销。"', fx: { self: -5 } },
+    R: { lab: '"周二见。"', fx: { people: +5, self: +5 } },
+    note: '"意识觉醒小组"从 N06 的郊区厨房传进了 1968 年的城市客厅——同一套方法，即将长出理论和拳头。',
+  },
+  packs: [
+  [ // P1 大西洋城
+    { id: 'N07-P1-C1',
+      d: '1968 年 9 月', sp: 'Carol Hanisch', role: '组织者 · 爱荷华农村出身', cameo: 'H',
+      t: '"周六的大巴去大西洋城，抗议选美。带上束身衣、假睫毛、主妇杂志——全扔进『自由垃圾桶』。警察不许点火——那咱们就不点。"',
+      L: { lab: '"选美关我什么事。"', fx: { self: -5, voice: -3 } },
+      R: { lab: '"我带我的束身衣。"', fx: { voice: +7, self: +6, people: +4 }, mile: 'trashcan' },
+      note: '1968-09-07 大西洋城抗议。重点：什么都没烧——警察以木板路防火为由禁止，组织者照办了。' },
+    { id: 'N07-P1-C2',
+      d: '同日 · 木板路', sp: '同行的抗议者', role: '牵着一只羊', cameo: '☘',
+      t: '"压轴节目：给这只羊加冕『美利坚小姐』。"羊咩了一声，相当配合。"你来举牌子，还是牵羊？"',
+      L: { lab: '"举牌。"', fx: { voice: +4, self: +3 } },
+      R: { lab: '"羊给我。"', fx: { voice: +6, self: +5, people: +3 } },
+      note: '给活羊加冕是当天的正式议程——讽刺选美即牲畜评比。荒诞不是失控，是武器库的正式装备。' },
+    { id: 'N07-P1-C3',
+      d: '次日 · 办公室', sp: '广播 + 同事', role: '全国都在笑', cameo: '※',
+      t: '电台在笑："一群烧胸罩的疯女人。"可你在场——没人烧任何东西。同事凑过来："真烧了？"',
+      L: { lab: '"嗯……大概吧。"', fx: { voice: -5, self: -5 } },
+      R: { lab: '"没烧。但他们需要我们烧过。"', fx: { voice: +5, self: +6 } },
+      note: '"烧胸罩"神话：一篇预测性报道加一个幽默专栏，把没发生的事变成了五十年的全国常识。媒体需要一个可笑的形象，胜过需要事实。' },
+  ],
+  [ // P2 客厅与油印机
+    { id: 'N07-P2-C1',
+      d: '某个周二', sp: 'Judy', role: '客厅 · 七把椅子', cameo: '♡',
+      t: '"今晚的题目：你第一次意识到『这不是我的问题，是我们的问题』，是哪一刻？"——十分钟。开始。',
+      L: { lab: '"我说不出口。"', fx: { self: -3, people: +2 } },
+      R: { lab: '（说了那件从没对人说过的事）', fx: { voice: +4, self: +7, people: +5 } },
+      note: '客厅里的十分钟真话，正在变成一套政治方法论。左派男人讥讽这是"心理治疗"——回应很快就来了。' },
+    { id: 'N07-P2-C2',
+      d: '1969 年 2 月', sp: 'Carol Hanisch', role: '油印机旁 · 油墨味', cameo: 'H',
+      t: '"我写了篇东西，回应那些说小组是『治疗』的左派男人。标题是编辑加的——《个人的即政治的》。"她拍拍机器。"帮我摇？"',
+      L: { lab: '"手疼。"', fx: { self: -2 } },
+      R: { lab: '（摇到半夜）', fx: { voice: +6, self: +5, people: +3 }, mile: 'personal' },
+      note: '运动史上最有名的口号是编辑部的产物——Hanisch 本人没在文中用过这五个字，标题是 Firestone 和 Koedt 加的。' },
+    { id: 'N07-P2-C3',
+      d: '1968 年万圣节', sp: 'WITCH 成员', role: '递来一件黑斗篷', cameo: '☾',
+      t: '"今晚去华尔街，扮成女巫给道琼斯指数下咒。"她抖开斗篷。"我们多缝了一件。咒语简单，跟着念就行。"',
+      L: { lab: '"这也太……"', fx: { people: -2, self: -2 } },
+      R: { lab: '"咒语我已经背好了。"', fx: { voice: +5, self: +6, people: +3 } },
+      note: 'WITCH 真去华尔街施了咒。次日道指真跌了——纯属巧合，但她们为此乐了很多年。游击剧场：用荒诞对付不肯讲理的体面。' },
+  ],
+  [ // P3 薰衣草威胁
+    { id: 'N07-P3-C1',
+      d: '1969 年', sp: 'Rita Mae Brown', role: '刚被撤掉通讯编辑', cameo: 'R',
+      t: '"我的位置『另有安排』了——因为我是 lesbian，而 Friedan 说我们是『薰衣草威胁』，会吓跑主流。"她直视你。"你也觉得我是威胁？"',
+      L: { lab: '"运动要顾大局……"', fx: { people: +4, self: -8 } },
+      R: { lab: '"『威胁』的定义权凭什么在她？"', fx: { self: +7, people: -3, voice: +3 } },
+      note: '为"可尊重性"牺牲最边缘的人，第四次上演：1869 年、1913 年、1920 年——现在轮到运动内部的 lesbian。' },
+    { id: 'N07-P3-C2',
+      d: '1970 年 5 月 1 日', sp: 'Karla Jay', role: '行动后勤总指挥', cameo: 'K',
+      t: '"大会开场我们切灯。灯再亮时，台上站十七件紫色 T 恤。"她递来一件。"你的码我留了。穿——还是坐台下？"',
+      L: { lab: '（台下鼓掌）', fx: { people: +2, self: -3 } },
+      R: { lab: '（套上 T 恤）', fx: { voice: +7, self: +7, people: -2 }, mile: 'lavender' },
+      note: 'T 恤上印着"Lavender Menace"——把骂名穿在身上，是夺回定义权最快的办法。Friedan 当晚不在场；次年 NOW 在没有她的情况下通过了 lesbian 权利决议。' },
+    { id: 'N07-P3-C3',
+      d: '1970 年 12 月', sp: '报摊上的 Time', role: '同一支笔', cameo: '※',
+      t: '八月，Time 把 Kate Millett 印上封面，封她做运动领袖；十二月，同一本杂志把她的双性恋身份当丑闻登出来。造神四个月，毁神一期。',
+      L: { lab: '"她就不该上封面。"', fx: { self: -4, voice: -2 } },
+      R: { lab: '"该换的是那支笔。"', fx: { voice: +4, self: +5 } },
+      note: 'Time 1970 年 8 月造英雄、12 月 outing 毁掉她——大众媒体对运动的双面性，一份杂志四个月演完全程。' },
+  ],
+  [ // P4 三万英尺 (空乘专属)
+    { id: 'N07-P4-C1',
+      d: '机场', sp: '公司的新广告牌', role: '印着你同事的脸', cameo: '※',
+      t: '广告词："我是 Cheryl——来飞我吧。"机舱里，乘客笑着念出这句词，手放在了不该放的地方。',
+      L: { lab: '（走开，当没看见）', fx: { self: -4 } },
+      R: { lab: '（请乘务长记录：广告词不是我的工作内容）', fx: { voice: +4, self: +5, people: -2 } },
+      note: '1970s 初航空公司广告把空乘人格直接商品化（"Fly Me"系列）；空乘组织随后以"Go Fly Yourself"反击。把骚扰写进广告的公司，把投诉算给员工。' },
+    { id: 'N07-P4-C2',
+      d: '夜航 · 厨房隔间', sp: '资深空乘', role: '压低声音', cameo: '☙',
+      t: '"我们在建自己的组织——空乘争取女性权利会。下个月开会。你那条『32 岁退休』的申诉，可以一起递。"',
+      L: { lab: '"我合同快到期了，别惹事。"', fx: { self: -4 } },
+      R: { lab: '（把名字签上）', fx: { people: +5, self: +5, voice: +2 } },
+      note: '1970s 空乘维权组织推翻了婚姻禁令、年龄线和体重表的大部分条款——空乘从"飞行的花瓶"，成了劳工运动的意外先锋。' },
+    { id: 'N07-P4-C3',
+      d: '巡航高度', sp: '机舱广播后的安静', role: '3C 乘客捂住胸口', cameo: '✚',
+      t: '你在三十秒内完成了急救流程。落地后，报纸的标题是：《美丽空姐的温柔一刻》。',
+      L: { lab: '"登报总是好事。"', fx: { self: -2 } },
+      R: { lab: '（给报社写信：该登的是急救资质，不是腿）', fx: { voice: +4, self: +5 } },
+      note: '空乘从第一天起就是受训的安全专业人员（初代甚至要求护士资格）；媒体叙事却长期只拍丝袜。专业被美貌遮蔽，是制服行业女性的通病。' },
+  ],
+  ],
+  hazards: [
+    { id: 'N07-HAZ-A',
+      d: '午休', sp: '时髦的同事', role: '掏出一个小药瓶', cameo: '☂',
+      t: '"我的医生什么都肯开——这种小药丸，一周瘦五磅，办公室一半姑娘都在吃。"她倒出两粒。"试试？"',
+      L: { lab: '"我中午还想吃饭呢。"', fx: { people: -2 } },
+      R: { lab: '"就试两粒。"', kill: 'dietpill' },
+      note: '1960 年代的减肥药就是合法处方的安非他命，数百万女性在服用。成瘾和心衰写在十年后的统计里——"瘦"有处方，命没有。' },
+    { id: 'N07-HAZ-B',
+      d: '游行中', sp: '旁边的姑娘', role: '人群开始往后涌', cameo: '✗',
+      t: '"骑警往这边压过来了！"她死死抓住你的手肘。"别跑——跑就踩踏了！手挽紧！"',
+      L: { lab: '（松手，退到人行道）', fx: { self: -4, people: -3 } },
+      R: { lab: '（挽紧，站住）', kill: 'baton' },
+      note: '1968-70 年的游行镇压是常态；1970 年肯特州开枪打死的四名学生里有两名女性。"维持秩序"四个字，每个时代有自己的写法。' },
+  ],
+  finale: {
+    id: 'N07-FIN',
+    d: '1970 年 8 月 26 日', sp: '游行指挥', role: '第五大道 · 举着喇叭', cameo: '★',
+    t: '"五十年了——1920 到 1970！第五大道封街，五万人！"她冲你喊口号："记住了吗——『趁罢工火热，别熨衣服』！"',
+    L: { lab: '"人太多了，我看看就好。"', fx: { self: -3 } },
+    R: { lab: '（走进队伍）', fx: { voice: +7, people: +5, self: +6 }, mile: 'strike70' },
+    note: '1970-08-26"平等罢工日"，纪念第十九修正案五十周年——第二波最大规模的游行。从 N04 的投票队伍到这里，正好半个世纪。',
+  },
+},
+// ═══════════════ N08: 1973-1982 伊利诺伊 (6选2 豪华局) ═══════════════
+{
+  id: 'N08', banner: '第 8 棒 · 1973–1982 · 伊利诺伊州斯普林菲尔德',
+  protag: '律所法律秘书，28 岁',
+  pick: 2,
+  transitionIn: {
+    t: '中西部，斯普林菲尔德——州议会大厦的影子里。新的十年，战场从街头搬进了议事厅。这里也是一位姓 Schlafly 的太太的主场。',
+  },
+  // 职业随机: 法律秘书(原线) / 所里第一位女律师 (law school 女生 1970 年 9% → 1980 年超 4 万)
+  roles: [
+    { protag: '律所法律秘书，28 岁', packs: [0, 1, 2, 3, 4, 5] },
+    { protag: '所里第一位女律师，29 岁', packs: [6, 0, 2, 4],
+      open: {
+        id: 'N08-OPEN-B',
+        d: '入职第一天', sp: '资深合伙人', role: '探头进办公室', cameo: '♔',
+        t: '"哦——你就是新来的？正好，速记两份口供，十点前要。"他顿了顿。"等等，你说你是……律师？"',
+        L: { lab: '"我可以先帮忙速记。"', fx: { people: +3, self: -5 } },
+        R: { lab: '"是律师。口供我来盘问，速记请找秘书。"', fx: { voice: +5, self: +5, people: -3 } },
+        note: 'O’Connor 1952 年从斯坦福法学院毕业，成绩全班前列——收到的唯一 offer 是法律秘书。1970 年全美律师只有 4% 是女性；你走进的这间律所，多数合伙人没共事过女律师。',
+      },
+    },
+  ],
+  open: {
+    id: 'N08-OPEN',
+    d: '1973 年 1 月 22 日 · 律所', sp: '合伙人', role: '拿着电传纸', cameo: '♔',
+    t: '"把这份判决摘要打三份。最高法院，七比二，案子叫 Roe 诉 Wade。"他顿了顿。"我妻子早上哭了——我没问是哪一种哭。"',
+    L: { lab: '（只是打字）', fx: { money: +3, self: -3 } },
+    R: { lab: '（把第四份塞进自己包里）', fx: { self: +6, voice: +2 } },
+    note: '1973-01-22，Roe 判决。两种哭都是真的——这个国家从这一天起，围绕这份判决撕了五十年。',
+  },
+  packs: [
+  [ // P1 Roe 的房间
+    { id: 'N08-P1-C1',
+      d: '判决周', sp: '收音机', role: '播放庭审录音', cameo: '※',
+      q: '“It disrupts her body. It disrupts her education. It disrupts her entire family life.”',
+      t: '26 岁的女律师在最高法院说：怀孕打断她的身体、教育、工作、整个人生。你 28 岁，连在所里大声说话都没试过。',
+      L: { lab: '"她是特例。"', fx: { body: -3, self: -4 } },
+      R: { lab: '"她比我还小两岁。"', fx: { body: +3, self: +5, voice: +3 } },
+      note: 'Sarah Weddington 人生第一个联邦案件就是 Roe，26 岁站上最高法院。她自己 1967 年去墨西哥做过非法堕胎——这件事她保密了 25 年。' },
+    { id: 'N08-P1-C2',
+      d: '茶水间', sp: '律所同事', role: '消息灵通', cameo: '☙',
+      t: '"达拉斯那个案子最早是个叫 Linda Coffee 的律师接的——当年全达拉斯只有她敢接。现在人人记得 Weddington，没人提她。"',
+      L: { lab: '"红花总要绿叶嘛。"', fx: { self: -4 } },
+      R: { lab: '（在笔记本上记下这个名字）', fx: { self: +5, voice: +2 } },
+      note: 'Coffee 接了最初的电话、递交了诉状，然后把口头辩论让给了搭档。每个运动都有后台——后台的名字总是最先被忘掉。' },
+    { id: 'N08-P1-C3',
+      d: '人物特写版', sp: '报纸', role: '《Jane Roe 是谁》', cameo: '※',
+      t: '报道说：『Jane Roe』本人 21 岁怀孕时，连去合法州的车票都买不起。判决下来时，她的孩子已经两岁——早送养了。',
+      L: { lab: '"那案子跟她没关系了。"', fx: { self: -4 } },
+      R: { lab: '"案子用了她的名字，权利没轮到她。"', fx: { self: +6, voice: +3 } },
+      note: 'Norma McCorvey 从没做过堕胎。晚年她被反堕胎组织付钱出演"忏悔者"（税务记录约 45 万美元），临终前承认"全是演的"。两边都用过她，她哪边都没真正属于过。' },
+  ],
+  [ // P2 Schlafly 的面包
+    { id: 'N08-P2-C1',
+      d: '州议会走廊', sp: 'Eagle Forum 的太太', role: '提着面包篮 · 笑容真诚', cameo: '♛',
+      t: '"尝尝？自己烤的，给每位议员都送了——篮子上有标语：『来自做面包的人，致养家糊口的人』。ERA 会让我女儿被征兵，你知道吗？"',
+      L: { lab: '（接过面包。真香。）', fx: { people: +3, self: -5 } },
+      R: { lab: '"征兵的事法学界说法不一——但面包是真香。"', fx: { self: +5, voice: +2 } },
+      note: '给议员送自烤面包是 STOP ERA 的招牌战术，标语是真的。她们不是被骗的——她们真心相信，而且手里握着 ERA 派 30 秒内答不上来的真问题。' },
+    { id: 'N08-P2-C2',
+      d: '晚间电视', sp: 'Phyllis Schlafly', role: '辩论开场 · 微笑', cameo: 'S',
+      q: '“I want to thank my husband Fred, for letting me come here tonight.”',
+      t: '"首先，我要感谢我丈夫弗雷德——允许我今晚来到这里。"台下嘘声四起。她微笑着，等嘘声停。',
+      L: { lab: '（关电视）', fx: { voice: -3, self: -3 } },
+      R: { lab: '（盯着看完。知己知彼。）', fx: { self: +5, voice: +3 } },
+      note: '这句开场白是精准设计：一句话同时取悦保守派、激怒女权派、霸占次日头条。说这话的人有哈佛硕士学位，51 岁还在读法学院，一年飞两百场演讲。' },
+    { id: 'N08-P2-C3',
+      d: '午餐', sp: '合伙人', role: '翻着人物报道', cameo: '♔',
+      t: '"这位 Schlafly 太太——六个孩子，号召女人回家，自己全国巡回演讲，还在读法学博士。"他笑出声。"她要是支持 ERA，该多可怕。"',
+      L: { lab: '"伪君子罢了。"', fx: { self: -2, voice: -2 } },
+      R: { lab: '"不。她是最懂规则的玩家。"', fx: { self: +5, voice: +3 } },
+      note: '她的一生活成了她反对的样子——这不是矛盾，是策略：她比谁都清楚，这个时代的讲坛只租给"得体的女人"。她照单全收，然后用讲坛拆了别人的梯子。' },
+  ],
+  [ // P3 一千零一道门槛
+    { id: 'N08-P3-C1',
+      d: '1976 年', sp: '报纸国会版', role: 'Hyde 修正案通过', cameo: '※',
+      q: '“Unfortunately, the only vehicle available is the Medicaid bill.”',
+      t: '议员 Hyde 的原话白纸黑字："我想阻止所有人堕胎——富女人、中产、穷女人。可惜，我唯一能合法动的，只有医疗补助这一条。"',
+      L: { lab: '"至少他诚实。"', fx: { self: -3 } },
+      R: { lab: '"他说破的是未来五十年。"', fx: { voice: +4, self: +5 } },
+      note: 'Hyde 修正案：联邦医保资金禁用于堕胎。Roe 给了权利，Hyde 让穷人行使不起——"禁不掉，就让它贵到用不起"，此后五十年所有门槛的母版。' },
+    { id: 'N08-P3-C2',
+      d: '1975 年', sp: '银行经理', role: '新规生效之后', cameo: '$',
+      t: '"1974 年新规，夫人，您现在确实可以独立申请信用卡了。"他敲着表格。"不过出于『承保考量』，我们仍需考虑家庭稳定性——您丈夫做什么工作？"',
+      L: { lab: '（报上丈夫的职位）', fx: { money: +4, self: -5 } },
+      R: { lab: '"新规里没有这一条，先生。"', fx: { voice: +5, self: +6, money: -2 }, mile: 'ecoa' },
+      note: '《平等信贷机会法》1974 年终于让已婚女性能独立办卡——但"承保偏好"又顶了二十年。法律改了，柜台后面的人没换。' },
+    { id: 'N08-P3-C3',
+      d: '周五下午', sp: '同所的打字员', role: '正在收拾纸箱', cameo: '☙',
+      t: '"显怀了。合伙人说客户『不习惯』。"她把订书机塞给你。"没有补偿——这是合法的。留个纪念。"',
+      L: { lab: '（收下订书机，送她下楼）', fx: { body: -2, people: +4, self: -3 } },
+      R: { lab: '"先别走。我们去劳工局问一句。"', fx: { voice: +4, people: +3, self: +4, money: -2 } },
+      note: '怀孕歧视到 1978 年《怀孕歧视法》才算违法。在那之前，显怀等于自动离职——全美如此，合同里都不用写。' },
+  ],
+  [ // P4 休斯顿双城记
+    { id: 'N08-P4-C1',
+      d: '1977 年 11 月 · 休斯顿', sp: '火炬接力跑者', role: '从塞尼卡福尔斯跑来', cameo: '★',
+      t: '火炬从塞尼卡福尔斯跑了两千六百英里，今天进会场——三位第一夫人同台。你州的代表团正缺一个记录员。',
+      L: { lab: '"我只是个秘书。"', fx: { self: -4 } },
+      R: { lab: '（举手）', fx: { voice: +6, self: +6, people: +4 }, mile: 'houston' },
+      note: '1977 年全国妇女大会：2000 名代表、火炬接力、Carter/Ford/Johnson 三位第一夫人同台——美国历史上第一次联邦出资的全国女性大会。' },
+    { id: 'N08-P4-C2',
+      d: '同一周 · 出租车上', sp: '司机', role: '看着后视镜', cameo: '✗',
+      t: '"去会展中心？哪个——体育馆那边今天也有大会，『拥家庭大会』，人多得很，一万五呢。"他咂咂嘴。"你们那边多少人？"',
+      L: { lab: '"……两千。"', fx: { self: -3 } },
+      R: { lab: '"两千个代表。每个都带着选区。"', fx: { voice: +3, self: +4 } },
+      note: '同城同周，Schlafly 的 Pro-Family 大会 1.5 万人对 IWY 的 2000 代表。威望对数量——三年后里根当选，天平揭晓。' },
+    { id: 'N08-P4-C3',
+      d: '大会深夜', sp: '你州的代表', role: '走廊里 · 攥着议程表', cameo: '☙',
+      t: '"明天表决 lesbian 权利条款。有人说通过它正好『坐实 Schlafly 的指控』——可 Friedan 都站起来支持了。"她看着你。"你这票呢？"',
+      L: { lab: '（弃权）', fx: { people: +2, self: -6 } },
+      R: { lab: '（赞成）', fx: { voice: +5, self: +7, people: -2 } },
+      note: '休斯顿大会通过了 lesbian 权利条款，Friedan 当场为 1969 年的"薰衣草威胁"公开道歉——迟到八年的纠错，在敌人最强的那年完成。' },
+  ],
+  [ // P5 倒计时
+    { id: 'N08-P5-C1',
+      d: '1978 年', sp: 'NOW 组织者', role: '电话里 · 背景嘈杂', cameo: '☙',
+      t: '"华盛顿，7 月 9 日，十万人为 ERA 上街——我们包了三辆大巴，斯普林菲尔德出发。"电话那头翻纸的声音。"还缺个领队。"',
+      L: { lab: '"我没领过队……"', fx: { self: -3 } },
+      R: { lab: '"几点发车？"', fx: { voice: +5, people: +5, self: +5 } },
+      note: '1978 年十万人游行逼出国会延期，ERA 截止日延到 1982——那是第二波最后一次大规模总动员。' },
+    { id: 'N08-P5-C2',
+      d: '1980 年', sp: '律所的电台', role: '午间新闻', cameo: '※',
+      t: '"还差三个州。伊利诺伊——又一次没有通过。"播音员翻页。"赞成三十五，需要三十八。"',
+      L: { lab: '（关掉电台干活）', fx: { self: -4 } },
+      R: { lab: '（把 35 写在台历上，圈起来）', fx: { self: +4, voice: +2 } },
+      note: 'ERA 卡在 35/38 整整五年。伊利诺伊是唯一反复表决、反复失败的北方工业州——恰好是 Schlafly 的家乡州。这不是巧合。' },
+    { id: 'N08-P5-C3',
+      d: '1982 年 6 月 30 日 · 深夜', sp: '收音机', role: '午夜钟声', cameo: '※',
+      t: '"平等权利修正案于今夜零时失效。"对街酒店灯火通明——Eagle Forum 在开庆功宴，据说放的歌是《Somewhere Over the Rainbow》。',
+      L: { lab: '（关灯睡觉）', fx: { self: -5 } },
+      R: { lab: '（给女儿留了张字条：还没完。）', fx: { self: +7, voice: +3 } },
+      note: '1982-06-30，ERA 差三个州正式失败；Schlafly 的庆功宴是真的。四十多年后的今天（2026），ERA 仍未写进宪法——但也仍未死透。' },
+  ],
+  [ // P6 家里
+    { id: 'N08-P6-C1',
+      d: '晚饭桌', sp: '丈夫', role: '半开玩笑', cameo: '♠',
+      t: '"你们所里那些 ERA 传单别往家拿——我爸看见了，问我管不管得住自己老婆。"他笑笑。"玩笑，玩笑。"',
+      L: { lab: '（也笑笑）', fx: { people: +3, self: -6 } },
+      R: { lab: '"那让他来问我。"', fx: { self: +6, people: -3 } },
+      note: '"玩笑"是试探的标准包装。1970 年代的婚姻里，妻子的政治立场是丈夫的面子问题——这句话本身就是一张小型选票。' },
+    { id: 'N08-P6-C2',
+      d: '家庭聚会', sp: '嫂子', role: '热情地塞来一本书', cameo: '♛',
+      t: '"《完全的女人》！教会读书会都在读——第七章说，用保鲜膜裹着自己迎接丈夫下班，婚姻立刻回春！"',
+      L: { lab: '"……保鲜膜？"（收下了）', fx: { people: +3, self: -3 } },
+      R: { lab: '"他要想吃剩饭，冰箱里有。"', fx: { self: +6, people: -2 } },
+      note: 'Marabel Morgan《The Total Woman》与 Roe 同年出版（1973），销量上千万册；保鲜膜建议是书里真实的第七章。政治战场之外，还有一个一千万册的厨房战场。' },
+    { id: 'N08-P6-C3',
+      d: '睡前', sp: '女儿', role: '作业本摊在膝盖上', cameo: '☘',
+      t: '"老师说有个修正案要给女人『平等』。"她抬起头。"妈妈——我们现在不平等吗？"',
+      L: { lab: '"别想这些，写作业。"', fx: { self: -7 } },
+      R: { lab: '"问得好。来，从 1848 年讲起……"', fx: { self: +7, voice: +3, people: +2 }, mile: 'tellher' },
+      note: '把火种讲给下一代——这个动作本身，比任何修正案都更难被州议会否决。' },
+  ],
+  [ // P7 合伙人走廊 (女律师专属)
+    { id: 'N08-P7-C1',
+      d: '庭审前夜', sp: '同级男律师', role: '耸耸肩', cameo: '♞',
+      t: '"哦你还不知道？Jenkins 案的策略昨天就定了——合伙人们在俱乐部桑拿房里拍的板。"他摊手。"你又进不去。"',
+      L: { lab: '（加倍准备自己那部分）', fx: { self: +2, body: -2 } },
+      R: { lab: '（敲管理合伙人的门：要么进会议室开，要么桑拿房开门）', fx: { voice: +5, self: +5, people: -3 } },
+      note: '真正的决策常在女性进不去的房间发生——俱乐部、球场、桑拿房。"非正式渠道"是天花板最硬的部分：它不出现在任何制度文本里。' },
+    { id: 'N08-P7-C2',
+      d: '周五', sp: '事务所经理', role: '语气安抚', cameo: '♔',
+      t: '"别多想——客户点名要『真正的律师』出庭。你做的辩护方案很好，他会照着念的。"',
+      L: { lab: '（把方案交出去）', fx: { money: +2, self: -6 } },
+      R: { lab: '"方案署我的名，出庭也是我。客户可以换律所。"', fx: { voice: +5, self: +6, money: -3 } },
+      note: '1970 年代女律师的常态：研究你做、方案你写、法庭归他——账单上的小时费率，他的是你的两倍。' },
+    { id: 'N08-P7-C3',
+      d: '出庭日清晨', sp: '镜子', role: '衣柜门开着', cameo: '☾',
+      t: '裙装、低跟、浅妆——Hardy 法官上周把一位穿长裤套装的女律师赶出了法庭，理由："藐视法庭礼仪"。',
+      L: { lab: '（换上裙装。官司要紧。）', fx: { self: -3 } },
+      R: { lab: '（穿长裤套装。让他试试。）', fx: { voice: +4, self: +5, money: -2 } },
+      note: '1970 年代确有法官以"礼仪"为由驱逐穿长裤的女律师；女性长裤进入职业着装规范，比女性进入法学院晚了一代人。' },
+  ],
+  ],
+  hazards: [
+    { id: 'N08-HAZ-A',
+      d: '体检', sp: '妇科诊所护士', role: '语气热情', cameo: '☂',
+      t: '"新型宫内节育器——『达尔康之盾』。一次安装一劳永逸，比天天吃药省心多了，好多太太都装了！"',
+      L: { lab: '"我再想想。"', fx: { body: +1 } },
+      R: { lab: '"那就装吧。"', kill: 'shield' },
+      note: 'Dalkon Shield 1971-74 年售出数百万只，设计缺陷致严重感染与死亡；厂商隐瞒数据多年，赔偿基金最终 24 亿美元。"省心"的定价从不印在包装上。' },
+    { id: 'N08-HAZ-B',
+      d: '超市', sp: '货架上的新品', role: '免费试用装', cameo: '※',
+      q: '“It even absorbs the worry.”',
+      t: '新款卫生棉条堆成小山，广告词印在堆头上：『它甚至能吸走你的忧虑』。免费试用装，先到先得。',
+      L: { lab: '（用回老牌子）', fx: { money: -1 } },
+      R: { lab: '（拿了试用装）', kill: 'tss' },
+      note: '宝洁 Rely 棉条 1980 年因中毒性休克综合征致死案例紧急下架；那句广告词一字不差。忧虑没被吸走，被吸走的是别的东西。' },
+  ],
+  finale: {
+    id: 'N08-FIN',
+    d: '1982 年秋 · 律所', sp: '新来的年轻律师', role: '女性 · 刚入职', cameo: '☘',
+    t: '"入职那天合伙人说『我们所从没有过女律师』——我说『现在有了』。"她把案卷放到你桌上。"听说你这十年什么都见过。带带我？"',
+    L: { lab: '"我只是个秘书。"', fx: { self: -4 } },
+    R: { lab: '"那就从 1973 年讲起吧。"', fx: { self: +7, people: +4, voice: +3 } },
+    note: '1972 到 1982，法学院女生比例从 9% 涨到 36%。ERA 输了；但门厅里站满了新人。',
+  },
+},
+// ═══════════════ N09: 1980s 性战争 ═══════════════
+{
+  id: 'N09', banner: '第 9 棒 · 1980s · 一家女性书店',
+  protag: '书店店员，30 岁',
+  transitionIn: {
+    t: '里根年代。你在一家女性书店工作——运动开过的花，如今结成一排排书架。只是这十年，炮火不再来自对面，而是来自书架的两端。',
+  },
+  open: {
+    id: 'N09-OPEN',
+    d: '1982 年 · 开店前', sp: '店长', role: '拆着两箱新书', cameo: '♛',
+    t: '"今天到的书你来摆：一箱 Dworkin 的《色情》，一箱 Samois 的《Coming to Power》。"她苦笑。"摆远点——上个月有顾客为这两箱在店里吵了一架。"',
+    L: { lab: '（分开摆，隔三个书架）', fx: { people: +2, self: +1 } },
+    R: { lab: '（摆同一张桌，立牌：『都读完再吵』）', fx: { voice: +4, self: +5, people: -2 } },
+    note: '性战争（Sex Wars）：反色情派与性积极派都自认女权正统、互指对方背叛。内战的前线，穿过每一家女性书店的陈列桌。',
+  },
+  packs: [
+  [ // P1 Barnard 1982
+    { id: 'N09-P1-C1',
+      d: '1982 年 4 月 · 会场门口', sp: '抗议者', role: '递传单 · 臂章', cameo: '✗',
+      t: '"里面那个『性学术会议』是在给施虐癖洗地！签名抵制——"她背后，与会者正排队入场。"你是哪边的？"',
+      L: { lab: '（接过传单，低头进场）', fx: { self: -4 } },
+      R: { lab: '"我两边的书都卖，两边的会都听。"', fx: { self: +6, voice: +3, people: -3 } },
+      note: '1982 年 Barnard 性研讨会：女权主义者在门外抗议女权主义者的学术会议——性战争最具象的一幕。' },
+    { id: 'N09-P1-C2',
+      d: '会后', sp: 'Gayle Rubin', role: '来店里取预订的书', cameo: 'G',
+      t: '"社会把性画了个圈：已婚的、生育的在圈内受祝福，其余都该被谴责。我只是把这个圈画出来给大家看。"她耸耸肩。"画圈的人不喜欢被看见。"',
+      L: { lab: '"圈也许有圈的道理。"', fx: { self: -3 } },
+      R: { lab: '（把她的论文复印了贴上布告栏）', fx: { voice: +5, self: +5, people: -2 }, mile: 'circle' },
+      note: 'Rubin《Thinking Sex》的"被祝福的圈"：社会如何把性分成可敬与可耻。性积极派的奠基文本，首发于那场被抗议的会议。' },
+    { id: 'N09-P1-C3',
+      d: '店内朗读会', sp: 'Joan Nestle', role: '工人阶级 lesbian 档案馆创办人', cameo: 'N',
+      q: '“I will not be told by the daughters of the bourgeoisie that my desire is patriarchal.”',
+      t: '"我是纽约工人阶级的犹太 lesbian。轮不到资产阶级的女儿们来告诉我，我的欲望是父权的。"台下一半鼓掌，一半离席。',
+      L: { lab: '（跟着离席的顾客去结账）', fx: { money: +2, self: -3 } },
+      R: { lab: '（把朗读会延长半小时）', fx: { voice: +4, self: +5, people: -2 } },
+      note: '被学院派判为"复刻父权"的 butch-femme 文化，恰是 1950 年代工人阶级 lesbian 在父权之外自造的爱欲语法。阶级裂痕又一次穿过运动。' },
+  ],
+  [ // P2 奇怪的同盟
+    { id: 'N09-P2-C1',
+      d: '1986 年', sp: '报纸头版', role: '一张照片', cameo: '※',
+      t: '照片上，Dworkin 在里根政府的反色情委员会作证——她身后坐着电视布道家们。一生反里根的人，论证正被里根的司法部长引用。',
+      L: { lab: '"她疯了。"', fx: { self: -3, voice: -2 } },
+      R: { lab: '"不——这是内战最贵的账单。"', fx: { self: +5, voice: +3 } },
+      note: '1986 年 Meese 委员会：反色情女权与宗教右翼的尴尬同房。"敌人的敌人"逻辑的代价：你的论证成为别人的武器，而且要不回来。' },
+    { id: 'N09-P2-C2',
+      d: '1984 年', sp: '本地 NOW 会员', role: '气冲冲进店', cameo: '☙',
+      t: '"印第安纳波利斯把反色情条例通过了——签字的是个保守派市长！现在 ACLU 要去法院废掉它。"她一拍柜台。"你说，我们到底帮哪边？"',
+      L: { lab: '"帮市长。色情确实伤害女人。"', fx: { people: +2, self: -2 } },
+      R: { lab: '"帮 ACLU。审查的刀第一个砍的，从来是咱们这种店。"', fx: { voice: +4, self: +5, people: -2 } },
+      note: '1984 年那部条例由保守派市长签署、1986 年被联邦法院废除。历史反复验证 ACLU 的论点：审查工具一旦造好，最先用于同性恋书店、避孕手册和女性健康读物。' },
+    { id: 'N09-P2-C3',
+      d: '同一天', sp: '两位顾客', role: '上午一位 · 下午一位', cameo: '✗',
+      t: '上午的顾客要求下架《Macho Sluts》："这是暴力。"下午的顾客要求下架《色情》："这是性压抑。"店长说：你看着办。',
+      L: { lab: '（都收进柜台下，谁问谁买）', fx: { money: +2, self: -1 } },
+      R: { lab: '（都留在架上，加张手写卡：『本店不替你决定』）', fx: { voice: +5, self: +6, people: -3 }, mile: 'shelf' },
+      note: '同一天、同一家店、两个方向的下架要求——性战争落到地面就是这个样子：书店成了前线，店员被迫当裁判。' },
+  ],
+  [ // P3 货柜里的女权
+    { id: 'N09-P3-C1',
+      d: '铺货日', sp: '香烟推销员', role: '抱着一卷海报', cameo: '$',
+      q: '“You’ve Come a Long Way, Baby.”',
+      t: '"Virginia Slims，女士专属——『宝贝，你已经走了很长的路』。海报免费，贴橱窗上，时髦！"',
+      L: { lab: '（贴了。确实时髦。）', fx: { money: +3, self: -4 } },
+      R: { lab: '"用肺癌庆祝解放？不挂。"', fx: { voice: +4, self: +5, money: -2 } },
+      note: '这句广告语从 1968 年卖到 1995 年——商品女权主义的元祖：把"解放"抽空成购买理由。这支专门瞄准年轻女性的烟，公共卫生界花了三十年收拾后果。' },
+    { id: 'N09-P3-C2',
+      d: '店里的收音机', sp: '香水广告歌', role: '顾客跟着哼', cameo: '※',
+      t: '"我能挣钱养家～能下锅煎肉～还永远不让你忘记你是个男人～"（Enjoli 香水，30 秒）店里有人跟着旋律点头。',
+      L: { lab: '（确实洗脑，哼了两句）', fx: { self: -3 } },
+      R: { lab: '（关掉收音机）"双班制配性感，三十秒卖完一生。"', fx: { voice: +3, self: +5 } },
+      note: 'Enjoli 1980 年广告把"有事业＋做家务＋取悦丈夫"打包成现代女性的全部——"拥有一切"的商业版，包装比 mystique 新，内核没换。' },
+    { id: 'N09-P3-C3',
+      d: '午后', sp: '老主顾', role: '一身垫肩套装', cameo: '♛',
+      t: '"公司新规：女经理必须裙装、淡妆——『专业形象』。"她扯了扯垫肩。"我现在每天打扮得像在扮演一个被允许的女人。"',
+      L: { lab: '"入乡随俗嘛。"', fx: { people: +2, self: -3 } },
+      R: { lab: '"把规定复印给我，贴布告栏。"', fx: { voice: +4, people: +3, self: +4 } },
+      note: '1980 年代"dress for success"：女性进入职场的门票是一套精确的性别表演。垫肩是盔甲，也是新一代的束身衣。' },
+  ],
+  [ // P4 照护的年代
+    { id: 'N09-P4-C1',
+      d: '1985 年', sp: '常客', role: '很久没来 · 攥着围巾', cameo: '♡',
+      t: '"店里那对常客——Robert 和 Tom——Tom 走了。医院连病房都不肯给，家里人不认他，葬礼没人去。"她声音很低。"周六我们几个去守夜。"',
+      L: { lab: '（店里实在走不开）', fx: { self: -5 } },
+      R: { lab: '（挂出牌子：『周六歇业半天』）', fx: { money: -1, people: +5, self: +6 }, mile: 'vigil' },
+      note: '1980 年代 AIDS 危机：政府沉默到 1985 年总统才第一次公开说出这个词。lesbian 社区站出来照护 gay 社区——运动内战中最安静、也最高贵的一页。' },
+    { id: 'N09-P4-C2',
+      d: '1983 年', sp: '社区诊所护士', role: '拿着排班表', cameo: '☂',
+      t: '"血库告急——男同志全被终身禁止献血了。姐妹们这周已经排了两百人。"她抬眼。"你是 O 型？"',
+      L: { lab: '"我晕血……"', fx: { self: -3 } },
+      R: { lab: '（挽起袖子）', fx: { body: -2, people: +5, self: +5 } },
+      note: '1983 年 FDA 终身禁止男同性恋献血；lesbian 社区组织了对口献血行动——"Blood Sisters"是真实的组织名。' },
+    { id: 'N09-P4-C3',
+      d: '白宫记者会录像', sp: '电视', role: '记者团在笑', cameo: '※',
+      t: '记者第三次问起那种新疫病，发言人开了个玩笑，全场哄笑。屏幕下方，死亡数字滚过：已逾千人。',
+      L: { lab: '（换台）', fx: { self: -4 } },
+      R: { lab: '（把数字抄在店门小黑板上，每周更新）', fx: { voice: +5, self: +5, people: -2 } },
+      note: '白宫发言人 1982-84 年多次拿 AIDS 提问当笑料，录音俱在。政府的沉默是一种政策；门口的小黑板是民间的反政策。' },
+  ],
+  ],
+  hazards: [
+    { id: 'N09-HAZ-A',
+      d: '深夜 · 你的日程本', sp: '杂志封面 + 日程表', role: '单手抱娃单手公文包的封面女郎', cameo: '※',
+      t: '封面女郎微笑着"什么都拥有"。你的本子：白班书店、夜校会计课、周末照顾母亲——已排到三个月后，今天又添了一行。',
+      L: { lab: '（划掉夜校。这学期缓缓。）', fx: { money: -2, self: -2 } },
+      R: { lab: '（都能行。咖啡续上。）', kill: 'superwoman' },
+      note: '1980 年代"超级女人"综合征：商业女权把"全都要"卖成了义务。过劳不算工伤——猝死的讣告会写"她什么都顾到了"。' },
+    { id: 'N09-HAZ-B',
+      d: '周三', sp: '诊所义工排班表', role: '本周第三封恐吓信', cameo: '✗',
+      t: '你每周三在妇女诊所做接待志愿。这周诊所收到第三封恐吓信，上周隔壁州的诊所玻璃被砸了。——周三，还去吗？',
+      L: { lab: '（这周先停一停）', fx: { people: -3, self: -3 } },
+      R: { lab: '（照常去）', kill: 'clinicfire' },
+      note: '1980 年代起反堕胎暴力升级：纵火、爆炸、袭击有案可查上百起。坐在接待台后面，本身成了一种勇敢。' },
+  ],
+  finale: {
+    id: 'N09-FIN',
+    d: '1991 年', sp: '出版社业务员', role: '抱着一摞样书', cameo: '☘',
+    t: '"新书，叫《Backlash》——作者说这十年的『后女权时代』宣传，本身就是一场系统性反扑。"他翻开扉页。"首印不多，你们店要几本？"',
+    L: { lab: '"先来五本试试。"', fx: { money: -1, voice: +2 } },
+    R: { lab: '"二十本。橱窗正中间。"', fx: { voice: +5, self: +5, money: -3 } },
+    note: 'Faludi《Backlash》（1991）给整个八十年代命了名："你们已经平等了，女权过时了"——这句话本身就是反扑的武器。下一个十年，从命名这场反扑开始。',
+  },
+},
+// ═══════════════ N10: 1989-1992 法学院 (5选2) ═══════════════
+{
+  id: 'N10', banner: '第 10 棒 · 1989–1992 · 一所法学院',
+  protag: '法学院研究助理（黑人女性），25 岁',
+  pick: 2,
+  transitionIn: {
+    t: '新的十年。你在一所法学院做研究助理——复印、查卷宗、给教授的论文做脚注。走廊里人人都说：女权已经赢了，过时了。',
+  },
+  open: {
+    id: 'N10-OPEN',
+    d: '1989 年 · 研究室', sp: '教授', role: '推过来一份卷宗', cameo: 'C',
+    t: '"帮我查个案子：五个黑人女工告通用汽车，法院说——不存在『黑人女性』这个受歧视类别，要么按黑人告，要么按女人告。"她看着你。"你看出问题了吗？"',
+    L: { lab: '"法院说得……也有道理？"', fx: { self: -6 } },
+    R: { lab: '"她们站在路口，两边的车都在撞她们。"', fx: { self: +7, voice: +3 } },
+    note: 'DeGraffenreid 诉通用汽车案：法院拒绝承认"黑人女性"是受保护类别。Crenshaw 1989 年用"交叉路口"比喻命名了这个盲区——"交叉性"由此诞生。',
+  },
+  packs: [
+  [ // P1 交叉口
+    { id: 'N10-P1-C1',
+      d: '研讨课', sp: '教授', role: '在黑板上画了个十字', cameo: 'C',
+      q: '“Discrimination, like traffic through an intersection, may flow in one direction, and it may flow in another.”',
+      t: '"想象一个十字路口，车从四面八方来。站在路口的人被撞了——你说，该算哪条车道的责任？"',
+      L: { lab: '"总得选一条主要的。"', fx: { self: -4 } },
+      R: { lab: '"问题就出在『必须选』。"', fx: { self: +5, voice: +4 }, mile: 'crossing' },
+      note: '《去边缘化种族与性别的交叉》，1989。一个法律概念从这块黑板出发，三十年后成了全球通用词。' },
+    { id: 'N10-P1-C2',
+      d: '课后', sp: '白人女同学', role: '攥着论文复印件', cameo: '☙',
+      t: '"我读了那篇论文……所以我外婆 1920 年能投票、Lottie 的外婆要等到 1965——这不是两个故事，是同一个路口？"她愣住。"为什么没人早点告诉我？"',
+      L: { lab: '"现在知道也不晚。"', fx: { people: +3, self: +2 } },
+      R: { lab: '"因为讲故事的人，都站在路口以外。"', fx: { voice: +4, self: +4, people: +2 } },
+      note: '交叉性概念出现之前，这些经验不是不存在——是没有名字。命名工具的全部意义：让看不见的被看见。' },
+    { id: 'N10-P1-C3',
+      d: '系里酒会', sp: '访问学者', role: '晃着酒杯', cameo: '♞',
+      t: '"这个词会火。然后会被稀释——研讨会标题、企业培训、推特标签。到时候没人记得，它是从一桩败诉的女工案子里来的。"',
+      L: { lab: '"火了总比没人知道好。"', fx: { voice: +2, self: -2 } },
+      R: { lab: '"那就把案子讲在每张 PPT 的第一页。"', fx: { self: +5, voice: +3 } },
+      note: '后来的批评者说交叉性"被白化、去政治化、变成学院产品"——理论的成功本身成了被收编的入口。这个预言，两头都应验了。' },
+  ],
+  [ // P2 听证会
+    { id: 'N10-P2-C1',
+      d: '1991 年 10 月', sp: '系里的电视机', role: '走廊上挤满了人', cameo: '※',
+      t: '一位法学教授正在参议院作证，对面坐着十四位白人男性参议员。全美 86% 的人都在看这场直播。',
+      L: { lab: '（看了一会儿，回去干活）', fx: { self: -4 } },
+      R: { lab: '（站到了最前排）', fx: { self: +5, voice: +2 } },
+      note: 'Anita Hill 作证八小时，86% 的美国人观看——一场全国规模的意识觉醒。她在一天里做到了 Friedan 用一本书、波伏娃用 972 页做到的事。' },
+    { id: 'N10-P2-C2',
+      d: '直播中', sp: '电视里的参议员', role: '第四遍了', cameo: '✗',
+      t: '"Hill 女士，请您再描述一遍——具体地——他当时说了什么？"每问一遍，她都得当着全国的面再讲一次。',
+      L: { lab: '"程序就是这样的。"', fx: { self: -5 } },
+      R: { lab: '"程序就是刑罚。"', fx: { voice: +4, self: +6 } },
+      note: '"程序性不信任"：不说"你撒谎"，而是用程序让受害者反复自证。27 年后的另一场大法官听证会（2018），同一套程序一字不差地重演。' },
+    { id: 'N10-P2-C3',
+      d: '反击时刻', sp: 'Clarence Thomas', role: '电视直播', cameo: '♔',
+      q: '“...it is a high-tech lynching for uppity blacks...”',
+      t: '被指控的人开口："这是对不肯低头的黑人的高科技私刑。"一句话，性别议题被种族议题整个吞掉。系里的黑人男同学起立鼓掌。',
+      L: { lab: '（你也站了起来）', fx: { people: +4, self: -7 } },
+      R: { lab: '（坐着。Hill 也是黑人。）', fx: { self: +7, people: -4 } },
+      note: '运动史上最精密的框架战：他把自己放进"被私刑的黑人"位置，把黑人女性指控者隐含放进"白人暴民的工具"位置。种族牌压性别牌，黑人女性再次被挤出画面。' },
+  ],
+  [ // P3 伪数据
+    { id: 'N10-P3-C1',
+      d: '午休', sp: '同事', role: '摇着一本杂志', cameo: '☙',
+      t: '"看这个——『40 岁未婚高学历女性结婚的概率，比被恐怖分子杀死还低』！天哪，我是不是该赶紧……"',
+      L: { lab: '"……是挺吓人的。"', fx: { self: -5 } },
+      R: { lab: '"先查查这数据是哪来的。"', fx: { self: +6, voice: +3 } },
+      note: '那条著名"统计"基于错误模型，二十年后被原刊默默撤回——但恐慌的政治效果早已兑现。伪数据反扑的教科书案例。' },
+    { id: 'N10-P3-C2',
+      d: '1991 年', sp: '书店店员', role: '拆着新书的箱子', cameo: '☘',
+      q: '“...not by women’s achievement of full equality but by the increased possibility that they might win it.”',
+      t: '"到货了，《Backlash》。作者说：反扑不是因为女性已经平等——是因为她们可能要赢了。"',
+      L: { lab: '"听着像阴谋论。"', fx: { self: -3 } },
+      R: { lab: '"听着像诊断书。"', fx: { self: +5, voice: +3 }, mile: 'backlash' },
+      note: 'Faludi 1991。把"我们在挨打"从"我们的失败"改写成"系统的反应"——命名反扑，是为了减少恐慌、增加预判。' },
+    { id: 'N10-P3-C3',
+      d: '报刊亭', sp: '时尚杂志封面', role: '大字标题', cameo: '※',
+      t: '《女权主义结束了。女性赢了。然后呢？》——编辑部宣布：年轻女性不再需要这个标签。',
+      L: { lab: '（也许她们说得对？）', fx: { self: -6 } },
+      R: { lab: '（把它倒扣在《Backlash》旁边）', fx: { self: +5, voice: +2 } },
+      note: '反扑的最高形态不是反对目标，而是宣布目标已经实现。"你们已经赢了"——这句话每个时代都会再说一遍。' },
+  ],
+  [ // P4 文化战
+    { id: 'N10-P4-C1',
+      d: '选修课', sp: '政治哲学教授', role: '拿着一本畅销书', cameo: '♞',
+      t: '"《美国精神的封闭》说得对——你们这些『批判性课程』正在毁掉大学。女性研究？那叫意识形态，不叫学问。"',
+      L: { lab: '（低头记笔记）', fx: { self: -5 } },
+      R: { lab: '"那您手里的畅销书算哪种？"', fx: { voice: +4, self: +6, people: -3 } },
+      note: '1987 年起"反 PC 文化战"开打：表面攻击"教育堕落"，实际打包攻击女性研究、黑人研究。Crenshaw 的论文恰在两年后出现——同一场战争的两端。' },
+    { id: 'N10-P4-C2',
+      d: '深夜电视', sp: '自称女权者的评论家', role: '访谈节目', cameo: '♛',
+      t: '"Hill？一个雅皮士『事业女性』。被骚扰？走出办公室不就行了。我才是真正的女权主义者——你们这些受害者女权，才是倒退。"',
+      L: { lab: '"她说得……好像也有点道理？"', fx: { self: -5 } },
+      R: { lab: '"用女权的名义拆女权，算是新发明。"', fx: { self: +6, voice: +3 } },
+      note: '"自由派内部反女权"的第一批样本：以"真女权"自居攻击主流女权。这个位置，后来从不缺继任者。' },
+    { id: 'N10-P4-C3',
+      d: '1992 年 1 月', sp: '杂志上的投稿', role: '作者 22 岁', cameo: '☘',
+      q: '“I am not a post-feminism feminist. I am the Third Wave.”',
+      t: '听证会之后，一个 22 岁的女孩在杂志上写道："把这份愤怒转化为政治力量。我不是后女权时代的女权主义者——我是第三波。"',
+      L: { lab: '"口号而已。"', fx: { self: -3 } },
+      R: { lab: '（把这一页钉在宿舍门上）', fx: { self: +6, voice: +4 }, mile: 'thirdwave' },
+      note: 'Rebecca Walker，1992。上一代的"终点宣告"被一句话顶了回去——"波"的命名权，从媒体手里夺回到运动手里。' },
+  ],
+  [ // P5 屋里的声音
+    { id: 'N10-P5-C1',
+      d: '教会聚餐', sp: '姨妈', role: '往你盘里夹菜', cameo: '♡',
+      t: '"Thomas 是咱们的人，好不容易要进最高法院，那个女人偏这时候跳出来——家丑不可外扬，你说是不是？"',
+      L: { lab: '"……是不可外扬。"', fx: { people: +4, self: -7 } },
+      R: { lab: '"姨妈，Hill 也是『咱们的人』。"', fx: { self: +7, people: -3 } },
+      note: '"种族团结大于性别正义"的压力，最先压在黑人女性自己身上——1869 年如此，1991 年还是如此。Crenshaw 的路口，先穿过自家客厅。' },
+    { id: 'N10-P5-C2',
+      d: '图书馆', sp: '新书上架', role: '《黑人女权思想》', cameo: '☘',
+      t: '"局外的局内人——黑人女性在白人世界和男性世界都站在门槛上。这个位置不是缺陷，是认识论优势：门槛上的人，看得见两边的房间。"',
+      L: { lab: '（放回书架）', fx: { self: -2 } },
+      R: { lab: '（借走。后来逾期了三次。）', fx: { self: +6, voice: +2 } },
+      note: 'Patricia Hill Collins，1990，与 Crenshaw 的法律框架同年互补——把边缘处境翻译成方法论。' },
+    { id: 'N10-P5-C3',
+      d: '1992 年 11 月', sp: '晚间新闻', role: '主播很兴奋', cameo: '※',
+      t: '"『女性之年』！创纪录的女性当选联邦参议员——四位！"你算了算：一百个席位里的四席。',
+      L: { lab: '"四个也是历史。"', fx: { voice: +2, self: +2 } },
+      R: { lab: '"是历史。也是百分之四。"', fx: { self: +5, voice: +3 } },
+      note: 'Hill 听证会激起的 1992 年女性参政潮被称为"Year of the Woman"。庆祝与清醒可以同时成立——这是这一棒教的算术。' },
+  ],
+  ],
+  hazards: [
+    { id: 'N10-HAZ-A',
+      d: '周末', sp: '闺蜜', role: '拿着整形诊所的传单', cameo: '☂',
+      t: '"她们都说职场要有『竞争力的形象』……我约了下周做隆胸，现在有优惠。"她碰碰你的手肘。"拉你一起？"',
+      L: { lab: '"竞争力不该长在胸前。"', fx: { people: -2 } },
+      R: { lab: '"……一起吧。"', kill: 'implant' },
+      note: '1992 年 FDA 暂停硅胶假体——厂商内部文件显示其隐瞒渗漏风险多年，最终破产赔付数十亿。"竞争力"长在身体上的时候，账单也是。' },
+    { id: 'N10-HAZ-B',
+      d: '周一', sp: '系办公室', role: '递来一封没署名的信', cameo: '✗',
+      t: '你在学生报上写了支持 Hill 的评论。今早系里收到一封"给那个写文章的女学生"的信。保安建议你这周别走夜路。',
+      L: { lab: '（这周搭同学的车）', fx: { body: +1, self: -2 } },
+      R: { lab: '（把信交给报社，原样登出来）', fx: { voice: +5, self: +5, body: -3 } },
+      note: 'Hill 本人在听证会后收到的是炸弹威胁。从 1848 年的嘲讽信到 1991 年的恐吓信——发声的邮资，一直由收件人付。' },
+  ],
+  finale: {
+    id: 'N10-FIN',
+    d: '学期末', sp: '教授', role: '收下你的研究笔记', cameo: 'C',
+    t: '"案子查完了？"她翻了翻你的笔记，点点头。"明年我开一门新课，讲交叉性。缺个助教——你来。"',
+    L: { lab: '"我还没准备好……"', fx: { self: -3 } },
+    R: { lab: '"课叫什么名字？"', fx: { self: +6, voice: +3, people: +3 } },
+    note: '1989 年黑板上的十字路口，如今是全球性别研究的第一课。工具传下去了——这就是这一棒的接力棒。',
+  },
+},
+// ═══════════════ N11: 1990-1996 奥林匹亚 ═══════════════
+{
+  id: 'N11', banner: '第 11 棒 · 1990–1996 · 华盛顿州奥林匹亚',
+  protag: '唱片店店员 · zine 作者，22 岁',
+  transitionIn: {
+    t: '西海岸，奥林匹亚。你白天在唱片店打工，晚上用学校的复印机印自己的小册子。东岸的理论这里没人读——这里的人用三个和弦说同样的话。',
+  },
+  open: {
+    id: 'N11-OPEN',
+    d: '1991 年 · 唱片店', sp: '店里的常客', role: '递来一盘 demo 磁带', cameo: '☙',
+    t: '"新乐队。主唱在肚子上写了 SLUT 上台——把骂名直接写在皮肤上。"她压低声音。"周五她们来镇上演出。"',
+    L: { lab: '"太吓人了吧。"', fx: { self: -4 } },
+    R: { lab: '"给我留两张票。"', fx: { self: +5, voice: +3 } },
+    note: 'Kathleen Hanna 的身体策略：把蔑称写上皮肤——比把它印上 T 恤（1970 薰衣草威胁）更进一步，身体本身成为媒介。',
+  },
+  packs: [
+  [ // P1 演出现场
+    { id: 'N11-P1-C1',
+      d: '周五 · 演出', sp: 'Kathleen Hanna', role: '台上 · 抓着麦克风', cameo: 'K',
+      q: '“Girls to the front!”',
+      t: '"女孩们，到前面来！男孩们——往后退一步，今晚你们体验一下站后排。"你正站在人群中间。',
+      L: { lab: '（留在原地）', fx: { self: -2 } },
+      R: { lab: '（挤到最前排）', fx: { voice: +4, self: +5, people: +3 }, mile: 'front' },
+      note: '三个词重新分配物理空间——不立法、不游说，直接在 mosh pit 里重组权力。"个人的即政治的"的演出现场版。' },
+    { id: 'N11-P1-C2',
+      d: '场刊', sp: 'Bikini Kill Zine #2', role: '油印的宣言', cameo: '✉',
+      q: '“BECAUSE we know that life is much more than physical survival...”',
+      t: '宣言每一段都以"因为"开头——不解释为什么有权愤怒，只列举事实。最后一行："革命，女孩风格，现在！"',
+      L: { lab: '（收好，回家贴墙上）', fx: { self: +4 } },
+      R: { lab: '（当场念给排队的人听）', fx: { voice: +5, self: +5, people: +2 } },
+      note: '"BECAUSE..."文体本身就是政治姿态：我们不需要论证愤怒的资格。Riot Grrrl Manifesto，1991。' },
+    { id: 'N11-P1-C3',
+      d: '后排', sp: '邻场的男孩们', role: '推搡从后面传过来', cameo: '✗',
+      t: '"凭什么她们站前排？我们都是朋克——we’re all in this together！"',
+      L: { lab: '（息事宁人，往边上让）', fx: { people: +2, self: -4 } },
+      R: { lab: '"Together 的意思是，你也守规矩。"', fx: { voice: +4, self: +5, people: -2 } },
+      note: '用"团结"压制"独立空间"——1869 年"先种族"、1968 年"先革命"的 punk 版。这套话术八十年没换过词根。' },
+  ],
+  [ // P2 复印机革命
+    { id: 'N11-P2-C1',
+      d: '午夜 · 办公室', sp: '复印机', role: '三十份小册子，胶水未干', cameo: '✉',
+      t: '没有出版社、没有审稿人、没有广告。印多少，递多少——三百份的发行量，百分之百的叙事控制权。',
+      L: { lab: '（还是匿名吧）', fx: { voice: +2, self: +2 } },
+      R: { lab: '（署上名字和回信地址）', fx: { voice: +5, self: +4, people: +3 }, mile: 'zine' },
+      note: 'zine 文化：1848 年的印刷所、1969 年的油印机的第三代——也是日后 newsletter 与播客的祖母。' },
+    { id: 'N11-P2-C2',
+      d: '一周后', sp: '邮箱里的来信', role: '爱达荷的邮戳', cameo: '♡',
+      t: '"我在爱达荷的小镇，这里没有任何人像我。读到你的 zine 那天我在被窝里哭了——原来不止我一个。随信附上我画的封面，和两美元。"',
+      L: { lab: '（收好钱，下期加印）', fx: { money: +2, self: +3 } },
+      R: { lab: '（把她的画印成下期封面）', fx: { people: +5, self: +4, voice: +3 } },
+      note: 'zine 网络的本质：孤岛之间的航线。每封来信都是 1957 年那份问卷的回声——"原来不止我"。' },
+    { id: 'N11-P2-C3',
+      d: '1992 年底', sp: 'Bikini Kill 圈的姑娘', role: '带来一个决定', cameo: '☙',
+      t: '"主流媒体把我们写成『愤怒但可爱的少女』。乐队决定：全面拒绝采访。"她看着你。"你的 zine 也收到电视台邀约了吧？"',
+      L: { lab: '（上电视。让更多人看见。）', fx: { voice: +5, self: -3, people: -3 } },
+      R: { lab: '（拒绝。叙事权比曝光贵。）', fx: { self: +6, voice: -2, people: +3 } },
+      note: '1992-93 年的媒体封锁是 Riot Grrrl 最特别的战略：用可见度换叙事控制权。代价真实（1996 年后运动消散），遗产也真实（方法论传给每一代 DIY）。这张卡没有对错。' },
+  ],
+  [ // P3 不是为我的运动
+    { id: 'N11-P3-C1',
+      d: '邮购包裹', sp: '《Slant》zine', role: '作者 Mimi Nguyen', cameo: '✉',
+      q: '“Riot Grrrl was about a particular kind of girl—and I was not that girl.”',
+      t: '"我常常是场子里唯一的有色人种。Riot Grrrl 的白，不是偶然，是结构。"——她爱这场运动，所以才写下这些。',
+      L: { lab: '"她太苛刻了，大家都尽力了。"', fx: { self: -5 } },
+      R: { lab: '（把《Slant》放进自己 zine 的推荐栏）', fx: { self: +6, people: +2, voice: +3 } },
+      note: '理论（交叉性，1989）已经在书架上，实践还在复制 1896 年的盲点。内部批评者不是敌人——是运动的免疫系统。' },
+    { id: 'N11-P3-C2',
+      d: '旁听课笔记', sp: '《性别麻烦》', role: '1990 · 难啃但上头', cameo: '☘',
+      t: '"性别不是你『拥有』的东西——是你反复『做』出来的。表演之下，没有一个『真的性别』在等着。"',
+      L: { lab: '"太绕了，看不懂。"', fx: { self: -2 } },
+      R: { lab: '（抄进 zine，配了个涂鸦）', fx: { self: +5, voice: +2 } },
+      note: 'Butler 把波伏娃那句"女人不是天生的"推到了终点。1989-91 的十八个月：法律框架、认识论、学术理论、文化实践四线齐爆。' },
+    { id: 'N11-P3-C3',
+      d: '打烊前', sp: '唱片公司 A&R', role: '递来名片 · 笑容职业', cameo: '$',
+      t: '"你们这个『女孩力量』很有市场！签我们厂牌——sound 保留，政治嘛……稍微柔化一点点？"',
+      L: { lab: '（收下名片）', fx: { money: +3, self: -4 } },
+      R: { lab: '"政治就是 sound 本身。"', fx: { self: +6, voice: +3, money: -2 } },
+      note: '"Girl Power"这个词五年后会出现在另一支乐队的全球巡演里——而她们甚至不知道这词从哪来。结构性收编不需要恶意，只需要时间。' },
+  ],
+  [ // P4 小镇之夜
+    { id: 'N11-P4-C1',
+      d: '长途电话', sp: '母亲', role: '声音压得很低', cameo: '♡',
+      t: '"你印的那个小册子传到镇上教会了。你爸在教友面前抬不起头——那些『身体自主』的词，非写不可吗？"',
+      L: { lab: '"……下期我匿名。"', fx: { people: +3, self: -5 } },
+      R: { lab: '"妈，那些词救过人。"', fx: { self: +6, people: -3 } },
+      note: 'zine 走出场景圈的第一站永远是自家厨房。1848 年签名的代价、1968 年圣诞餐桌的沉默——1990 年代换成了长途电话费。' },
+    { id: 'N11-P4-C2',
+      d: '乐器行', sp: '老板', role: '笑得很和气', cameo: '♞',
+      t: '"小姑娘，贝斯在那边——女孩一般弹贝斯，吉他冲了点。"',
+      L: { lab: '（拿了贝斯。也挺好。）', fx: { self: -3, money: -1 } },
+      R: { lab: '"把那把 Mustang 拿下来。"', fx: { self: +6, voice: +2, money: -3 } },
+      note: '"女孩弹贝斯"是 1990 年代摇滚圈的温柔规训。Bikini Kill 的存在本身，就是对乐器性别学的拆除作业。' },
+    { id: 'N11-P4-C3',
+      d: '时尚杂志', sp: 'T 台报道', role: '巴黎时装周', cameo: '※',
+      t: '模特穿着"做旧"法兰绒衬衫和 Doc Martens 走 T 台——你衣柜里的同款成本三美元，T 台标价一千二。',
+      L: { lab: '（穿出去倒是显贵了）', fx: { self: -2 } },
+      R: { lab: '（在 zine 里写了篇《我的衬衫去了巴黎》）', fx: { voice: +4, self: +5 } },
+      note: '1992-94 年高级时装收编 grunge 美学：反叛的视觉以四百倍溢价出售。衣服还是那件，意义已经过户。' },
+  ],
+  ],
+  hazards: [
+    { id: 'N11-HAZ-A',
+      d: '散场后', sp: '停车场的男人们', role: '被"请到后排"的那几个', cameo: '✗',
+      t: '几个人堵在你们的车边："今晚扫兴了——得有人道歉吧。"场馆的灯在两百米外。',
+      L: { lab: '（绕回场馆，人多）', fx: { body: +1, self: -2 } },
+      R: { lab: '（正面走过去）', kill: 'pit' },
+      note: '"Girls to the front"的另一面：运动改写了场内的空间规则，场外的夜路还是旧的。' },
+    { id: 'N11-HAZ-B',
+      d: '次日 · 报摊', sp: '本地小报', role: '头版花边', cameo: '※',
+      t: '"昨晚那场演出上了报——标题是《愤怒的少女们》，配图是你最难看的一张。正文一个字没提你们为什么愤怒。"',
+      L: { lab: '（不看了，扔回报摊）', fx: { voice: -2, self: -3 } },
+      R: { lab: '（买下二十份，剪下来做成下期 zine 封面）', fx: { voice: +4, self: +4, money: -2 } },
+      note: '主流媒体的收编从"把你写成可爱的愤怒少女"开始。Riot Grrrl 后来集体拒绝采访——宁可没有曝光，也不要被改写的曝光。' },
+  ],
+  finale: {
+    id: 'N11-FIN',
+    d: '1996 年 · 店里的电视', sp: '音乐台', role: '五个英国女孩在喊', cameo: '※',
+    t: '"Girl Power！"——全球三千万张专辑。记者问其中一位：这词谁发明的？她眨眨眼："我们呀。"',
+    L: { lab: '（气得关电视）', fx: { self: -2 } },
+    R: { lab: '（给奥林匹亚寄了张明信片：词丢了，方法论还在我们手里。）', fx: { self: +6, voice: +3 }, mile: 'method' },
+    note: '她是真不知道这词从哪来的——收编最彻底的形态，是连出处都蒸发。但 DIY 方法论收编不走：它正去往 1996 年的一本新杂志。下一棒见。',
+  },
+},
+// ═══════════════ N12: 1996-2013 广告公司 ═══════════════
+{
+  id: 'N12', banner: '第 12 棒 · 1996–2013 · 芝加哥广告公司',
+  protag: '初级文案，24 岁',
+  transitionIn: {
+    t: '新千年前夜，芝加哥。互联网的钱正烧得正旺，写字楼里两种新女性并肩出现：写"赋权"文案的，和写代码的。',
+  },
+  // 职业随机: 广告文案(原线) / dot-com 女程序员 (ENIAC 反转史)
+  roles: [
+    { protag: '初级文案，24 岁', packs: [0, 1, 2, 3] },
+    { protag: 'dot-com 公司女程序员，27 岁', packs: [4, 1, 3],
+      open: {
+        id: 'N12-OPEN-B',
+        d: '1999 年 · 面试', sp: '技术总监', role: '扫了一眼简历', cameo: '♞',
+        t: '"代码测试满分……不过说真的，姑娘，写代码太累，你这么细心，要不要考虑测试岗？或者产品？跟人打交道，更适合女生。"',
+        L: { lab: '"测试岗……也行。"', fx: { money: +2, self: -5 } },
+        R: { lab: '"我面的是开发。满分那份就是开发卷。"', fx: { voice: +4, self: +5 } },
+        note: '"女生不适合写代码"是 1970 年代才发明的：最早的程序员几乎全是女性——ENIAC 六人组编了世界第一台电子计算机。你面对的偏见，比你的职业还年轻。',
+      },
+    },
+  ],
+  open: {
+    id: 'N12-OPEN',
+    d: '1999 年 · 提案室', sp: '创意总监', role: '敲着白板', cameo: '♞',
+    t: '"新 brief：运动鞋，目标年轻女性，要『赋权感』——独立、自信、做自己。预算两百万。"他看向你。"给我一句让她们觉得买鞋等于解放的 slogan。"',
+    L: { lab: '（写了。挺顺手的。）', fx: { money: +4, self: -5 } },
+    R: { lab: '"解放不在鞋里。但我可以写她跑起来的样子。"', fx: { self: +5, voice: +2, money: -1 } },
+    note: 'femvertising 时代开幕：女权语言成为广告通用语法。词还是那些词——宾语换成了商品。',
+  },
+  packs: [
+  [ // P1 货架上的姐妹
+    { id: 'N12-P1-C1',
+      d: '周末', sp: '小侄女', role: '蹦着唱歌', cameo: '☘',
+      t: '"Girl Power！Girl Power！"她突然停下来。"姑姑，这是什么意思呀？"',
+      L: { lab: '"就是……女孩很棒的意思。"', fx: { people: +2, self: -3 } },
+      R: { lab: '"来，姑姑给你讲个奥林匹亚的乐队。"', fx: { self: +5, people: +3, voice: +2 } },
+      note: '同一个词的两站：1991 年印在三百份的 zine 上，1996 年印在三千万张专辑上。给下一代讲词源，是对抗蒸发的唯一办法。' },
+    { id: 'N12-P1-C2',
+      d: '2004 年 · 提案会', sp: '日化巨头客户', role: '两个品牌的预算单在同一个文件夹里', cameo: '$',
+      t: '客户要做"真美运动"：素人模特、自信宣言、不修图。同一集团的另一个男士品牌，正在隔壁会议室过物化女性的香氛广告。',
+      L: { lab: '（只管自己这单）', fx: { money: +4, self: -4 } },
+      R: { lab: '（在提案末页加了一行：『两个品牌，一个集团』）', fx: { self: +6, voice: +3, money: -3 }, mile: 'folder' },
+      note: '"真美运动"开创 femvertising 模板；同集团同期投放物化广告——"性别洗白"教科书：左手卖自信，右手卖物化，两只手都收钱。' },
+    { id: 'N12-P1-C3',
+      d: '周四晚', sp: '闺蜜', role: '刚看完热播剧', cameo: '♡',
+      t: '"我做了测试，我是 Carrie！独立女性就该这样——爱情、鞋子、专栏，想要什么买什么！"',
+      L: { lab: '"我是 Miranda。"（其实也爱看）', fx: { people: +3, self: +1 } },
+      R: { lab: '"四个女主的曼哈顿——房租谁付的？"', fx: { self: +4, voice: +2, people: -2 } },
+      note: '《欲望都市》时代："独立"被演绎成一种消费风格。爱看不丢人——看清它卖的是什么，可以同时成立。' },
+  ],
+  [ // P2 Lean In
+    { id: 'N12-P2-C1',
+      d: '2013 年 · 公司内训', sp: '投影里的 COO', role: '全场起立鼓掌', cameo: '♛',
+      q: '“What would you do if you weren’t afraid?”',
+      t: '"女孩被说 bossy 的时候，应该说她有领导力。问问自己：如果不害怕，你会做什么？"',
+      L: { lab: '（也起立了。说得真好。）', fx: { people: +3, self: -3 } },
+      R: { lab: '（鼓掌。然后想：谁来接她孩子放学？）', fx: { self: +5, voice: +2 } },
+      note: '《Lean In》五年卖了四百多万册：结构问题被翻译成心理问题——"内化障碍"。这张处方，只对已经坐进会议室的人有效。' },
+    { id: 'N12-P2-C2',
+      d: '同年', sp: '网络专栏', role: '同事转发给你', cameo: '☘',
+      q: '“...a front to cover her commitment to white supremacist capitalist patriarchy.”',
+      t: 'hooks 把那本畅销书定义为"伪女权"："她的乐观如此可亲——亲到让读者绕过了挑战父权这件难事。"',
+      L: { lab: '"太刻薄了吧，人家也是好意。"', fx: { self: -4 } },
+      R: { lab: '（把两本书并排放在工位上）', fx: { self: +6, voice: +3 }, mile: 'digdeep' },
+      note: 'hooks《Dig Deep》，2013。从 1984 年批 Friedan 到 2013 年批 Sandberg，三十年里她始终是运动的内部审计师：谁的解放？谁买单？' },
+    { id: 'N12-P2-C3',
+      d: '咖啡间', sp: '求职的学妹', role: '刚面完一家明星电商', cameo: '☙',
+      t: '"HR 说『我们这儿不谈加班，谈 passion』。工资低三成——但是，女老板诶！"',
+      L: { lab: '"女老板总比男老板强。"', fx: { self: -3 } },
+      R: { lab: '"压你工资的手，不分性别。"', fx: { self: +5, voice: +2, people: -2 } },
+      note: 'girlboss 经济学：把老板的性别当福利发。这个词从荣誉变成讽刺，用的时间比 Girl Power 还短。' },
+  ],
+  [ // P3 命名反击
+    { id: 'N12-P3-C1',
+      d: '书店', sp: '独立杂志创刊号', role: '名字就叫《Bitch》', cameo: '✉',
+      t: '创办人对刊名的解释印在扉页："一半是夺回，一半是预先反击。"——三百份 zine 起家。',
+      L: { lab: '"名字太冲了。"', fx: { self: -2 } },
+      R: { lab: '（订了三年）', fx: { self: +5, voice: +2, money: -1 } },
+      note: 'Bitch Media（1996-2022）：zine 方法论制度化的样本，活了 26 年。"对流行文化做女权回应"这个体裁，是它立起来的。' },
+    { id: 'N12-P3-C2',
+      d: '2016 年 · 分享会', sp: 'Andi Zeisler', role: '《我们曾是女权主义者》作者', cameo: 'Z',
+      q: '“While feminist movements seek to change systems, marketplace feminism prioritizes individuals.”',
+      t: '"光鲜的、让人感觉良好的女权，正把注意力从真正的不平等上引开。"台下有人举手："那……买都不能买了？"',
+      L: { lab: '（你也想问这个）', fx: { self: +1 } },
+      R: { lab: '"她没说别买。她说别把买当成全部。"', fx: { self: +5, voice: +3 } },
+      note: 'Zeisler——Bitch 创办人兼"市场女权"命名者，既是建设者又是诊断师。命名不是为了禁止，是为了让你看见每笔交易的完整价签。' },
+    { id: 'N12-P3-C3',
+      d: '广播', sp: '媒体学者', role: '访谈节目', cameo: '☘',
+      q: '“Visibility is not the same as political change.”',
+      t: '"流行女权和流行厌女是共生的——可见度涨一分，反扑也涨一分。所以问题不是『可见度好不好』，而是：对谁可见？为了什么？"',
+      L: { lab: '"那不就是怎么都不对？"', fx: { self: -2 } },
+      R: { lab: '（把这两个问题写在白板上，留给下一个 brief）', fx: { self: +5, voice: +3 } },
+      note: 'Banet-Weiser 拒绝二元：收编不是全输，可见度不是全赢。manosphere 与流行女权同步崛起——这个共生结构，正是后面棒次的主战场。' },
+  ],
+  [ // P4 办公室
+    { id: 'N12-P4-C1',
+      d: '报喜当天', sp: 'HR', role: '笑容标准', cameo: '♛',
+      t: '"恭喜怀孕！对了，你的项目组——产假回来可能就……重组了。不是针对你，公司节奏快嘛。"',
+      L: { lab: '（提前交接好一切，证明自己）', fx: { money: +2, self: -4, body: -2 } },
+      R: { lab: '（把劳动法那页复印给 HR『参考』）', fx: { self: +5, voice: +3, people: -2 } },
+      note: 'femvertising 公司的内部：对外卖"赋权"，对内讲"节奏"。广告部与人事部隔着一层楼，差着一个世纪。' },
+    { id: 'N12-P4-C2',
+      d: '超市', sp: '货架', role: '同一款剃刀', cameo: '$',
+      t: '男款黑色 12 元，女款粉色 15 元。区别：颜色，和货架的高度。',
+      L: { lab: '（顺手拿了粉的）', fx: { money: -1 } },
+      R: { lab: '（拿黑的，拍了张对比照发上网）', fx: { self: +4, voice: +3, money: +1 } },
+      note: '"粉红税"：同款商品的女性版平均贵 7%-13%。被"为你设计"多收的钱，一年是一笔小数，一生是一座小金库。' },
+    { id: 'N12-P4-C3',
+      d: '2013 年', sp: '新来的实习生', role: '拿着客户的修改意见', cameo: '☘',
+      t: '"前辈，客户要把 slogan 里的『女权』改成『女性力量』——说前者『有攻击性』。"她犹豫了一下。"你说……词重要吗？"',
+      L: { lab: '"客户最大，改吧。"', fx: { money: +2, self: -4 } },
+      R: { lab: '"重要。不然他们不会非要你改。"', fx: { self: +6, voice: +3 }, mile: 'word' },
+      note: '2010 年代初，"feminist"在广告里仍是敏感词——直到 2014 年有人把它打成三米高的灯牌立在身后开演唱会。词的战争从未停火。' },
+  ],
+  [ // P5 机房里的她 (程序员专属)
+    { id: 'N12-P5-C1',
+      d: '加班夜', sp: '部门老工程师', role: '泡着第三杯咖啡', cameo: '♞',
+      t: '"知道吗，我入行那会儿，编程被叫『女孩子的活儿』——跟接线员一个档次。后来工资涨了，就成了男人的事业。"他笑了笑。"历史挺会开玩笑。"',
+      L: { lab: '"时代不同了嘛。"', fx: { self: -3 } },
+      R: { lab: '"不是玩笑——钱到哪儿，『天赋』的定义就跟到哪儿。"', fx: { voice: +4, self: +5 } },
+      note: '计算机史的著名反转：programming 从"女性文书劳动"被重新建构为"男性智力工程"，伴随职业协会排斥与招聘画像改写。computer girls 就这样变成了 computer geeks。' },
+    { id: 'N12-P5-C2',
+      d: '版本评审会', sp: '会议室', role: '十分钟前 vs 十分钟后', cameo: '✗',
+      t: '你提的架构方案没人接话；十分钟后 Kevin 换了个说法重提一遍——"好主意，Kevin！"全场点头。',
+      L: { lab: '（会后私下跟 Kevin 说：那是我的方案）', fx: { people: +1, self: -2 } },
+      R: { lab: '"谢谢 Kevin 复述我五页文档的第三页。"', fx: { voice: +5, self: +5, people: -3 } },
+      note: '"她说没人听、他重复变金句"后来有了学名（hepeating）——2010 年代才有词，1990 年代的机房里它只是日常。' },
+    { id: 'N12-P5-C3',
+      d: '2001 年 · 裁员季', sp: 'CTO', role: '把门关上', cameo: '♔',
+      t: '"名单很难定。你和 Dave 二选一——他刚买房，你……反正迟早要结婚生孩子的，对吧？"',
+      L: { lab: '（收拾工位。行业就这样。）', fx: { money: -5, self: -4 } },
+      R: { lab: '"我的代码提交量是他两倍。要裁，按绩效裁。"', fx: { voice: +5, self: +5, money: +2, people: -3 } },
+      note: 'dot-com 泡沫破裂时，"他要养家"再次成为裁员的隐藏参数。绩效可以量化，偏见从不进 KPI。' },
+  ],
+  ],
+  hazards: [
+    { id: 'N12-HAZ-A',
+      d: '午餐', sp: '同事', role: '瘦了二十磅的那位', cameo: '☂',
+      t: '"我在吃芬芬——医生开的，三个月瘦了二十磅！大提案之前，你也来一个疗程？"',
+      L: { lab: '"我提案靠 PPT，不靠腰围。"', fx: { people: -1 } },
+      R: { lab: '"……哪个医生？"', kill: 'fenphen' },
+      note: 'fen-phen 减肥药 1997 年因致心瓣膜病变下架，索赔超百亿美元。三十年前是安非他命，三十年后是芬芬——"瘦"换了配方，逻辑没换。' },
+    { id: 'N12-HAZ-B',
+      d: '凌晨一点', sp: '黑莓机', role: '客户群在闪', cameo: '※',
+      t: '"明早九点要新版！"你已经连续三周凌晨回邮件——"随时在线"是这家"赋权"公司的隐性 KPI。',
+      L: { lab: '（静音。明早再说。）', fx: { money: -2, self: +2 } },
+      R: { lab: '（回：收到，马上改。）', kill: 'superwoman2' },
+      note: '同一种死法换了设备：1985 年是日程本，2005 年是黑莓机。"全都要"升级成了"随时在"。' },
+  ],
+  finale: {
+    id: 'N12-FIN',
+    d: '2014 年 · 电视', sp: '颁奖礼直播', role: '三亿人在看', cameo: '※',
+    t: '舞台上，巨大的白色灯牌打出八个字母：FEMINIST。一个 1970 年代的"脏词"，此刻是流行文化的顶点。',
+    L: { lab: '"这是胜利，还是收编？"', fx: { self: +2 } },
+    R: { lab: '"都是。这就是下一棒要打的仗。"', fx: { self: +5, voice: +3 } },
+    note: 'Beyoncé，2014 VMA。hooks 骂她，另一些人说她让这个词终于安全——一个人让所有阵营吵成一团，这本身就是时代的精确画像。',
+  },
+},
+// ═══════════════ N13: 2006-2018 洛杉矶 (5选1) ═══════════════
+{
+  id: 'N13', banner: '第 13 棒 · 2006–2018 · 洛杉矶',
+  protag: '制片公司助理，26 岁',
+  transitionIn: {
+    t: '洛杉矶。同一座城，两个位置：助理的分机上有整个公司的日程；女演员的名字上有整个行业的目光。2017 年秋天，纽约的电话打来了。',
+  },
+  // 职业随机: 制片助理(原线) / 女演员
+  roles: [
+    { protag: '制片公司助理，26 岁', packs: [0, 1, 2] },
+    { protag: '电视剧女演员，29 岁', packs: [3, 2],
+      open: {
+        id: 'N13-OPEN-B',
+        d: '周四', sp: '经纪人', role: '电话 · 语气兴奋', cameo: '$',
+        t: '"好消息：他点名要见你，聊下一部的女主角。坏消息：地点是酒店套房，晚上九点，『单独聊』。"',
+        L: { lab: '"……我去。这行就这样。"', fx: { money: +3, self: -6, body: -1 } },
+        R: { lab: '"改在办公室，白天，带助理。角色丢了算我的。"', fx: { voice: +4, self: +6, money: -3 } },
+        note: '"套房会议"是行业半公开的潜规则装置；拒绝的代价真实存在——这正是它能运转几十年的原因。',
+      },
+    },
+  ],
+  open: {
+    id: 'N13-OPEN',
+    d: '2017 年 9 月 · 你的分机', sp: 'NYT 调查记者', role: '电话那头很安静', cameo: '※',
+    t: '"我们在核实一份 2015 年的和解协议。你只需要回答一个问题：日程表上，那天下午她进的是会议室——还是套房？"',
+    L: { lab: '"我什么都不知道。"（挂断）', fx: { money: +3, self: -7 } },
+    R: { lab: '"……套房。还有谁想知道这个？"', fx: { voice: +5, self: +6, body: -2 } },
+    note: '2017-10-05 那篇报道背后是 7 个独立信源、12 份和解协议——法律级证据链。这是 #MeToo 没被"猎巫"修辞瓦解的根基：不是情绪，是文件。',
+  },
+  packs: [
+  [ // P1 起源
+    { id: 'N13-P1-C1',
+      d: '深夜刷手机', sp: '一个 2006 年的旧帖', role: 'MySpace · 几乎无人转发', cameo: '✉',
+      t: '2006 年，布朗克斯的一位黑人社工写下两个词：Me Too——为那些连"我也是"都说不出口的黑人女孩。十一年，几乎无人理会。',
+      L: { lab: '（继续往下刷）', fx: { self: -3 } },
+      R: { lab: '（截图存下这个名字：Tarana Burke）', fx: { self: +5, voice: +2 }, mile: 'metoo2006' },
+      note: 'Burke 1997 年没能对一个叫 Heaven 的女孩说出"我也是"，用十年把这句话变成一场运动的名字——比那条著名推文早十一年。' },
+    { id: 'N13-P1-C2',
+      d: '电视采访', sp: 'Tarana Burke', role: '被重新发现之后', cameo: 'B',
+      q: '“Mainstream media took hold of #MeToo and certainly not a 40-something-year-old Black woman from the Bronx.”',
+      t: '"这个国家有一台白人女性机器。主流媒体接管了 #MeToo——而不是一个四十多岁的布朗克斯黑人女性。"',
+      L: { lab: '"运动壮大了就行，名字重要吗？"', fx: { self: -5 } },
+      R: { lab: '"重要。问问 1896 年就知道。"', fx: { self: +6, voice: +3 } },
+      note: '黑人女性创造工具、主流劫持品牌——Murray 的 Jane Crow、Burke 的 Me Too，同一条暗线。她被请回舞台，但要反复声明出处——声明本身就是交叉性的日常实践。' },
+    { id: 'N13-P1-C3',
+      d: '2017 年 10 月 15 日深夜', sp: '你的手机', role: '那条推文下面', cameo: '※',
+      t: '"如果你也经历过，请回复 me too。"你看着输入框，光标闪了很久。',
+      L: { lab: '（锁屏。还没准备好。）', fx: { self: +2 } },
+      R: { lab: '（打下两个词，按了发送）', fx: { voice: +5, self: +7, people: +3 }, mile: 'survivor' },
+      note: '24 小时内 1200 万条。说与不说，都是幸存者的权利——这张卡的两个选项，都值得尊重。' },
+  ],
+  [ // P2 引爆
+    { id: 'N13-P2-C1',
+      d: '2017 年 10 月 5 日', sp: '报道首段', role: '大坝裂开的地方', cameo: '※',
+      t: '记者手上有六位匿名受害者，还不够——直到一位有名望的女演员同意署名。Ashley Judd 的名字印在首段。',
+      L: { lab: '"她真敢。"', fx: { self: +2 } },
+      R: { lab: '"第一个署名的人，替所有匿名者挡了第一枪。"', fx: { self: +5, voice: +3 }, mile: 'shesaid' },
+      note: 'Judd 1996 年在酒店拒绝了他，1998 年被他在导演面前抹黑、丢了大片角色——这条职业报复线，2017 年由导演本人公开证实。' },
+    { id: 'N13-P2-C2',
+      d: '行业酒局', sp: '同行', role: '压低声音', cameo: '☙',
+      t: '"Farrow 那条线被电视台压了——高层说『不够扎实』。他带着录音去了杂志社。"她凑近。"录音里，那人亲口承认了。"',
+      L: { lab: '"电视台有电视台的难处。"', fx: { self: -4 } },
+      R: { lab: '"难处的名字叫广告主和律师函。"', fx: { self: +5, voice: +3 } },
+      note: 'NBC 拒播含 2015 年警方录音的报道；Farrow 转投《纽约客》，后与 NYT 团队同获普利策。压下报道的机器与制造伤害的机器，共用零件。' },
+    { id: 'N13-P2-C3',
+      d: '泄露文件', sp: '一份内部备忘录', role: '署名是位著名女权律师', cameo: '✗',
+      t: '给被指控者的策略：①把指控者描绘成"病态说谎者"②放风"他正在接受治疗"③安排与民权领袖合影对冲。',
+      L: { lab: '"律师只是做分内事。"', fx: { self: -5 } },
+      R: { lab: '"分内事和体面之间，她选了前者。"', fx: { self: +6, voice: +2 } },
+      note: 'Lisa Bloom——最著名女权律师 Gloria Allred 之女——签约为被指控者做名誉管理，曝光 36 小时后辞职。机构化女权最大的风险不是对手，是内部的职业激励。' },
+  ],
+  [ // P3 反弹
+    { id: 'N13-P3-C1',
+      d: '周末版', sp: '评论作者', role: '自称运动盟友', cameo: '♞',
+      t: '"我当然支持运动。但这是不是有点……道德恐慌？正当程序呢？比例呢？"——这是本周第四篇同款专栏。',
+      L: { lab: '"他说得也对吧？"', fx: { self: -4 } },
+      R: { lab: '"明面反对者好对付。『自称盟友＋设上限』才是墙。"', fx: { self: +6, voice: +3 } },
+      note: '2018 年初的"due process"评论潮：作者大多自称支持运动。每一波推进，都自带一支"同意你，但是"的护栏施工队。' },
+    { id: 'N13-P3-C2',
+      d: '走廊', sp: '部门主管', role: '半开玩笑地宣布', cameo: '♔',
+      t: '"以后我单独见女下属，都开着门——或者干脆不见。保护我自己嘛，你懂的。"他眨眨眼。',
+      L: { lab: '（礼貌地笑了笑）', fx: { people: +2, self: -4 } },
+      R: { lab: '"所以升职的谈话，都发生在你和男下属的酒局上？"', fx: { voice: +4, self: +5, people: -3 } },
+      note: '调查显示约三成男性管理者采纳了"不单独见女性"策略——把防性骚扰偷换成隔离女性，惩罚再次落到被"保护"者头上。' },
+    { id: 'N13-P3-C3',
+      d: '2018 年 9 月', sp: '电视', role: '又一场听证会', cameo: '※',
+      t: '又一位女教授独自作证，又一排男参议员。表决 50 比 48——27 年前那次，是 52 比 48。',
+      L: { lab: '（关电视。看不下去。）', fx: { self: -3 } },
+      R: { lab: '（把两个比分写在便签上，贴在屏幕边）', fx: { self: +5, voice: +3 } },
+      note: '1991 与 2018：同一个委员会房间，同一套程序性不信任，几乎同样的票差。Ford 作证时引用了创伤记忆的神经科学——27 年里唯一升级的东西。' },
+  ],
+  [ // P4 片场 (女演员专属)
+    { id: 'N13-P4-C1',
+      d: '试镜后', sp: '选角导演', role: '把你拉到走廊', cameo: '☙',
+      t: '"你上次拒绝了『那位』，对吧？有份名单，你在上面。这两年你试镜十次黄十次——不是演技问题。"',
+      L: { lab: '（认了，熬着）', fx: { self: -4, money: -2 } },
+      R: { lab: '（把名单的事告诉那位正在调查的记者）', fx: { voice: +5, self: +5, body: -1 } },
+      note: '报复性封杀是 #MeToo 调查的核心指控之一：不是一次侵害，是一台让"拒绝=失业"持续运转的机器。' },
+    { id: 'N13-P4-C2',
+      d: '首映式', sp: '红毯记者', role: '话筒递过来', cameo: '※',
+      t: '"你穿的是谁？转个圈！"——三个问题过去了，没有一个关于角色。隔壁男主被问的是表演方法论。',
+      L: { lab: '（微笑转圈）', fx: { money: +1, self: -3 } },
+      R: { lab: '"我演的是位物理学家。要不要问问她？"', fx: { voice: +4, self: +5 } },
+      note: '#AskHerMore（2014-）就是从红毯提问的不对称开始的：她被问裙子，他被问灵魂。' },
+    { id: 'N13-P4-C3',
+      d: '咖啡馆', sp: '律师朋友', role: '推过来一张纸', cameo: '$',
+      t: '"那部戏的补拍：你的男对手拿了 150 万美元，你拿的是每日补贴——总共不到一千块。你们重拍的戏份一样多。"',
+      L: { lab: '"行价就这样。闹了，以后没人用。"', fx: { money: +1, self: -4 } },
+      R: { lab: '（把数字捅给媒体）', fx: { voice: +5, self: +5, money: -2, people: -2 } },
+      note: '2017 年《金钱世界》补拍：Michelle Williams 拿每日补贴总计不足千元，Mark Wahlberg 拿 150 万——曝光后他把 150 万捐给 Time’s Up。这张片酬单证明：曝光有用。' },
+  ],
+  ],
+  hazards: [
+    { id: 'N13-HAZ-A',
+      d: '离职面谈', sp: '公司法务', role: '推过来一支笔', cameo: '✗',
+      t: '"签了这份协议，补偿金翻倍。条款很标准：永久保密——包括对你的医生，和你的心理治疗师。"',
+      L: { lab: '（不签。补偿减半。）', fx: { money: -4, self: +4 } },
+      R: { lab: '（签了）', kill: 'nda' },
+      note: '那批 NDA 真的包含"不得与治疗师讨论"条款。Zelda Perkins 1998 年签下模板、2017 年公开违约——她的违约推动了后来的反封口立法。' },
+    { id: 'N13-HAZ-B',
+      d: '发声第三天', sp: '你的手机', role: '通知炸了', cameo: '✗',
+      t: '地址被贴出来了。有人往你家订了二十份披萨，有人发来你上班路线的照片。',
+      L: { lab: '（注销账号，去朋友家住两周）', fx: { voice: -4, self: -3 } },
+      R: { lab: '（截图报警，继续发声）', kill: 'doxx' },
+      note: '网络时代对发声者的私刑不需要绳子——开盒、外卖轰炸、路线照片。平台的处理速度，通常慢于披萨送达的速度。' },
+  ],
+  finale: {
+    id: 'N13-FIN',
+    d: '纪录片结尾', sp: 'Tarana Burke', role: '画外音', cameo: 'B',
+    q: '“I see you, I hear you, I understand you.”',
+    t: '"Me Too 的另一面从来不是控诉。是幸存者对幸存者说：我看见你，我听见你，我懂。"',
+    L: { lab: '（字幕滚完，你坐了很久）', fx: { self: +4 } },
+    R: { lab: '（给十年没联系的大学室友发去：我看见你）', fx: { self: +6, people: +5, voice: +2 } },
+    note: 'Burke 定义的双面：对外是"我不羞耻"，对内是"我懂你"。浪潮会退，这句话不会。',
+  },
+},
+// ═══════════════ N14: 2008-今 论坛 (敏感节点 · 按 vault 正典 framing) ═══════════════
+{
+  id: 'N14', banner: '第 14 棒 · 2008–今 · 一个老牌女权论坛',
+  protag: '论坛版主，34 岁',
+  transitionIn: {
+    t: '2020 年。你在一个老牌女权论坛当了八年版主。这年六月，一条推特把你的版面劈成了两半——从此每天醒来，置顶帖下面都是新的战场。',
+  },
+  open: {
+    id: 'N14-OPEN',
+    d: '2020 年 6 月 · 后台', sp: '举报队列', role: '系统提示：请处理', cameo: '✗',
+    t: '同一个帖子被举报了两次：一次理由是"恐跨"，一次理由是"厌女"。',
+    L: { lab: '（删帖。眼不见为净。）', fx: { voice: -4, self: -3 } },
+    R: { lab: '（保留，并前置双方最好的论述各一篇）', fx: { voice: +4, self: +5, people: -3 } },
+    note: '当代最具撕裂性的纯洁测试：双方都自认女权正统、互指对方背叛。版主的后台，是这场内战前线的沙袋。',
+  },
+  packs: [
+  [ // P1 划线
+    { id: 'N14-P1-C1',
+      d: '2020 年 6 月 10 日', sp: '热帖', role: '已经 3000 楼', cameo: '※',
+      t: '那位作家发了万字长文：五条理由，包括自己的家暴幸存经历。她在其他所有议题上都是标准自由派——这是她唯一的"右转"。',
+      L: { lab: '（锁帖）', fx: { voice: -3, self: -2 } },
+      R: { lab: '（置顶，并附上她笔下主角的演员们的回应）', fx: { voice: +4, self: +4, people: -3 } },
+      note: '同一周，Radcliffe、Watson、Grint 相继表态"跨性别女性是女性"。一个抚养了一代人的故事宇宙，在一个六月里分裂成两种读法。' },
+    { id: 'N14-P1-C2',
+      d: '同一晚', sp: '两封私信', role: '相隔十分钟', cameo: '♡',
+      t: '"我是性侵幸存者，庇护所的事我真的会怕——这话只敢私信说。"十分钟后另一封："我是跨儿，这个版面是我唯一觉得安全的地方。"',
+      L: { lab: '（只回了第一封）', fx: { people: +2, self: -4 } },
+      R: { lab: '（都回了。回得很长。）', fx: { self: +6, people: +2, voice: +2 } },
+      note: '两种恐惧都是真的——这正是这场战争最难的地方。把任何一方简化成假想敌，都要先删掉一个真实的人。' },
+    { id: 'N14-P1-C3',
+      d: '管理组群聊', sp: '投票发起人', role: '管理组内部', cameo: '✗',
+      t: '"投票：要不要把『性别批判』立场整体列为禁言词？"赞成的说这是底线；反对的说，这是 1969 年的"薰衣草威胁"换了个方向。',
+      L: { lab: '（投赞成。省事。）', fx: { people: +3, self: -5 } },
+      R: { lab: '（投反对——但同步严打人身攻击）', fx: { self: +6, voice: +3, people: -3 } },
+      note: '本库正典的原话标注：Friedan 的 Lavender Menace 排斥模式与当代的排斥逻辑"是同一个"。纯洁测试每一代都换个对象重开考场。' },
+  ],
+  [ // P2 学院与法庭
+    { id: 'N14-P2-C1',
+      d: '2021 年 10 月', sp: '新闻', role: '烟雾弹与保安护送', cameo: '※',
+      t: '一位哲学教授在抗议和护送中辞了职。几年后，法院对大学的罚款判了又翻、翻了又判——连法律系统都在来回改主意。',
+      L: { lab: '"活该。"或"冤枉。"（选一个站）', fx: { people: +3, self: -3 } },
+      R: { lab: '"『大学应是最后用正统代替探究的地方』——这句两边都该听。"', fx: { self: +5, voice: +3 } },
+      note: 'Stock 案：学术自由与跨性别权利的硬碰撞。她说"跨儿应当安全、可见、机会均等"，也说性别二分稳定——把她处理成脸谱，会丢掉这案子全部的难。' },
+    { id: 'N14-P2-C2',
+      d: '法律新闻', sp: '上诉法庭裁定', role: '2021 年 6 月', cameo: '♔',
+      t: '裁定："性别批判信念"属于受平等法保护的哲学信念。一方欢呼这是她们的"布朗案"；另一方在保护伞下看见寒意。',
+      L: { lab: '（只转发欢呼的那一半）', fx: { voice: +2, self: -3 } },
+      R: { lab: '（把判决书原文链接放进帖子）', fx: { self: +5, voice: +3 } },
+      note: 'Forstater 案，2021。法律语言里没有"赢家"二字——只有边界被重新画了一笔，和下一场官司的地基。' },
+    { id: 'N14-P2-C3',
+      d: '媒体观察帖', sp: '一次删稿', role: '理论奠基人 vs 她常年投稿的报纸', cameo: '※',
+      t: '卫报采访了《性别麻烦》的作者，随后删掉了她批评性别批判派的段落——三十年前的开拓者，如今的话被剪进了碎纸机。',
+      L: { lab: '"删得好，太极端了。"', fx: { self: -3 } },
+      R: { lab: '（把删节前后两版对照贴出来）', fx: { voice: +5, self: +5 } },
+      note: 'Butler 2021：开拓者在做防守。她 2024 年的新书把反性别运动放进全球图景——巴西、匈牙利、波兰、美国，同一套话语。' },
+  ],
+  [ // P3 同床异梦
+    { id: 'N14-P3-C1',
+      d: '调查报道', sp: '一张同台照片', role: 'Heritage 基金会的讲台', cameo: '♔',
+      t: '自称激进女权的组织出现在那家基金会的讲台上——四十年前，正是这家机构帮 Schlafly 埋葬了 ERA。主持人笑称这是"奇怪的同床人"。',
+      L: { lab: '"敌人的敌人就是朋友。"', fx: { self: -5 } },
+      R: { lab: '"上一个这么想的，是 1986 年走进听证会的 Dworkin。"', fx: { self: +6, voice: +3 } },
+      note: '本库的 Schlafly 谱系标注：1979 年"保护妇女儿童"的框架，2017 年在同一栋楼里几乎一字不差地复活。与保守派同台的女权，历史上从没拿回过话筒。' },
+    { id: 'N14-P3-C2',
+      d: '国际新闻', sp: '墨尔本现场', role: '2023 年 3 月', cameo: '✗',
+      t: '街头集会来了三十个行纳粹礼的人。演讲者声明与己无关——但拒绝公开谴责："那会让对面赢。"',
+      L: { lab: '（这跟我的版面没关系）', fx: { self: -3 } },
+      R: { lab: '（发版规补充：本版与任何拿你当筹码的人无关——不分阵营）', fx: { self: +5, voice: +3 } },
+      note: '墨尔本事件后，该阵营内部的主流派与街头派公开切割。一场运动对"不受欢迎的盟友"的处理方式，暴露它的底色。' },
+    { id: 'N14-P3-C3',
+      d: '年度数据帖', sp: '统计机器人', role: '版面年报', cameo: '✉',
+      t: '吵了三千楼的这一年，版面上关于同工同酬、托育、家暴庇护所预算的帖子，加起来不到一百楼。',
+      L: { lab: '"热点在哪流量在哪，没办法。"', fx: { self: -3 } },
+      R: { lab: '（新增每周置顶：被挤掉的议题）', fx: { self: +6, voice: +3, people: +2 } },
+      note: '内战最大的受益者是不用下场的人：两边互相消耗时，共同议程的预算听证会照常无人旁听——这一格，1980 年代的性战争演示过了。' },
+  ],
+  [ // P4 被遗忘的人
+    { id: 'N14-P4-C1',
+      d: '考古帖', sp: '1987 年的一篇宣言', role: '冷门 · 无人引用', cameo: '☘',
+      t: '1987 年，一位被 22 人联名信赶出女性唱片厂牌的跨性别录音师写了篇反击——后来整个跨性别研究学科的奠基文本。今天吵架的双方，几乎没人引用过她。',
+      L: { lab: '"太学术了，没流量。"', fx: { self: -2 } },
+      R: { lab: '（置顶考古：被遗忘的奠基者）', fx: { self: +6, voice: +3 }, mile: 'stone' },
+      note: 'Sandy Stone《帝国反击》：她创建了学科，辩论双方却都绕开她、回到 1979 年的攻击文本。忽略你的奠基者本身就是一种攻击——Murray 知道，Stone 也知道。' },
+    { id: 'N14-P4-C2',
+      d: '2024 年 11 月', sp: '新闻', role: '国会第一周', cameo: '※',
+      t: '首位公开跨性别身份的国会议员上任第一周，就被议长拒用正确称谓、被针对性立规。她的回应只有一句："我不是来吵厕所的——我是来为特拉华人做事的。"',
+      L: { lab: '"她太软了，该硬刚。"', fx: { self: -2 } },
+      R: { lab: '（把这句话设为本周帖签）', fx: { self: +5, voice: +3 }, mile: 'bridge' },
+      note: 'McBride 的选择：用立法成绩而非身份战争定义自己。这是否是对的策略，历史还没打分——但它是 1848 年以来每个"第一人"都被迫做过的考题。' },
+    { id: 'N14-P4-C3',
+      d: '深夜', sp: '你自己的草稿箱', role: '第 47 版社区指引', cameo: '✉',
+      t: '八年版主，47 版"社区指引"草稿。今晚的版本只剩一句话："先把对面当人，再开始吵。"',
+      L: { lab: '（还是没发。太天真了。）', fx: { self: -4 } },
+      R: { lab: '（发了。设为进版必读。）', fx: { self: +7, voice: +3, people: -2 } },
+      note: '一个版面救不了一场内战。但 1977 年的休斯顿能在敌人最强的那年通过 lesbian 权利条款——房间里的人决定房间的温度，这是版主唯一真实的权力。' },
+  ],
+  ],
+  hazards: [
+    { id: 'N14-HAZ-A',
+      d: '同一天', sp: '两份挂人帖', role: '来自两个阵营', cameo: '✗',
+      t: '你被两边同时"挂"了：一边说你包庇恐跨，一边说你打压女性发声——人肉帖里，你的工作单位都被找了出来。',
+      L: { lab: '（辞职保平安，版面关闭）', fx: { voice: -5, self: -4 } },
+      R: { lab: '（硬扛着继续当版主）', kill: 'crossfire' },
+      note: '内战里最先阵亡的永远是中间的摆渡人。交叉火力不需要瞄准——站在中间，就是靶位。' },
+    { id: 'N14-HAZ-B',
+      d: '深夜 · 后台', sp: '平台算法', role: '推送报表', cameo: '✗',
+      t: '骂战帖的曝光是理性长文的二十倍。算法弹窗："要不要把这条吵到 3000 楼的帖子加精？流量好。"',
+      L: { lab: '（加精。流量就是流量。）', fx: { voice: +2, self: -4, people: -2 } },
+      R: { lab: '（不加精，把那篇没人看的长文置顶）', fx: { self: +4, voice: -2, people: +2 } },
+      note: '平台不审查立场，它只奖励愤怒——内战打得越凶，算法越高兴。最大的中立反派，是按互动量分发的那只手。' },
+  ],
+  finale: {
+    id: 'N14-FIN',
+    d: '某个工作日', sp: '新注册的小会员', role: '16 岁 · 看了三天帖子', cameo: '☘',
+    t: '"版主，我刚来。我看了三天帖子……所以，我到底应该恨谁？"',
+    L: { lab: '"看完精华区你就知道了。"', fx: { self: -3 } },
+    R: { lab: '"先别学恨。先看看 170 年来，每次『内部清洗』之后，运动得到了什么。"', fx: { self: +7, voice: +3, people: +2 } },
+    note: '这场战争此刻没有结局可写——本游戏能做的，只是把 170 年的纯洁测试账本摊开。判断题留给玩家：这是注脚的边界。',
+  },
+},
+// ═══════════════ N15: 2015-2018 首尔 ═══════════════
+{
+  id: 'N15', banner: '第 15 棒 · 2015–2018 · 首尔',
+  protag: '公司企划，27 岁',
+  transitionIn: {
+    t: '首尔。你在一家中型公司做企划，工位在第四排。2015 年夏天，一个论坛把男人们用了十年的脏话原样镜像了回去——整个韩国互联网都听见了回声。',
+  },
+  open: {
+    id: 'N15-OPEN',
+    d: '2015 年夏 · 午餐', sp: '同期女同事', role: '左右看了看才开口', cameo: '☙',
+    t: '"你看 Megalia 了吗？她们把『泡菜女』反写成『泡菜男』，把那些羞辱词原样奉还。"她压低声音。"好解气——又好吓人。"',
+    L: { lab: '"太极端了，跟那帮人有什么区别。"', fx: { self: -4 } },
+    R: { lab: '"镜子照出来的东西吓人，不怪镜子。"', fx: { self: +6, voice: +3 }, mile: 'mirror' },
+    note: 'Megalia 的镜像策略："我们是在镜像，不是在仇恨。"主流大报立刻判了"两边都极端"——镜子与原像之间画等号，正是定义权之争本身。',
+  },
+  packs: [
+  [ // P1 镜像
+    { id: 'N15-P1-C1',
+      d: '2016 年 7 月', sp: '新闻', role: '一件 T 恤', cameo: '※',
+      t: '一位游戏配音演员发了张 T 恤照片："Girls Do Not Need a Prince"。第二天，游戏公司把她的声音从游戏里删了。',
+      L: { lab: '"公司也是怕惹事。"', fx: { self: -5 } },
+      R: { lab: '（参加了为她发起的众筹）', fx: { money: -2, self: +6, people: +3 } },
+      note: '金자연事件：穿一件 T 恤被解雇。用户当日众筹七千万韩元——不是补偿，是宣言。"女孩不需要王子"从 T 恤变成了符号。' },
+    { id: 'N15-P1-C2',
+      d: '论坛公告', sp: '匿名管理组', role: '没有署名', cameo: '✉',
+      t: '这个论坛没有领袖、没有署名、没有代言人——被攻击时没有头像可挂，被收编时没有名字可买。',
+      L: { lab: '"没领袖成不了事。"', fx: { self: -3 } },
+      R: { lab: '"没领袖，也就没有可以折断的旗杆。"', fx: { self: +5, voice: +2 } },
+      note: '与有名有姓的 #MeToo 不同，Megalia 选择彻底匿名——韩国职场对出头者的报复成本，让"受害者→代言人"这条路走不通。匿名是策略，也是控诉。' },
+    { id: 'N15-P1-C3',
+      d: '娱乐新闻', sp: '两条热搜', role: '同一个月', cameo: '※',
+      t: '一位偶像因为读了本小说——《82 年生的金智英》——被男粉丝烧专辑脱粉；另一位只因手机壳上一句英文 slogan 公开道歉。',
+      L: { lab: '"偶像就该避嫌。"', fx: { self: -5 } },
+      R: { lab: '（去书店把那本小说买了）', fx: { self: +6, voice: +2, money: -1 } },
+      note: 'K-pop 工业把"女权嫌疑"写进禁忌清单——读一本书都需要道歉。于是买那本书成了最低成本的公开站队：它连续两年霸榜。' },
+  ],
+  [ // P2 江南站
+    { id: 'N15-P2-C1',
+      d: '2016 年 5 月 17 日', sp: '新闻推送', role: '深夜', cameo: '※',
+      t: '江南站附近，一名 23 岁女性在公共卫生间被陌生男人杀害——他等了一个多小时，放过了先进来的六个男人。警方定性：随机杀人。',
+      L: { lab: '"随机的。别想太多。"', fx: { self: -6 } },
+      R: { lab: '"放过六个男人之后，那不叫随机。"', fx: { self: +7, voice: +3 } },
+      note: '江南站案的定义权之争：官方说"随机/精神疾病"，数万女性说"厌女仇杀"。如何命名一场死亡，决定社会要不要为它改变。' },
+    { id: 'N15-P2-C2',
+      d: '次日 · 十号出口', sp: '现场', role: '没有人指挥', cameo: '♡',
+      t: '出口贴满了便利贴，一万多张。写得最多的一句是："我只是碰巧活了下来。"有人在补贴，有人在抄录。',
+      L: { lab: '（站在外围，看了很久）', fx: { self: +3 } },
+      R: { lab: '（写了一张，贴上去）', fx: { self: +6, people: +4, voice: +3 }, mile: 'postit' },
+      note: '便利贴是门槛最低的纪念物，也是最难删除的媒介——那一万张匿名字条后来被整理成书：《我只是偶然幸存》。' },
+    { id: 'N15-P2-C3',
+      d: '地铁里', sp: '骂人的青年', role: '对着一位推婴儿车的母亲', cameo: '✗',
+      t: '"妈虫。"——你认识这个词。它来自那套论坛词汇表，正理直气壮地走进日常口语。',
+      L: { lab: '（假装没听见）', fx: { self: -4 } },
+      R: { lab: '"先生，这词哪学的？知道它配套的整张词表吗？"', fx: { voice: +4, self: +5, people: -2 } },
+      note: '泡菜女、酱女、妈虫、"三天打一次"——整套厌女词汇先在匿名论坛锻造，再流入日用而不自知的口语。镜像运动反射的，正是这套语言。' },
+  ],
+  [ // P3 惠化站
+    { id: 'N15-P3-C1',
+      d: '下午 · 公司洗手间', sp: '隔间门内侧', role: '一个新钻的小孔', cameo: '✗',
+      t: '孔被纸团堵着——堵纸团的不是物业，是上一个发现它的女员工。',
+      L: { lab: '（也只是再塞紧一点）', fx: { body: -2, self: -3 } },
+      R: { lab: '（拍照、报修、抄送全员邮件）', fx: { voice: +4, self: +4, body: +2, people: -3 } },
+      note: 'molka（偷拍）：公厕、试衣间、酒店。"先检查摄像头再用隔间"成了一代韩国女性的肌肉记忆。' },
+    { id: 'N15-P3-C2',
+      d: '周五', sp: '同事', role: '递来一张地铁线路图', cameo: '☙',
+      t: '"周六惠化站有集会——抗议偷拍犯罪的选择性执法。上次去了几万人。"她顿了顿。"一起？"',
+      L: { lab: '"周六我加班……"', fx: { self: -4 } },
+      R: { lab: '"几点集合？"', fx: { voice: +5, self: +5, people: +3 }, mile: 'hyehwa' },
+      note: '2018 年惠化站六次集会，累计数十万人次——韩国史上最大规模的女性单一议题集会。诉求只有一句：同样的犯罪，同样地办案。' },
+    { id: 'N15-P3-C3',
+      d: '次日', sp: '三大报的标题', role: '同一场集会', cameo: '※',
+      t: '几万人的集会，保守大报的标题聚焦："激进口号""排斥男记者"。犯罪数据被放在第七段。',
+      L: { lab: '"媒体嘛，都这样。"', fx: { self: -3 } },
+      R: { lab: '（截图第七段转发：这才是头条）', fx: { voice: +4, self: +5 } },
+      note: '"朝中东"三大保守报的对称化 framing：把镜像与原像、抗议与犯罪各打五十大板。框架机器，是比匿名论坛更体面的反派。' },
+  ],
+  [ // P4 反扑的选票
+    { id: 'N15-P4-C1',
+      d: '2021 年 · 电视辩论', sp: '36 岁的党首', role: '常春藤毕业 · 语速很快', cameo: '♔',
+      t: '"结构性性别歧视不存在——歧视是个人问题。配额制应该废除，让能力说话。"',
+      L: { lab: '"听着……挺公平的？"', fx: { self: -5 } },
+      R: { lab: '"用『能力』包装的，是把结构问题判给个人。"', fx: { self: +6, voice: +3 } },
+      note: '李俊石把二十多岁男性的怨气锻造成正式政治话术；一年后，这套话术把一位候选人送进了青瓦台。把结构问题个人化——Lean In 用它卖书，这里用它换选票。' },
+    { id: 'N15-P4-C2',
+      d: '2022 年 1 月', sp: '候选人的 Facebook', role: '全文七个字', cameo: '※',
+      t: '"废除女性家族部。"没有论述，没有数据。这七个字成了竞选纲领的全部。',
+      L: { lab: '（划过去）', fx: { self: -3 } },
+      R: { lab: '（存档。极简主义的反扑标本。）', fx: { self: +5, voice: +2 } },
+      note: '2022 年大选：18-29 岁男性 58.7% 投他，同龄女性 33.8%——24.9 个百分点的性别差，韩国大选史之最。性别成了最锋利的选举楔子。' },
+    { id: 'N15-P4-C3',
+      d: '深夜聊天', sp: '大学同学', role: '语气很平静', cameo: '♡',
+      t: '"我加入 4B 了——不恋爱、不性、不婚、不育。不是赌气，是罢工：这个系统拿我们当资源，那就停止供给。"',
+      L: { lab: '"太极端了，会孤独的。"', fx: { self: -3, people: +2 } },
+      R: { lab: '"罢工本来就不是为了让雇主舒服。"', fx: { self: +5, voice: +2, money: +2 } },
+      note: '4B：四个"不"的总罢工。2024 年美国大选后它在英语圈爆红——韩国女性发明的词，成了全球反扑时代的通用语之一。' },
+  ],
+  ],
+  hazards: [
+    { id: 'N15-HAZ-A',
+      d: '年度评估后', sp: 'HR 姐姐', role: '语气是为你好', cameo: '♛',
+      t: '"你能力没问题，就是……形象再精致一点会更有竞争力。我认识一家诊所——双眼皮和下颌线做完，『印象分』完全不一样。"',
+      L: { lab: '"我的脸不参加 KPI。"', fx: { people: -2 } },
+      R: { lab: '"……地址发我。"', kill: 'surgery' },
+      note: '韩国是人均整形率最高的国家之一，"就业整形"是真实存在的品类。第一次叫变美，第二次叫修复，第三次叫并发症。' },
+    { id: 'N15-HAZ-B',
+      d: '晚十点', sp: '部长', role: '拍着你的隔板', cameo: '♔',
+      t: '"年轻人要有狼性！明早晨会的资料今晚弄完。哦对，周末团建——带妆出席。"',
+      L: { lab: '（请了病假）', fx: { money: -2, self: +2 } },
+      R: { lab: '（咖啡续上，继续）', kill: 'superwoman3' },
+      note: 'OECD 工时榜前列，外加"妆容也算工装"——"全都要"的韩国版叫"狼性"。死法相同，加班费另算。' },
+  ],
+  finale: {
+    id: 'N15-FIN',
+    d: '2018 年某日 · 江南站', sp: '十号出口', role: '墙已经被清理干净', cameo: '♡',
+    t: '便利贴早被收进了档案馆。一个高中生模样的女孩在空墙前停下，掏出便利贴，贴了一张新的。',
+    L: { lab: '（看着她走远）', fx: { self: +4 } },
+    R: { lab: '（也掏出便利贴，贴在旁边）', fx: { self: +6, people: +3, voice: +2 } },
+    note: '纪念会被清理，媒介会过时——但"在这里写下一句话"这个动作，已经进入下一代的词汇表。镜子和便利贴，都是接力棒。',
+  },
+},
+// ═══════════════ N16: 2018-今 中文互联网 ═══════════════
+{
+  id: 'N16', banner: '第 16 棒 · 2018–今 · 中文互联网',
+  protag: '一个小组的组长，29 岁',
+  transitionIn: {
+    t: '你白天是普通上班族，晚上是一个五万人小组的组长。这一棒没有街头——战场是热搜、词库、审核队列，和一次次的搬家。',
+  },
+  open: {
+    id: 'N16-OPEN',
+    d: '2018 年 · 私信', sp: '组员', role: '发来一张截图', cameo: '☙',
+    t: '"组长，『那两个字』发不出去了——拼音、谐音、繁体都试过。最后我用了两个 emoji：一碗米饭，一只兔子。"',
+    L: { lab: '"别发了，小心组没了。"', fx: { self: -4, voice: -2 } },
+    R: { lab: '"米饭和兔子。让词库追着我们跑。"', fx: { voice: +5, self: +6 }, mile: 'ricebunny' },
+    note: '"米兔"= MeToo 的谐音汉化：词被拦下，就用米饭+兔子接着说。词库越长，造词越快——这场猫鼠游戏本身成了运动的形态。',
+  },
+  packs: [
+  [ // P1 米兔在中国
+    { id: 'N16-P1-C1',
+      d: '2018 年 1 月', sp: '新闻', role: '高校第一案', cameo: '※',
+      t: '一位毕业多年的女博士实名举报博导性骚扰。一周后，校方通报：撤销其职务，取消其学者称号。',
+      L: { lab: '"闹大了，对学校不好。"', fx: { self: -5 } },
+      R: { lab: '"这是第一案。会有第二案。"', fx: { voice: +4, self: +5 } },
+      note: '2018 年初的北航案：中国高校 #MeToo 第一案，以校方实际处分收尾——它证明发声可以有结果，尽管后来的许多案子没等到同样的结尾。' },
+    { id: 'N16-P1-C2',
+      d: '开庭日 · 午休', sp: '同事', role: '刷着手机抬起头', cameo: '☙',
+      t: '"今天开庭。好多女孩在法院外排队旁听，还有人举着牌子。"她看着你。"你说，去当个旁听的人，算不算太高调？"',
+      L: { lab: '"算。咱们网上看看就行。"', fx: { self: -4 } },
+      R: { lab: '"旁听席坐满，本身就是判决的一部分。"', fx: { self: +6, people: +3, voice: +2 }, mile: 'courtroom' },
+      note: '弦子诉名主持人案：2020 年开庭，2021 年一审以"证据不足"驳回，上诉亦被驳回。败诉是一个结果；法院外彻夜排队的旁听队伍，是另一个结果。' },
+    { id: 'N16-P1-C3',
+      d: '小组精华帖', sp: '整理楼楼主', role: '盘点这几年的词', cameo: '✉',
+      t: '"『姐妹』被限流就改『集美』，『女权』被污名就反着自称『女拳』——他们污染一个词，我们就再造一个。"',
+      L: { lab: '"老换词，新人看不懂。"', fx: { self: -2 } },
+      R: { lab: '（把造词史整理成置顶帖）', fx: { voice: +4, self: +5 } },
+      note: '污名化—再造—再污名化的循环。话语战争的中文版速度极快——一个词的寿命常常不到一年，而造词的人手永远比删词的多。' },
+  ],
+  [ // P2 审核队列
+    { id: 'N16-P2-C1',
+      d: '2021 年 4 月', sp: '系统通知', role: '一夜之间', cameo: '✗',
+      t: '"经核实，该账号存在挑拨对立等违规行为，予以永久封禁。"——你关注了三年的博主，十万条内容，一夜清零。',
+      L: { lab: '"肯定是她说错话了。"', fx: { self: -5 } },
+      R: { lab: '（把她散落各处的文字备份成文档）', fx: { self: +6, voice: +3 } },
+      note: '2021 年 4 月前后，一批女权博主账号被批量清空，理由多为"挑拨性别对立"；同期，以攻击女权为业的账号照常更新。同一把尺子，两种刻度。' },
+    { id: 'N16-P2-C2',
+      d: '同月', sp: '平台弹窗', role: '解散公告', cameo: '✗',
+      t: '"因存在极端主义和激进的政治思想，以下小组予以解散：[名单]。"名单里有你常去的那个——五万人，讨论独居、互助和不婚。',
+      L: { lab: '（散了就散了吧）', fx: { people: -3, self: -4 } },
+      R: { lab: '（连夜打包精华帖，在新组重建）', fx: { self: +6, people: +4, voice: +2 } },
+      note: '2021 年 4 月近十个女权相关小组被关闭，最大的有四五万人。"极端"的定义权从不在被定义者手里——1848 年如此，2021 年也如此。' },
+    { id: 'N16-P2-C3',
+      d: '热搜', sp: '百万粉的"正能量"博主', role: '正在起底一位活动家', cameo: '♔',
+      t: '他翻出她七年前的照片，扣上"境外势力"的帽子。当晚，被起底者的账号消失了；起底者的粉丝涨了二十万。',
+      L: { lab: '（默默取关了被起底的人）', fx: { self: -6 } },
+      R: { lab: '（关注了她的备用号）', fx: { self: +5, voice: +2, people: +2 } },
+      note: '"境外势力"是这个战场的万能帽子：跨议题打包污名。封号的不对称在这里最直白——把矛头对准女权合规，把处境说出来违规。' },
+  ],
+  [ // P3 段子与代言
+    { id: 'N16-P3-C1',
+      d: '2020 年 · 视频网站', sp: '台上的女演员', role: '脱口秀', cameo: '☘',
+      t: '"明明那么普通，却那么自信。"台下笑声炸了；弹幕同时炸了。',
+      L: { lab: '"确实有点冒犯男性了。"', fx: { self: -4 } },
+      R: { lab: '（笑出声，转发）', fx: { self: +5, voice: +3 } },
+      note: '杨笠 2020 年的段子成为此后四年最大的性别话语导火索：被举报、代言被撤，又被另一半观众捧为嘴替。一句喜剧台词，承担了一场社会辩论的全部重量。' },
+    { id: 'N16-P3-C2',
+      d: '2024 年 10 月', sp: '行业群', role: '有人发了个"赢"字', cameo: '※',
+      t: '"看到没：电商大促官宣她代言，四天后道歉撤换——男性用户威胁退货、注销、赎回理财。"',
+      L: { lab: '"商业公司怕事，正常。"', fx: { self: -3 } },
+      R: { lab: '"四天。记下这个速度。"', fx: { self: +5, voice: +2 } },
+      note: '2024 年 10 月：官宣→抵制→致歉撤换，全程四天。平台用脚投票的方向，标出了这个市场眼里谁的愤怒更值钱。' },
+    { id: 'N16-P3-C3',
+      d: '2023 年 2 月', sp: '弹幕', role: '一场五亿阅读的对谈', cameo: '※',
+      t: '三位博主对谈来访的日本学者上野千鹤子，开场问题是："你不结婚，是因为被男人伤害过吗？"群嘲与辩护各占一半。',
+      L: { lab: '"恋爱脑，丢人。"', fx: { people: +2, self: -2 } },
+      R: { lab: '"嘲笑她之前——谁教过我们怎么提问？"', fx: { self: +5, voice: +2 } },
+      note: '2023 年对谈风波：批评者说浪费了机会，辩护者说苛责素人。真正的信息是需求本身——她的书此后在中国连续霸榜，一个被堵住嘴的市场在用书架说话。' },
+    { id: 'N16-P3-C4',
+      d: '同一条热搜', sp: '吃瓜群', role: '两条对照', cameo: '※',
+      t: '"男主播黑料攒一筐，每次都『洗一洗又出来了』；女主播传个绯闻，代言连夜撤完、剧组删戏。"有人发："凭啥？"',
+      L: { lab: '"男人就是脸皮厚。"', fx: { self: -3 } },
+      R: { lab: '"不是脸皮——是两套秤。一套量行为，一套量性别。"', fx: { self: +5, voice: +3 } },
+      note: '同样的失德，男星靠"人设管理"翻盘、女星没有这条通道。可塌房的"罪名"清单，女性远长于男性——这不是个人脸皮问题，是结构。' },
+  ],
+  [ // P4 长跑
+    { id: 'N16-P4-C1',
+      d: '通勤路上', sp: '耳机里的心理咨询师', role: '播客', cameo: '☘',
+      t: '"我的来访者 85% 是女性。很多所谓『女性的抑郁』，不是病——是对真实处境的正常心理反应。"',
+      L: { lab: '（听完这期就睡了）', fx: { self: +2 } },
+      R: { lab: '（转给三个朋友：这期必听）', fx: { self: +4, people: +3, voice: +2 } },
+      note: '把结构性处境从"个人病理"里赎回来——1963 年"没有名字的问题"的中文回声。播客、读书会、共享文档：审查缝隙里的意识觉醒小组。' },
+    { id: 'N16-P4-C2',
+      d: '讲座视频', sp: '七十岁的社会学家', role: '讲了四十年性与性别', cameo: '☘',
+      t: '弹幕飘过："原来这些问题，体制内一直有人在研究。"',
+      L: { lab: '"学术的，离生活太远。"', fx: { self: -2 } },
+      R: { lab: '"她们的存在本身，就是那顶帽子的反证。"', fx: { self: +5, voice: +2 } },
+      note: '李银河们的位置：不上街、不对线。但当"女权=境外"的帽子飞来时，一个在体制内研究了四十年的学者，就是最硬的反例。学术后方也是阵地。' },
+    { id: 'N16-P4-C3',
+      d: '家庭聚会', sp: '表妹', role: '把你拉到阳台', cameo: '♡',
+      t: '"网上吵成那样，我都不敢说话了。但是姐——彩礼、冠姓、生不生，这些事它们自己不会消失吧？"',
+      L: { lab: '"少看点网，过自己日子。"', fx: { people: +2, self: -3 } },
+      R: { lab: '"网会清空，问题不会。咱们慢慢聊。"', fx: { self: +5, people: +3 } },
+      note: '热搜会被撤，小组会被散，但日常处境是删不掉的服务器。第四波在这里的真实形态：从广场退回餐桌，再从餐桌重新出发。' },
+  ],
+  ],
+  hazards: [
+    { id: 'N16-HAZ-A',
+      d: '深夜 · 你的后台', sp: '系统弹窗', role: '转发确认', cameo: '✗',
+      t: '小组挂了条求助帖，你想转到自己用了十年的大号上。弹窗提示："该内容可能包含敏感信息。"光标停在『仍然发布』上。',
+      L: { lab: '（存草稿。等等风头。）', fx: { voice: -3, self: -3 } },
+      R: { lab: '（仍然发布）', kill: 'banned' },
+      note: '炸号是这一棒特有的死法：身体还在，声音没了。在本游戏的计分方式里这算一种阵亡——但下一棒会注册新号。' },
+    { id: 'N16-HAZ-B',
+      d: '晚上', sp: '妈妈', role: '电话 · 声音压得很低', cameo: '♡',
+      t: '"你舅妈说你在网上『搞女权』？闺女，咱不图那点流量，删了吧——单位看到，影响前途。"',
+      L: { lab: '（清空了主页）', fx: { voice: -5, self: -4 } },
+      R: { lab: '"妈，我写的每个字都经得起单位看。"', fx: { self: +5, people: -2 } },
+      note: '审查的最后一级不是平台，是亲人转述的恐惧。它的执法成本最低——一通电话。' },
+    { id: 'N16-HAZ-C',
+      d: '周一上班', sp: 'HR', role: '叫你去小会议室', cameo: '✗',
+      t: '"有人反映你在网上的言论……我们也不想为难你，但先停职配合调查吧。等结论出来再说。"结论一直没出来。',
+      L: { lab: '（删号、写检查，保住工作）', fx: { voice: -5, money: -2, self: -4 } },
+      R: { lab: '"反映什么？让我看举报内容。"', kill: 'reported' },
+      note: '举报箱不需要结论，过程本身就是判决。"先停职配合调查"——三个月后调查无果，工位也没了。' },
+    { id: 'N16-HAZ-D',
+      d: '凌晨两点', sp: '门铃', role: '第三次响', cameo: '✗',
+      t: '你的身份证、住址、家人电话被挂上了网。先是骚扰电话，现在是楼道里的脚步声和不肯停的门铃。',
+      L: { lab: '（连夜收拾，去亲戚家躲）', fx: { body: -2, voice: -3, self: -3 } },
+      R: { lab: '（报警，截图取证，继续发声）', kill: 'midnight' },
+      note: '开盒：被开盒的人换地方住，开盒的人不换工作。女主播、女博主、女组长——只要"一个名字就能查到五年的你"。' },
+  ],
+  finale: {
+    id: 'N16-FIN',
+    d: '新号第 3 天', sp: '私信', role: '老读者', cameo: '♡',
+    t: '"姐，你换的新号我又找到了。这次我先把你置顶了——你写吧，我们都在。"',
+    L: { lab: '（回了个拥抱表情）', fx: { self: +4, people: +2 } },
+    R: { lab: '（置顶新帖：第七个号，接着写）', fx: { self: +6, voice: +3, people: +2 }, mile: 'zai' },
+    note: '删与重建的循环没有终点，但每次重建都更快——读者总比算法先找到你。"在"——这个字是这一棒的火种。',
+  },
+},
+// ═══════════════ N17: 2016-2025 一所中学 ═══════════════
+{
+  id: 'N17', banner: '第 17 棒 · 2016–2025 · 教室与直播间',
+  protag: '这一棒的她（开局二选一）',
+  transitionIn: {
+    t: '2016 之后。时代给了女人不止一种活法——也给每种活法配了新的考题。',
+  },
+  // 职业随机试点: 同一棒两种人生, 包池/风险池/开场/收尾按职业走
+  roles: [
+    { protag: '初中语文教师，31 岁', packs: [0, 1, 2], hazards: [0, 1] },
+    { protag: '带货主播，36 岁（35 岁被「优化」后转行）', packs: [3, 4], hazards: [2, 3],
+      open: {
+        id: 'N17-OPEN-B',
+        d: '开播第一天 · 后台', sp: '平台新手引导', role: '起名界面', cameo: '※',
+        t: '"给直播间起个名吧！建议：含『甜美』『温柔』『小姐姐』类词的直播间，打开率更高哦。"',
+        L: { lab: '（听建议：「甜甜小姐姐优选」）', fx: { money: +3, self: -4 } },
+        R: { lab: '（敲下：「三十六岁，正播」）', fx: { voice: +4, self: +5, money: -1 } },
+        note: '全国职业主播超 1500 万、女性约占七成——35 岁在职场被"优化"，36 岁在算法里重新开张。这是这个时代的新印刷所，也是新流水线。',
+      },
+      finale: {
+        id: 'N17-FIN-B',
+        d: '开播一周年', sp: '弹幕里的常客', role: '一个 ID 灰扑扑的小号', cameo: '☘',
+        t: '"姐，看你直播半年了。我把那几个教人『当狼性男人』的主播都取关了——你讲货也讲理，比他们像个人。"',
+        L: { lab: '（念出来，笑场了）', fx: { self: +5, people: +2 } },
+        R: { lab: '"谢了兄弟。下次把你妈也带来，我这儿不割韭菜。"', fx: { self: +6, people: +3, voice: +2 }, mile: 'unplug' },
+        note: '一个直播间赢不了推荐算法，但算法没有耐心，人有。退订的男孩不是统计个例——他是统计开始改变的地方。',
+      },
+    },
+    { protag: '大厂程序员，34 岁', packs: [5, 2], hazards: [4, 5],
+      open: {
+        id: 'N17-OPEN-C',
+        d: '绩效面谈', sp: 'HR BP', role: '笑容职业', cameo: '♛',
+        t: '"公司结构性调整，你的岗位『毕业』了。N+1 很有诚意。"她翻了页。"对了，35 岁前找下家会顺利很多——这话我只对你说。"',
+        L: { lab: '（签字，拿钱走人）', fx: { money: +4, self: -4 } },
+        R: { lab: '"毕业？我大学毕业那年，这公司还没成立。"', fx: { voice: +4, self: +5 } },
+        note: '大厂把裁员叫"毕业"、把 35 岁叫"分水岭"。65% 的 35+ 求职者遭遇年龄门槛；女性还要再过一道"婚育审查"。',
+      },
+      finale: {
+        id: 'N17-FIN-C',
+        d: '一年后', sp: '你的开源主页', role: '一条新留言', cameo: '☘',
+        t: '"姐，我照你的训练营路线学完了，今天拿到 offer——面试官问我婚育，我用了你置顶的那句话怼回去了。"',
+        L: { lab: '（回复：恭喜🎉）', fx: { self: +5, people: +2 } },
+        R: { lab: '（把她的留言置顶：路是这么一条条走宽的）', fx: { self: +6, people: +3, voice: +2 }, mile: 'widen' },
+        note: '被大厂"毕业"的 35+ 女工程师正涌向自由职业、独立开发与技术社区——和 1991 年的 zine、2021 年的 newsletter 是同一条迁徙路线：主渠道不给位置，就自建渠道。',
+      },
+    },
+  ],
+  open: {
+    id: 'N17-OPEN',
+    d: '课堂 · 后排', sp: '起哄的男生', role: '桌上手机还亮着', cameo: '✗',
+    t: '"老师，你是不是女权啊？"全班安静下来，等你的反应。他的手机屏幕停在一个炫车炫表的肌肉男短视频上。',
+    L: { lab: '"上课不许玩手机！"（没收，绕开问题）', fx: { self: -4 } },
+    R: { lab: '"是。来，先说说你理解的『女权』是什么？"', fx: { voice: +4, self: +6, people: -2 } },
+    note: '2022 年前后，多国教师报告 12-16 岁男生集体复读某网红的台词。教室成了 manosphere 与女权主义短兵相接的第一现场。',
+  },
+  packs: [
+  [ // P1 教室里的回声
+    { id: 'N17-P1-C1',
+      d: '课间', sp: '两个男生', role: '故意让你听见', cameo: '✗',
+      t: '"抑郁症根本不存在！说自己抑郁的都是失败者！"——他们复读的那个人，语录在短视频平台累计上百亿播放。',
+      L: { lab: '（装没听见，回办公室）', fx: { self: -5 } },
+      R: { lab: '"这句话，咱们班会辩论一次。"', fx: { voice: +5, self: +5 } },
+      note: 'Andrew Tate 封号前 TikTok 累计播放 116 亿次；英国教师工会把他列为"威胁学校性别安全的头号网红"。和你抢学生的，是一台推荐算法。' },
+    { id: 'N17-P1-C2',
+      d: '批改作业', sp: '一篇周记', role: '班里最沉默的男生', cameo: '✉',
+      t: '"80% 的女生只喜欢 20% 的男生。我们这种普通人，注定没人爱。"字迹很认真。',
+      L: { lab: '（批个"阅"，翻过去）', fx: { self: -4 } },
+      R: { lab: '（放学约他聊了一小时，从"这个数字哪来的"聊起）', fx: { self: +6, people: +3 } },
+      note: '"80/20 法则"是 incel 社群的核心迷思。它可怕不在数字假，在它给孤独提供了一个有敌人的解释——而至今没人给青春期男孩对等的"如何长大"内容。' },
+    { id: 'N17-P1-C3',
+      d: '教务会', sp: '校长', role: '推过来一份通知', cameo: '♔',
+      t: '"上面推荐学校组织看那部剧——讲一个 13 岁男孩因为网上那些内容杀了女同学。家长群已经吵翻了：有人说必须看，有人说教坏小孩。"',
+      L: { lab: '"多一事不如少一事，别放了。"', fx: { self: -4 } },
+      R: { lab: '"放。请家长一起看。"', fx: { voice: +5, self: +5, people: -2 } },
+      note: '《混沌少年时》（2025）：首播 11 天 6630 万次观看，英国首相公开支持进校放映。一部剧做到了十年政策报告没做到的事：让家长害怕到开始对话。' },
+  ],
+  [ // P2 管道
+    { id: 'N17-P2-C1',
+      d: '答疑时间', sp: '学生', role: '真诚提问', cameo: '☘',
+      t: '"老师，那个心理学教授说，龙虾都分等级，所以人类的等级也是自然的——他是大学教授诶，他说得不对吗？"',
+      L: { lab: '"网上的东西别乱看。"', fx: { self: -3, people: -2 } },
+      R: { lab: '"龙虾还吃同类呢。来，今天讲讲『自然主义谬误』。"', fx: { voice: +5, self: +6 } },
+      note: '学术外壳是管道的第一站：研究证实，看完这类讲座，算法会接着推荐更极端的内容。合法化入口比极端内容本身更需要课堂回应。' },
+    { id: 'N17-P2-C2',
+      d: '办公室', sp: '男同事', role: '半开玩笑', cameo: '♞',
+      t: '"我也听那个播客啊。人家说了，『我只是在对话，大家自己判断』——这不就是兼听则明？"',
+      L: { lab: '"也对，听听无妨。"', fx: { self: -3 } },
+      R: { lab: '"麦克风递给谁、不递给谁，本身就是立场。"', fx: { self: +5, voice: +3 } },
+      note: '最大的单一分发管道不生产内容，它只负责把内容送进八成男性听众的耳朵，然后说"我只是在对话"。基础设施级的角色，配了基础设施级的责任豁免。' },
+    { id: 'N17-P2-C3',
+      d: '校际辩论赛', sp: '对方辩手', role: '语速极快', cameo: '✗',
+      t: '"『事实不在乎你的感受』！薪酬差距是女性自己选了低薪行业，不是歧视！"',
+      L: { lab: '（这个语速，接不上）', fx: { voice: -3, self: -3 } },
+      R: { lab: '"谁把那些行业定成低薪的？事实也不在乎你的语速。"', fx: { voice: +5, self: +5 } },
+      note: '"事实不在乎你的感受"是这套话术的招牌：用语速和数据密度制造"理性"观感。拆它的方法不是更快，是慢一拍问出结构问题。' },
+  ],
+  [ // P3 算法的天平
+    { id: 'N17-P3-C1',
+      d: '科技新闻', sp: '推送', role: '封号与回归', cameo: '※',
+      t: '那位网红被四大平台同日封禁；三个月后，换了老板的平台恢复了他的账号——粉丝数比封号前还多。',
+      L: { lab: '"封了又放，白忙活。"', fx: { self: -3 } },
+      R: { lab: '"封禁的三个月，就是三个月没有新的 13 岁男孩刷到他。"', fx: { self: +5, voice: +2 } },
+      note: '2022 年 8 月四平台同步封禁，11 月在易主的平台恢复。平台治理的钟摆：封禁有效但可逆——算法奖励争议的底层逻辑，从没动过。' },
+    { id: 'N17-P3-C2',
+      d: '备课', sp: '一张旧照片', role: '2017 年 1 月', cameo: '※',
+      t: '你存过这张照片：粉色帽子的人海，单日全球数百万人上街。而那之后的八年，法院、算法和投票箱各自给出了回答。',
+      L: { lab: '（那时候真热闹啊）', fx: { self: +2 } },
+      R: { lab: '（设成课件首页：可见度不等于胜利，但它是开始）', fx: { self: +5, voice: +2 } },
+      note: '2017 年 Women’s March 是美国史上最大规模单日游行之一；2022 年 Roe 被推翻。可见度与权力之间的时差，是第四波最痛的一课。' },
+    { id: 'N17-P3-C3',
+      d: '教师节', sp: '毕业班男生', role: '回校 · 有点不好意思', cameo: '☘',
+      t: '"老师，说实话——网上教我『怎么当男人』的，只有那帮人。你们……有别的版本吗？"',
+      L: { lab: '"去读名著。"', fx: { self: -2, people: -2 } },
+      R: { lab: '"问得好。这是我们欠你们的。"', fx: { self: +5, people: +3 } },
+      note: 'manosphere 填补的是真实的真空：青春期男孩的成长向导饥渴。这一题，女权阵营和教育系统都还没交卷——承认欠卷，是答题的开始。' },
+  ],
+  [ // P4 直播间 (主播专属)
+    { id: 'N17-P4-C1',
+      d: '开播第一周', sp: '弹幕', role: '滚得很快', cameo: '✗',
+      t: '"主播多大了？状态不行啊。""30+ 还出来播？"——在线 47 人，鉴定年龄的占一半。',
+      L: { lab: '（美颜拉满，资料改成 28）', fx: { money: +2, self: -5 } },
+      R: { lab: '"36。孩子作业都辅导得了，还辅导不了你？"', fx: { voice: +5, self: +5 } },
+      note: '职场嫌你老，直播间嫌你不嫩——同一套年龄审判换了个房间。但留下来的观众，是冲着"人"来的。' },
+    { id: 'N17-P4-C2',
+      d: '第一个月', sp: 'MCN 经纪', role: '合同推过来', cameo: '$',
+      t: '"签我们，流量翻十倍。条款：人设走『邻家姐姐』，少聊『大女主』话题，带货脚本照念。"',
+      L: { lab: '（签。先活下来。）', fx: { money: +5, voice: -3, self: -4 } },
+      R: { lab: '"我的直播间，我说了算。"', fx: { self: +5, money: -3 } },
+      note: '1% 的头部主播拿走 80% 的收入，八成主播月入不到八千——"自由职业"的自由，首先是饿肚子的自由。签或不签，都是真实代价。' },
+    { id: 'N17-P4-C3',
+      d: '深夜场', sp: '榜一大哥', role: '刚刷了个嘉年华', cameo: '♞',
+      t: '"加个微信呗，就当交个朋友——我可是你直播间消费最高的。"',
+      L: { lab: '（加了。衣食父母。）', fx: { money: +4, self: -4, body: -1 } },
+      R: { lab: '"感谢老板！但我这儿只聊货，不聊私。"', fx: { money: -2, self: +5, voice: +2 } },
+      note: '礼物到手提成约 35%，平台抽走大头；"榜一的微信"是女主播最日常的边界测试——拒绝有价格，不拒绝有更大的价格。' },
+  ],
+  [ // P5 三十五岁 (主播专属)
+    { id: 'N17-P5-C1',
+      d: '午餐', sp: '前同事', role: '也被「优化」了', cameo: '☙',
+      t: '"我刚过 35，简历投了 119 份，3 个面试。HR 上来就问：『结婚了吗？二胎要不要？』"',
+      L: { lab: '"再投投看，总有不卡年龄的。"', fx: { people: +2, self: -3 } },
+      R: { lab: '"别投了。来我直播间当场控，工资我开。"', fx: { self: +5, people: +4, money: -3 } },
+      note: '65% 的 35 岁以上求职者遭遇年龄歧视；职场女性遭歧视比例 84%、高于男性的 71%。"35 岁现象"把一代人推向自雇——1500 万主播里，很多是这么来的。' },
+    { id: 'N17-P5-C2',
+      d: '客厅', sp: '快递堆', role: '补光灯、声卡、三百单没卖掉的袜子', cameo: '✗',
+      t: '头三个月，每天拍剪五六个小时——"给设备充电的钱都赚不回来"。',
+      L: { lab: '（清仓甩卖，及时止损）', fx: { money: -4, self: +2 } },
+      R: { lab: '（改播深夜场，试到凌晨三点）', fx: { money: +2, body: -3, self: +3 } },
+      note: '新人主播头三个月的常态。直播是 35 岁危机的逃生口，也是一场用身体当本金的创业——两件事同时为真。' },
+    { id: 'N17-P5-C3',
+      d: '主播姐妹群', sp: '群消息', role: '99+', cameo: '♡',
+      t: '"姐妹们，我被开盒了，住址挂在网上，今晚停播……都检查下自己后台的定位授权。"',
+      L: { lab: '（默默关掉定位，没敢吱声）', fx: { self: -3, voice: -2 } },
+      R: { lab: '（发起接龙：取证教程＋报警模板，置顶）', fx: { voice: +4, people: +4, self: +3 } },
+      note: '央视曝光的开盒产业链里，女主播是头号目标——"一个名字就能查到五年的你"。互助群，是这个行业自发长出来的工会。' },
+  ],
+  [ // P6 代码与年龄 (程序员专属)
+    { id: 'N17-P6-C1',
+      d: '第二周', sp: '猎头', role: '语气很真诚', cameo: '$',
+      t: '"你的技术栈很硬，但……方便把毕业年份从简历上去掉吗？再加一句『可接受高强度作息』——不然系统第一轮就把你筛掉了。"',
+      L: { lab: '（照改）', fx: { money: +2, self: -4 } },
+      R: { lab: '"筛掉我的系统，配不上我去调它。"', fx: { voice: +4, self: +5, money: -2 } },
+      note: '年龄歧视外包给了筛选算法——"是系统筛的，不是我们歧视"。从 HR 话术到简历参数，责任完成了一次干净的转移。' },
+    { id: 'N17-P6-C2',
+      d: '第三轮面试', sp: '面试官', role: '技术问题一道还没问', cameo: '✗',
+      t: '"结婚了吗？""打算要孩子吗？""家里支持你加班吗？"',
+      L: { lab: '（配合答完）', fx: { self: -5 } },
+      R: { lab: '"这三题和岗位的相关系数，麻烦您论证一下？"', fx: { voice: +5, self: +5, people: -2 } },
+      note: '婚育盘问是写进无数女性面经的"标配环节"。它违法——但举证难、维权贵，于是它继续是"标配"。' },
+    { id: 'N17-P6-C3',
+      d: '深夜', sp: '前同事群', role: '弹出七个赞', cameo: '♡',
+      t: '"姐妹们我想通了：不投了。接外包+做开源+带训练营，收入打七折，但没人问我生不生孩子。"',
+      L: { lab: '"还是大厂稳定……"', fx: { self: -3 } },
+      R: { lab: '"稳定？我们就是被『稳定』毕业的。"', fx: { self: +5, voice: +3, money: -2 } },
+      note: '35+ 女工程师的自雇迁徙正在发生。代价真实（收入波动、无社保兜底），自由也真实——这张卡没有标准答案。' },
+  ],
+  ],
+  hazards: [
+    { id: 'N17-HAZ-A',
+      d: '周一早上', sp: '教导主任', role: '脸色很难看', cameo: '✗',
+      t: '"有家长把你课上讲性别那段拍了，剪成三十秒发网上，标题带『仇男教师』。区里来电话了。你……先停两周课？"',
+      L: { lab: '（公开完整课堂录像，要求照常上课）', fx: { voice: +4, self: +4, money: -2 } },
+      R: { lab: '（接受停课，等风头过去）', kill: 'clip' },
+      note: '三十秒断章是这个时代对教师的标准武器。退一步换不来安静——它只是把定义权交给了拿剪刀的人。' },
+    { id: 'N17-HAZ-B',
+      d: '期中', sp: '年级组长', role: '善意提醒', cameo: '♛',
+      t: '"学校建议：性别话题『保持中立』，辩论课先停一停。安全第一嘛。"',
+      L: { lab: '（改教纯应试内容）', fx: { voice: -4, money: +2, self: -4 } },
+      R: { lab: '"中立不是不讲，是两边都讲透。教案我交审。"', fx: { voice: +4, self: +5 } },
+      note: '"保持中立"在实践里往往意味着只把一边关在教室外——而那一边在手机里，根本不需要教室。' },
+    { id: 'N17-HAZ-C',
+      d: '周三晚', sp: '热搜词条', role: '#带货女主播 知三当三？#', cameo: '✗',
+      t: '你和供应商老板（已婚）谈完账期出餐厅，被拍了。照片里你在笑。',
+      L: { lab: '（停播三天，等热搜自己过去）', fx: { voice: -4, money: -3, self: -3 } },
+      R: { lab: '（开播逐条回应，放出全程录音）', kill: 'scandal' },
+      note: '同样的"失德"：男主播黑料攒一筐、"洗一洗又出来"；女主播一张照片就能塌房。越描越黑不是定律——是只对一种性别生效的定律。' },
+    { id: 'N17-HAZ-D',
+      d: '月底', sp: '税务自查通知', role: 'MCN 转发来的', cameo: '$',
+      t: '"请于 15 日内完成直播收入自查申报。"你的账，一直是 MCN 代管的。',
+      L: { lab: '（连夜请会计逐笔对，自己补了一小笔）', fx: { money: -4, self: +2 } },
+      R: { lab: '"MCN 说没问题就没问题。"', kill: 'tax' },
+      note: '头部主播 13.41 亿罚单之后，补税自查成了全行业惯例。账在别人手里，锅在自己头上——"代管"两个字，从不代扛。' },
+    { id: 'N17-HAZ-E',
+      d: '裁员季', sp: '内网流出的截图', role: '一张评分表', cameo: '✗',
+      t: '名单的维度里有一栏"风险标签"：已婚未育 ×、二胎 ×、35+ ×。你全中。',
+      L: { lab: '（提前找好下家，体面离开）', fx: { money: -2, self: +2 } },
+      R: { lab: '（把截图发给劳动监察和媒体）', kill: 'optimized' },
+      note: '"风险标签"式裁员清单屡被曝光。举报者通常赢了舆论、输了行业——黑名单不成文，但猎头都懂。' },
+    { id: 'N17-HAZ-F',
+      d: '晋升季', sp: '部门总监', role: '拍着你的肩', cameo: '♔',
+      t: '"答辩前，周五陪客户喝一场——你也知道，咱们组的『资源』都是酒桌上来的。"',
+      L: { lab: '（去。吐在出租车上。）', fx: { body: -5, people: +2 } },
+      R: { lab: '"答辩我用作品说话。酒，您替我喝。"', fx: { voice: +3, self: +4, people: -3 } },
+      note: '酒局是"非正式渠道"的中国版桑拿房——晋升的隐性门票，对女性双重不友好：不去是"不合群"，去了另有代价。' },
+  ],
+  finale: {
+    id: 'N17-FIN',
+    d: '两年后 · 校门口', sp: '毕业的男生', role: '特意等你下班', cameo: '☘',
+    t: '"老师，我退了那个群。那部剧我拉我爸一起看的——他看完，给我外婆打了个电话。"他挠挠头。"谢谢你当年没把手机一没收就完事。"',
+    L: { lab: '"长大了。"', fx: { self: +5, people: +2 } },
+    R: { lab: '"替我谢谢你爸。下一课，你来给学弟们讲。"', fx: { self: +6, people: +3, voice: +2 }, mile: 'unplug' },
+    note: '一间教室赢不了推荐算法。但算法没有耐心，教师有。退群的男孩不是统计个例——他是统计开始改变的地方。',
+  },
+},
+// ═══════════════ N18: 2020-2026 你的屏幕 (终局棒) ═══════════════
+{
+  id: 'N18', banner: '第 18 棒 · 2020–2026 · 你的屏幕',
+  protag: '独立 newsletter 作者，30 岁',
+  transitionIn: {
+    t: '最后一棒。你辞了职，写一份独立 newsletter——没有编辑部，没有审稿人，三千订阅者。你的工位，是 178 年前那间印刷所的曾孙女。',
+  },
+  open: {
+    id: 'N18-OPEN',
+    d: '发刊前 · 后台', sp: '推荐算法', role: '弹出一条优化建议', cameo: '✗',
+    t: '订阅数停在 2999。算法递来纸条："标题带『她终于离开了他』类的内容，打开率高 47%。"',
+    L: { lab: '（照建议改标题）', fx: { money: +5, self: -4 } },
+    R: { lab: '（标题照旧：本期讲托育预算）', fx: { self: +5, money: -3, voice: +2 } },
+    note: 'creator 经济的日常裁判：算法不审查你，它只是让顺从者先吃饭。1848 年的印刷机不会递纸条——这是新时代唯一的不同。',
+  },
+  packs: [
+  [ // P1 农场
+    { id: 'N18-P1-C1',
+      d: '2024 年 · 刷屏长文', sp: '周日版特稿', role: '八个孩子的农场女主人', cameo: '※',
+      q: '“I gave up everything I’d been working for since I was a teenager.”',
+      t: '芭蕾名校退学、八个孩子、农场、产后十三天参加选美——"我放弃了从少女时代起追求的一切。你不可能拥有一切。"',
+      L: { lab: '"这是她的自由选择啊。"', fx: { self: -3 } },
+      R: { lab: '"选择的后台是亿万家族财力。把后台拍进画面，再谈选择。"', fx: { self: +6, voice: +3 } },
+      note: '2024 年《星期日泰晤士报》特稿让 tradwife 主流化。结构性矛盾：这种"传统生活"只对有家族资本的人可达——模仿它的普通女性，得到的是双班加内疚。' },
+    { id: 'N18-P1-C2',
+      d: '深夜 · 推荐流', sp: '一条亿级播放的视频', role: '光线像油画', cameo: '※',
+      t: '年轻母亲从零做麦片：慢镜头、ASMR、没有一句政治宣言。你看完了。还想再看一条。',
+      L: { lab: '（再看一条）', fx: { self: -2, body: -1 } },
+      R: { lab: '（关掉。记下：不宣言的叙事，才是最强的叙事。）', fx: { self: +5, voice: +2 } },
+      note: '软 tradwife：去政治化、纯审美——但功能效果与宣言版相同：把"被照顾的全职妻子"渲染成可视化理想。学术研究已把两者归入同一现象。' },
+    { id: 'N18-P1-C3',
+      d: '短视频 · 20 万赞', sp: '金发博主', role: '对着镜头', cameo: '♛',
+      q: '“Feminism has lied to women.”',
+      t: '"女权主义欺骗了女性。我们被告知可以拥有一切——根本不能。女人最高的使命，是妻子和母亲。"',
+      L: { lab: '（气得想拍条反驳视频）', fx: { voice: +2, self: -2 } },
+      R: { lab: '（翻出 1972 年的剪报放在旁边：同一句话，52 年前说过一遍）', fx: { self: +6, voice: +3 } },
+      note: '这套台词与 Schlafly 的 STOP ERA 话术几乎逐字重合——50 年前靠教会通讯录发行，这一次靠推荐算法。谱系从未断过，只是换了渠道。' },
+  ],
+  [ // P2 内卷与疲惫
+    { id: 'N18-P2-C1',
+      d: '视频电话', sp: '同行', role: '眼睛在镜头里没有焦点', cameo: '☙',
+      t: '"我现在五点起床、冰水洗脸、记录每一口饭、每周复盘人设——『你可以做到一切』，我做到了一切。"',
+      L: { lab: '"自律是好事吧？"（也跟着卷）', fx: { body: -6, self: -2 } },
+      R: { lab: '"『可以做到一切』，什么时候变成了『必须展演一切』？"', fx: { self: +5, voice: +2, body: +2 } },
+      note: 'popular feminism 的内卷终点：赋权话语被优化成 KPI。从"你可以"到"你必须"再到"你必须被看见做到"——三次滑坡，每一次都有人收钱。' },
+    { id: 'N18-P2-C2',
+      d: '药房小程序', sp: '缺货登记页', role: '排到三个月后', cameo: '$',
+      t: '减肥针的预约排到了三个月后。热搜里，有人晒针，有人晒"嘴馋监督"打卡群。',
+      L: { lab: '（也登记了一个）', fx: { body: -4, money: -3, self: -1 } },
+      R: { lab: '（写了篇《处方瘦的三代史》）', fx: { voice: +4, self: +4, body: +1 } },
+      note: '处方瘦第三代：安非他命、芬芬、这一针。前两代的结局都写进了本游戏的死亡卡——这一代的长期数据还没出来，但"瘦有处方"的逻辑八十年没改过。' },
+    { id: 'N18-P2-C3',
+      d: '读者来信', sp: '一位老订阅者', role: '退订前的最后一封', cameo: '♡',
+      t: '"我取关了所有博主，包括你。不是你写得不好——是我累了。运动、自我提升、互相审判……我只想躺一会儿。这有错吗？"',
+      L: { lab: '（挽留：再给我一个月）', fx: { money: +1, body: -3, self: -3 } },
+      R: { lab: '（公开回信：躺是合理的。休整不是退出。）', fx: { body: +6, self: +4, people: +3 } },
+      note: '"大女权疲惫"：第四波的特有损耗——不是被敌人打败，是被永不下班的可见度经济磨平。承认疲惫，是把运动从 KPI 里赎回来的第一步。' },
+  ],
+  [ // P3 出走与自建
+    { id: 'N18-P3-C1',
+      d: '深夜发刊', sp: '你的排版界面', role: '光标在闪', cameo: '✉',
+      t: '你忽然想起这条生产线的前三代：1848 年的印刷所，1969 年的油印机，1991 年的复印机。第四次，工具又回到了自己手里。',
+      L: { lab: '（发刊，睡觉）', fx: { self: +3 } },
+      R: { lab: '（在刊尾加一行小字：本刊隶属一个 178 年的传统）', fx: { self: +5, voice: +3 }, mile: 'newsletter' },
+      note: 'zine 的孙女叫 newsletter：绕开编辑部与算法，直达订阅者。每代媒介革命，女性运动都是最早的迁徙者之一——因为主渠道从来不分给她们足够的版面。' },
+    { id: 'N18-P3-C2',
+      d: '书店', sp: '店员老朋友', role: '指着畅销榜', cameo: '☘',
+      t: '"神了：一本 2000 年出版的《关于爱的一切》，被短视频带回畅销榜——销量翻了六倍，买的全是二十岁上下的姑娘。"',
+      L: { lab: '"炒冷饭罢了。"', fx: { self: -2 } },
+      R: { lab: '"hooks 等这批读者，等了二十年。"', fx: { self: +5, voice: +2 }, mile: 'hooksback' },
+      note: 'bell hooks 2021 年去世；两年后 BookTok 把她的书送回畅销榜。算法偶尔也干好事——前提是有一代人先把书写出来，放在那里等。' },
+    { id: 'N18-P3-C3',
+      d: '2024 年 11 月 · 数据面板', sp: '选举夜之后', role: '48 小时', cameo: '※',
+      t: '一句"Your body, my choice"的嘲讽视频疯传；同时，"4B"的搜索量暴涨四倍半。你的后台涌进两千个新订阅。',
+      L: { lab: '（蹭热点，发一期快评）', fx: { money: +6, voice: +2, self: -3 } },
+      R: { lab: '（发一期慢的：从 1848 讲到 4B——告诉新来的，这不是开始）', fx: { self: +5, voice: +3, money: -2 } },
+      note: '2024 美国大选夜：厌女口号与韩国发明的罢工词同步登顶热搜——流行女权与流行厌女的共生，在一个晚上完成了教科书演示。新来的人需要的不是情绪，是地图。' },
+  ],
+  ],
+  hazards: [
+    { id: 'N18-HAZ-A',
+      d: '第 90 天', sp: '你的日程表', role: '第七次弹出提醒', cameo: '✗',
+      t: '周更三篇、两个播客、回评论、盯数据、维持人设——你已经连续 90 天没有一天不在线。提醒又弹了：该发布了。',
+      L: { lab: '（宣布停更一个月）', fx: { money: -4, self: +5 } },
+      R: { lab: '（继续。订阅数不等人。）', kill: 'exhaustion' },
+      note: '第四波的猝死不在街垒，在后台。可见度经济的燃料是人——而它从不显示油表。' },
+    { id: 'N18-HAZ-B',
+      d: '周三', sp: '平台通知', role: '申诉按钮是灰的', cameo: '✗',
+      t: '"您的内容已被限流：包含敏感词。"',
+      L: { lab: '（自我审查：改缩写、用谐音）', fx: { voice: -3, self: -2 } },
+      R: { lab: '（把这期全文搬去自己的独立域名）', fx: { voice: +3, money: -2, self: +4 } },
+      note: '限流是炸号的温和表亲：不杀死你，只让你慢慢听不见自己的回声。对策八十年没变——渠道，永远要有自己的备份。' },
+  ],
+  finale: {
+    id: 'N18-FIN',
+    d: '2026 年 · 最后一期', sp: '屏幕上的光标', role: '文档末尾', cameo: '✦',
+    t: '第 178 年。你写完了最后一段——从塞内卡福尔斯的茶会，到 4B。光标还在闪。下一段没有史料了：它还没发生。',
+    L: { lab: '（合上电脑。今天写到这。）', fx: { self: +4 } },
+    R: { lab: '（敲下最后一行：接力棒，现在在读到这里的人手里。）', fx: { self: +7, voice: +3, people: +3 }, mile: 'batonpass' },
+    note: '1848 年那场茶会的五个人，没人能想到 178 年后的这块屏幕。这不是结局——18 棒只是已经有名字的部分。剩下的注脚，由玩家书写。',
+  },
+},
+];
+
+// ---------------- 火种 ----------------
+const MILESTONES = {
+  sign1848:  '1848 · 在宣言上签名',
+  res9:      '1848 · 为第九决议举手',
+  rochester: '1848 · 去看天塌（没塌）',
+  akron:     '1851 · "让她讲！"',
+  aera:      '1869 · 为 Harper 起立',
+  wells:     '1892 · 把真相缝进裙撑',
+  school:    '1870s · 明早照常上课',
+  nacw:      '1896 · NACW 的一块钱',
+  fthall:    '1905 · "包括女人吗？"',
+  wspu:      '1906 · Deeds not words',
+  hunger:    '1909 · 推开那只碗',
+  davison:   '1913 · 缝好那面旗',
+  funeral:   '1913 · 走进葬礼队列',
+  t36:       '1920 · 第三十六个州',
+  era:       '1923 · "七十二年都等了"',
+  register:  '1920 · 陪 Lottie 再去一次',
+  vote1920:  '1920 · 按住纸，一笔一划',
+  secondsex: '1949 · 橱窗正中间',
+  noname:    '1963 · "我是星期四"',
+  helpwanted:'1963 · 投了男性栏',
+  now1966:   '1966 · 信封背面的地址',
+  daughter:  '1963 · 告诉女儿真话',
+  trashcan:  '1968 · 自由垃圾桶',
+  personal:  '1969 · 摇到半夜的油印机',
+  lavender:  '1970 · 穿上那件 T 恤',
+  strike70:  '1970 · 第五大道五万人',
+  ecoa:      '1974 · 不要丈夫的签字',
+  houston:   '1977 · 休斯顿的火炬',
+  tellher:   '1979 · 从 1848 年讲起',
+  circle:    '1982 · 把圈画出来给人看',
+  shelf:     '1984 · 本店不替你决定',
+  vigil:     '1985 · 周六歇业半天',
+  crossing:  '1989 · 黑板上的十字路口',
+  backlash:  '1991 · 诊断书，不是阴谋论',
+  thirdwave: '1992 · 钉在门上的那一页',
+  front:     '1991 · 挤到最前排',
+  zine:      '1991 · 署名和回信地址',
+  method:    '1996 · 方法论还在我们手里',
+  folder:    '2004 · 『两个品牌，一个集团』',
+  digdeep:   '2013 · 两本书并排放',
+  word:      '2013 · 他们非要你改的那个词',
+  metoo2006: '2006 · MySpace 上的两个词',
+  shesaid:   '2017 · 第一个署名',
+  survivor:  '2017 · 按下发送',
+  stone:     '1987 · 被遗忘的奠基者',
+  bridge:    '2024 · "不是来吵厕所的"',
+  mirror:    '2015 · 把镜子举起来',
+  postit:    '2016 · 十号出口的便利贴',
+  hyehwa:    '2018 · "几点集合？"',
+  ricebunny: '2018 · 一碗米饭一只兔子',
+  courtroom: '2020 · 旁听席坐满',
+  zai:       '2021 · 第七个号，接着写',
+  unplug:    '2025 · 退群的男孩',
+  newsletter:'2021 · 第四代印刷机',
+  hooksback: '2023 · 等了二十年的读者',
+  batonpass: '2026 · 敲下最后一行',
+  widen:     '2025 · 把路走宽',
+};
+
+// ---------------- 死亡卡 (18 种 = 10 端点 + 2 组合变体 + 6 事件) ----------------
+const DEATHS = {
+  // 端点死
+  body0:   { title: '医嘱', t: '你病倒了。医生诊断："女性气质过剩，神经衰弱。"处方：卧床，禁书报，再生一个孩子。你死于遵医嘱。' },
+  body100: { title: '大力女人', t: '你壮得能扛两袋面粉外加一个时代。马戏团出价五十块买你巡演——"天下第一大力女"。你的力气终于有了观众，和一个铁笼。' },
+  money0:  { title: '济贫院', t: '贫穷比任何论敌都高效。济贫院登记簿写的还是你父亲的姓——穷到最后，连欠的债都不算你自己的。' },
+  money100:{ title: '诊断书', t: '你太有钱了，这不正常。亲戚们请来医生，医生写下："歇斯底里。"疗养院很安静，你的财产有了更冷静的管理人。' },
+  voice0:  { title: '沉默', t: '你再没公开说过一句话。多年后有人问起那年夏天，你说：雨水多。' },
+  voice100:{ title: '名人', t: '你赢了：他们不再反驳你的观点——他们开始报道你的帽子。运动围着你的名字分裂，而不是围着目标团结。' },
+  people0: { title: '除名', t: '教会除名，邻里侧目，集会没有你的椅子。被逐出关系网的女人无处可去——这个刑罚不需要法官。' },
+  people100:{ title: '主席', t: '缝纫会、禁酒会、葬礼互助会、花园协会……你是十一个委员会的主席。你在第十二个委员会的茶会上睡着了，没人敢叫醒你——议程还剩四小时。' },
+  self0:   { title: '得体的一生', t: '你成了人人称道的好女人。只是夜里偶尔醒来，想不起年轻时到底想要什么——想不起来，也就不疼了。' },
+  self100: { title: '纯洁螺旋', t: '你谁也看不上了：这个太温和，那个太软弱，全都是叛徒。你一个人走在最前面，越走越快。回头时——身后没有人。' },
+  // 组合变体 (同一端点, 语境不同 → 死法不同; 学 Reigns)
+  family:  { title: '一家人', t: '你穷得走投无路，好心的亲戚收留了你。从此你是不领工钱的保姆、厨娘和护工。他们逢人就说：我们待她像一家人。——确实像，像极了。' },
+  statue:  { title: '铜像', t: '你死后他们给你立了像。铜的你端庄、安静、不会再说让人难堪的话。揭幕那天市长致辞：她是我们所有人的骄傲。——大家都说，比真人好相处。' },
+  // 事件死 (时代风险卡)
+  cholera: { title: '霍乱', t: '那桶水很甜。三天后你死于霍乱——医学界的共识是怪"瘴气"，不怪水。又过了五年他们才肯看疫情地图。' },
+  fever:   { title: '产褥热', t: '孩子活了，产妇活了——你死了。产褥热经接生的双手传播；提出"洗手能救命"的医生被同行嘲笑到进了疯人院。你死于好心，和绅士们干净的自尊。' },
+  yellow:  { title: '黄热病', t: '你留下来照顾病人，因为"黑人不怕这病"。传言是假的，你的名字进了死亡名单——名单很长，报纸没登。' },
+  erased:  { title: '查无此人', t: '你掏出自由证明。他撕了它。从法律上说，那张纸不存在了，于是你也不存在了——南下的马车上还有七个"查无此人"。' },
+  loom:    { title: '纱机', t: '围裙带子比你先够到纱机。事故报告写：女工操作不当。赔偿：无。当天下午，你的机位就有了新人——她的围裙带子也飘着。' },
+  brick:   { title: '砖头', t: '你站着把那句话讲完了。第二颗飞来的不是鸡蛋。报纸评论一针见血：上街演讲的女人，自找的。' },
+  flu:     { title: '一碗热汤', t: '汤很好喝。三天后你烧得说起了胡话。报纸把死亡数字印在第七版——头版是停战庆典的游行照片。' },
+  terror:  { title: '恐怖之夜', t: '你死于"秩序"。狱医的报告写：心脏衰竭，自然原因。那一夜，有三十三个女人被这样"自然"地对待。' },
+  angel:   { title: '天使制造者', t: '厨房的桌子，烧开的水，没有麻醉。1949 年的法国管这叫犯罪现场，不叫手术室——它要再等 26 年才配得到一个正式的名字：医疗。' },
+  tb:      { title: '顶班', t: '你顶的那两个晚班，变成了两个月。特效药黑市上有，价钱是你半年工钱。报纸说，战后复苏势头良好。' },
+  valium:  { title: '安详离世', t: '一天一片，配一小杯雪利酒。讣告写得很体面："贤妻良母，安详离世。"没人统计这种死法——统计它，就得先承认问题存在。' },
+  backalley: { title: '不问名字', t: '厨房桌子，三百块，不问名字。死亡证明上也没写真话——它写的是"内出血"。距离那个判决，还有十年。' },
+  dietpill: { title: '处方纤细', t: '药丸很灵，一周五磅。第十周，你的心脏先于体重停了下来。处方笺上是合法的安非他命——"瘦"有处方，命没有。' },
+  baton:   { title: '维持秩序', t: '报纸称之为"恢复秩序"。秩序恢复得很彻底——你的名字出现在第十一版的名单里，还拼错了一个字母。' },
+  shield:  { title: '达尔康之盾', t: '那面"盾"没有保护任何人。厂商的内部备忘录早就知道——知道了八年。赔偿基金在你身后第十年成立：24 亿美元，均摊到每个名字上，买不回一句道歉。' },
+  tss:     { title: '连忧虑都能吸走', t: '广告说它连忧虑都能吸走。下架公告贴出来的时候，你已经在统计数字里了。那句广告词后来进了商学院教材——反面案例那一章。' },
+  superwoman: { title: '全都要', t: '讣告写得无可挑剔："她事业有成、家庭美满、什么都顾到了。"确实，什么都顾到了——除了下一个十年。' },
+  superwoman2: { title: '随时在线', t: '讣告说她"敬业到最后一刻"——黑莓机的指示灯，比她的心跳停得更晚。"全都要"升级成了"随时在"：1985 年的日程本换成了 2005 年的客户群，加班费照旧没有。' },
+  superwoman3: { title: '狼性', t: '体检报告和团建合影同一天出。报告说心肌缺血，合影里你妆容精致、笑容标准。公司发了讣告，配的是你"奋斗者"的工牌照——OECD 工时榜前列的国家，连过劳死都讲究仪容。' },
+  clinicfire: { title: '候诊室', t: '你只是坐在接待台后面。纵火的人管自己叫"拯救生命"——他对法庭也是这么说的，而陪审团里，有人点了点头。' },
+  implant: { title: '竞争力', t: '"有竞争力的形象"需要全身麻醉。厂商的内部文件比你的病历诚实——它们早就知道会渗漏。多年后赔偿基金成立，分到每个名字头上的，主要是一句"本品已下架"。' },
+  pit:     { title: '散场之后', t: '场内的规则是新的，停车场的夜还是旧的。本地报纸把这事登在第六版，标题写：演出后发生冲突。——"冲突"，好像你也动了手。' },
+  fenphen: { title: '换了配方', t: '三十年前叫安非他命，这一代叫芬芬。心脏瓣膜先于减肥目标到达终点。后来索赔总额超过一百亿美元——按磅算，是史上最贵的体重。' },
+  nda:     { title: '保密协议', t: '补偿金翻倍，代价是永久沉默——连对你的心理治疗师。从此你的故事在法律上不存在。多年后有人违约开口、推动了立法；那个人不是你，因为你守约守到了最后。' },
+  doxx:    { title: '开盒', t: '地址、工位、上班路线，陆续出现在陌生人的屏幕上。平台的回复在两周后到达："经审核，相关内容不违反社区规范。"' },
+  crossfire: { title: '交叉火力', t: '两边都认定你是对面的人。挂你的帖子在两个阵营同时置顶——这是它们这一年里唯一达成的共识。' },
+  surgery: { title: '第三次修复', t: '第一次叫变美，第二次叫修复，第三次叫意外。诊所的广告次月照常上新，文案没改：遇见更好的自己。' },
+  banned:  { title: '炸号', t: '十年的帖子、相册、私信，一夜清零。公告说你"挑拨对立"。你没死——但在这个故事的计分方式里，声音没了就是没了。下一棒，换个号再来。' },
+  clip:    { title: '三十秒', t: '四十分钟的课，被剪成三十秒。视频里你"仇男"，评论区已经查到你的工号。校方建议你"先休息一段时间"——休息到第三年，课表上再没有你的名字。' },
+  exhaustion: { title: '大疲惫', t: '你可以做到一切，所以你必须做到一切，所以你展演做到了一切。停更通知只有一行字。读者刷了几天，把热情转给了下一个还没烧完的人。' },
+  // N16 中文互联网专属死法池 (玩家 定调: 这一棒翻车方式最多)
+  tax: { title: '补税通知', t: '账做大了，一纸税单也跟着大了——追缴、滞纳、罚款，按倍数算。直播间一夜清空，公告只有四个字："涉嫌违规"。同一条街上按规矩交税的人没出事，但从此都睡不太着：下一个会不会是我。' },
+  disgrace: { title: '劣迹', t: '一纸通知把你定成"劣迹"，作品全网下架、名字打码。通知没有抄送你，也没有申诉入口——你是从粉丝的截图里知道自己"出事"的。' },
+  scandal: { title: '绯闻', t: '只是被拍到和一个人吃饭。词条挂了三天，代言连夜撤完，剧组删光你的戏份。隔壁那位男士黑料攒了九年、罗生门拖成连续剧，照样开演唱会——同样的事，两套秤。' },
+  reported: { title: '举报箱', t: '不知道是同事还是网友，反正是"有人反映"。单位一句"先停职配合调查"就够了：不需要结论，过程本身就是判决。三个月后调查"无果"，你的工位也没了。' },
+  midnight: { title: '深夜敲门', t: '你的身份证、住址、家人电话被人挂在网上——"只要一个名字就能查到五年的你"。先是骚扰电话，然后是深夜陌生人按你家门铃。你搬了家。被开盒的人换地方，开盒的人不换工作。' },
+  // 身体主权死法 (玩家 场景: 那个年代常见病, 没人给她签字, 她就死了)
+  consent: { title: '签字栏', t: '一场寻常的急症，手术同意书递到你面前——但你不能签，得家属签。丈夫在外地，电话打不通。医生说"规定如此"，护士陪着你等。等到了天亮，没等到那个签字。手术同意书上你那一栏，到死都是空的。' },
+  // 钱满格的语境死 (玩家: 后期女性金钱掌控变高 → 顶格也可能是坏事)
+  cashout: { title: '庆功宴', t: '签约、上市、套现——庆功宴办得比婚礼还大。你举着香槟站在正中间，忽然想不起来上一次为自己写一行没有 KPI 的字是什么时候。账户余额冲顶那天，品牌把你整个收购了，包括你原本要说的话。' },
+  optimized: { title: '毕业典礼', t: '通知写着"恭喜毕业"。N+1 到账很准时，体检报告里那行小字没人提，内推黑名单更不会有人承认存在。三个月后你的工位坐着应届生——便宜，且"没有风险标签"。' },
+  // breakout 死 (走夜路 · 跨棒通用)
+  nightroad: { title: '夜路', t: '社会版的角落，三行。评论比报道长，第一条问："这么晚了，她为什么一个人在外面？"——178 年，这个问题没换过措辞，换的只有报纸和屏幕。' },
+};
+
+// 四波运动分章 (对齐 herstory 正典: 四波 × 18 节点)
+function waveOf(id) {
+  const n = parseInt(id.slice(1), 10);
+  if (n <= 4)  return { n: 1, short: '第一波', label: '第一波 · 争取基本权利 1848–1920' };
+  if (n <= 9)  return { n: 2, short: '第二波', label: '第二波 · 解放运动 1949–1982' };
+  if (n <= 12) return { n: 3, short: '第三波', label: '第三波 · 多元与文化政治 1989–2013' };
+  return { n: 4, short: '第四波', label: '第四波 · 数字时代 2013–' };
+}
+
+// 组合死: 同一端点按语境换死法
+function resolveDeath(key) {
+  if (key === 'money0' && stats.people >= 62) return 'family';
+  if (key === 'voice100' && legacy.miles.length >= 6) return 'statue';
+  // 身体归零的语境死: 1920-1963 已婚女性无医疗自主权时代 → 签字栏 (没人给她签手术同意书)
+  if (key === 'body0' && gen >= 3 && gen <= 5) return 'consent';
+  // 钱满格的语境死: 后期 (N11+, 1990s 起女性金钱掌控变高) → 庆功宴 (被品牌收购)
+  if (key === 'money100' && gen >= 10) return 'cashout';
+  return key;
+}
+
+// ---------------- 运行状态 ----------------
+let gen, stats, queue, qi, legacy, genLog, deathInfo;
+let reachable; // 本局抽到的卡里"路过"的火种（4选1 → 每局只路过一部分）
+let eraNotes = []; // 本棒注脚 (棒间回顾用, 每棒重置; legacy.notes 仍全程累计)
+
+// 跨局收集 (Reigns memento mori 式)
+function loadSet(key) {
+  try { return new Set(JSON.parse(localStorage.getItem(key) || '[]')); }
+  catch (e) { return new Set(); }
+}
+function saveSet(key, set) {
+  try { localStorage.setItem(key, JSON.stringify([...set])); } catch (e) {}
+}
+const everLit = loadSet('herstory_everLit');
+const everDeaths = loadSet('herstory_everDeaths');
+
+function trackReachable() {
+  for (const c of queue) {
+    if (c.L && c.L.mile) reachable.add(c.L.mile);
+    if (c.R && c.R.mile) reachable.add(c.R.mile);
+  }
+}
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function rnd(lo, hi) { return lo + Math.floor(Math.random() * (hi - lo + 1)); }
+
+// 默认 4 包选 1; era.pick=2 时抽两包 (素材厚的棒停留更久) + 随机插入 1 张时代风险卡
+// Breakout Room「走夜路」— 跨棒通用的短暂插播 (学 Reigns 1 Pungeon: 序列选择决定结局;
+// 解剖警告: break-out 必须短暂插播不可主线化)。前两步的"风险组合"≥2 → 第三步死于「夜路」。
+let nightRisk = 0;
+const BREAKOUT_NIGHT = [
+  { id: 'BR-NIGHT-1', brStart: true,
+    d: '散场之后', sp: '夜', role: '回家的路', cameo: '☾',
+    t: '比预想的晚。回家两条路：灯亮的大路，要穿过酒馆门口那群人；近路是一条黑巷。',
+    L: { lab: '（走大路，穿过人群）', fx: { self: -2 } },
+    R: { lab: '（走黑巷，快）', fx: { body: -1 }, risk: 1 },
+    note: '大路有目光，小巷有黑暗——这道选择题，每个时代的女人睡前都做过。它不属于哪一棒：它属于全部十八棒。' },
+  { id: 'BR-NIGHT-2',
+    d: '半路', sp: '身后', role: '脚步声', cameo: '☾',
+    t: '有脚步声跟了上来。不紧不慢，和你保持着同样的速度。',
+    L: { lab: '（停下，假装看橱窗，让他先过）', fx: { self: -1 } },
+    R: { lab: '（加快脚步）', fx: { body: -1 }, risk: 1 },
+    note: '也许只是顺路。"也许"两个字，把每条夜路都变成一场赌注——而赌注是单方面的。' },
+  { id: 'BR-NIGHT-3',
+    d: '最后一段', sp: '家门在望', role: '钥匙在包底', cameo: '☾',
+    t: '还有五十步。',
+    L: { lab: '（钥匙夹进指缝，贴墙快走）', fx: { self: +3 }, brResolve: true },
+    R: { lab: '（回头看一眼，记住那张脸）', fx: { self: +2, voice: +1 }, brResolve: true },
+    note: '平安到家不会上新闻——它只是让你明天能继续上场。' },
+];
+
+// 职业随机: era.roles = [{protag, packs:[包下标], hazards:[风险卡下标], open?, finale?}]
+// 有 roles 的棒开局先二选一职业; 包池/风险池/开场/收尾按职业过滤 (玩家: 职业史本身要看得见变化)
+function buildQueue(era, role) {
+  const n = era.pick || 1;
+  const pool = role ? role.packs.map(i => era.packs[i]) : era.packs;
+  const picked = shuffle(pool.slice()).slice(0, n);
+  const cards = [(role && role.open) || era.open];
+  for (const p of picked) cards.push(...p);
+  cards.push((role && role.finale) || era.finale);
+  const hzPool = (role && role.hazards) ? role.hazards.map(i => era.hazards[i]) : (era.hazards || []);
+  if (hzPool.length) {
+    const hz = hzPool[Math.floor(Math.random() * hzPool.length)];
+    const pos = 1 + Math.floor(Math.random() * (cards.length - 1));
+    cards.splice(pos, 0, hz);
+  }
+  if (Math.random() < 0.12) { // ~每局 2 次夜路, 张弛有度 (玩家: 时不时进入)
+    const pos = 1 + Math.floor(Math.random() * (cards.length - 1));
+    cards.splice(pos, 0, ...BREAKOUT_NIGHT);
+  }
+  return cards;
+}
+
+let pendingRoles = null; // 职业二选一的待定状态
+function offerRoles(era, introText) {
+  pendingRoles = shuffle(era.roles.slice()).slice(0, 2);
+  showCard({
+    d: era.banner, sp: '—— 接 力 ——', role: '这一棒，你是谁？', cameo: '✦',
+    t: introText,
+    L: { lab: pendingRoles[0].protag }, R: { lab: pendingRoles[1].protag },
+  }, 'rolepick');
+}
+function applyRole(role) {
+  const era = ERAS[gen];
+  era._protag = role.protag;
+  queue = buildQueue(era, role);
+  trackReachable();
+  qi = 0;
+  document.getElementById('eraBanner').textContent =
+    waveOf(era.id).short + ' ｜ ' + era.banner + ' — ' + role.protag;
+  renderStats(null);
+  showCurrent();
+}
+
+// ---------------- 断点续玩 (玩家: 停下再进来从当前棒继续, 不怕 18 棒长) ----------------
+// 每棒开局存档; 跑完全程清档; 回来时给「继续/重开」二选一
+const CKPT_KEY = 'herstory_ckpt_v13';
+let pendingResume = null;
+function saveCheckpoint() {
+  try {
+    localStorage.setItem(CKPT_KEY, JSON.stringify({
+      gen, stats,
+      miles: legacy.miles, notes: legacy.notes,
+      genLog: genLog.map(g => ({ id: g.era.id, protag: g.protag, fate: g.fate, deathKey: g.deathKey })),
+      reachable: [...reachable],
+    }));
+  } catch (e) {}
+}
+function loadCheckpoint() {
+  try { return JSON.parse(localStorage.getItem(CKPT_KEY) || 'null'); } catch (e) { return null; }
+}
+function clearCheckpoint() {
+  try { localStorage.removeItem(CKPT_KEY); } catch (e) {}
+}
+function restoreCheckpoint(s) {
+  gen = s.gen;
+  stats = s.stats;
+  legacy = { miles: s.miles || [], notes: s.notes || [] };
+  genLog = (s.genLog || []).map(e => ({
+    era: ERAS.find(x => x.id === e.id) || ERAS[0],
+    protag: e.protag, fate: e.fate, deathKey: e.deathKey,
+  }));
+  reachable = new Set(s.reachable || []);
+  deathInfo = null;
+  eraNotes = [];
+  document.getElementById('endScreen').classList.remove('show');
+  const era = ERAS[gen];
+  renderStats(null);
+  if (era.roles) {
+    document.getElementById('eraBanner').textContent =
+      waveOf(era.id).short + ' ｜ ' + era.banner;
+    offerRoles(era, era.transitionIn.t + ' （续上次的接力。）');
+    return;
+  }
+  queue = buildQueue(era);
+  trackReachable();
+  qi = 0;
+  document.getElementById('eraBanner').textContent =
+    waveOf(era.id).short + ' ｜ ' + era.banner + ' — ' + era.protag;
+  showCard({
+    d: era.banner, sp: '—— 接 力 ——', role: era.protag, cameo: '✦',
+    t: era.transitionIn.t + ' （续上次的接力。）',
+    L: { lab: '深吸一口气' }, R: { lab: '继续' },
+  }, 'transition');
+}
+
+// 测试/选关入口: URL 加 ?start=N05 (或 ?start=5) 从指定棒开局
+const START_GEN = (() => {
+  const m = (location.search.match(/[?&]start=N?0?(\d{1,2})/i) || [])[1];
+  const n = m ? parseInt(m, 10) - 1 : 0;
+  return (n >= 0 && n < ERAS.length) ? n : 0;
+})();
+
+function newGame() {
+  gen = START_GEN;
+  stats = {};
+  for (const s of STATS) stats[s.key] = 50 + rnd(-8, 8); // 出生即随机
+  legacy = { miles: [], notes: [] };
+  genLog = [];
+  deathInfo = null;
+  reachable = new Set();
+  eraNotes = [];
+  skipEraSfx = false;
+  saveCheckpoint();
+  document.getElementById('endScreen').classList.remove('show');
+  if (ERAS[gen].roles) { // 开局即职业棒 (?start= 测试路径)
+    document.getElementById('eraBanner').textContent =
+      waveOf(ERAS[gen].id).short + ' ｜ ' + ERAS[gen].banner;
+    renderStats(null);
+    offerRoles(ERAS[gen], ERAS[gen].transitionIn.t);
+    return;
+  }
+  queue = buildQueue(ERAS[gen]);
+  trackReachable();
+  qi = 0;
+  document.getElementById('eraBanner').textContent =
+    waveOf(ERAS[gen].id).short + ' ｜ ' + ERAS[gen].banner + ' — ' + ERAS[gen].protag;
+  renderStats(null);
+  showCurrent();
+}
+
+// ---------------- stats UI ----------------
+const statsEl = document.getElementById('stats');
+statsEl.innerHTML = STATS.map(s => `
+  <div class="stat" id="stat-${s.key}">
+    <div class="dot" id="dot-${s.key}"></div>
+    <div class="icon">${s.icon}</div>
+    <div class="label">${s.label}</div>
+    <div class="bar"><div class="fill" id="fill-${s.key}" style="width:50%"></div></div>
+  </div>`).join('');
+
+function renderStats(changed) {
+  for (const s of STATS) {
+    document.getElementById('fill-' + s.key).style.width =
+      Math.max(0, Math.min(100, stats[s.key])) + '%';
+    const box = document.getElementById('stat-' + s.key);
+    box.classList.remove('flash-up', 'flash-down');
+    if (changed && changed[s.key]) {
+      box.classList.add(changed[s.key] > 0 ? 'flash-up' : 'flash-down');
+      setTimeout(() => box.classList.remove('flash-up', 'flash-down'), 450);
+    }
+  }
+}
+
+function showHintDots(fx, opacity) {
+  for (const s of STATS) {
+    const dot = document.getElementById('dot-' + s.key);
+    const v = fx ? (fx[s.key] || 0) : 0;
+    if (!v) { dot.style.opacity = 0; dot.textContent = ''; continue; }
+    const big = Math.abs(v) >= 8; // 小点放大一倍 (原 • 眯眼才能看见), 仍明显小于大点
+    dot.textContent = big ? '⬤' : '●';
+    dot.style.fontSize = big ? '15px' : '11px';
+    dot.style.opacity = opacity;
+  }
+}
+
+// ---------------- card UI ----------------
+const stage = document.getElementById('stage');
+let cardEl = null;
+let activeCard = null;
+
+function buildCardEl(card, behind, special) {
+  const el = document.createElement('div');
+  el.className = 'card' + (behind ? ' behind' : '') + (special ? ' special' : '');
+  el.innerHTML = `
+    <div class="hintL">${card.L.lab}</div>
+    <div class="hintR">${card.R.lab}</div>
+    <div class="cameo">${card.cameo || '❦'}</div>
+    <div class="speaker">${card.sp || ''}</div>
+    <div class="role">${card.role || ''}</div>
+    ${card.q ? `<div class="quote">${card.q}</div>` : ''}
+    <div class="text">${card.t}</div>`;
+  return el;
+}
+
+let pendingCardNotes = null; // 注脚挂载: 下一张卡(死亡/转场)底部附本棒注脚
+function showCard(card, kind) {
+  activeCard = { card, kind };
+  stage.innerHTML = '';
+  if (kind === 'play' && qi + 1 < queue.length) {
+    stage.appendChild(buildCardEl(queue[qi + 1], true, false));
+  }
+  cardEl = buildCardEl(card, false, kind !== 'play');
+  if (pendingCardNotes && pendingCardNotes.length && kind !== 'play') {
+    const btn = document.createElement('div');
+    btn.className = 'notesBtn';
+    btn.textContent = `📜 本棒史实注脚（${pendingCardNotes.length} 条）· 点开看`;
+    const panel = document.createElement('div');
+    panel.className = 'notesPanel';
+    panel.innerHTML = '<div class="cardNotesHead">— 本 棒 史 实 注 脚 · 再点下方横幅收起 —</div>'
+      + pendingCardNotes.map(n => `<div class="footnote">${n}</div>`).join('');
+    // 阻断卡片拖拽: 横幅可点、浮层内可滚动, 卡片其余区域照常左右滑
+    [btn, panel].forEach(el => ['pointerdown', 'touchstart', 'mousedown'].forEach(ev =>
+      el.addEventListener(ev, e => e.stopPropagation())));
+    btn.addEventListener('click', () => {
+      const open = panel.classList.toggle('open');
+      if (open) SFX.notesOpen(); else SFX.notesClose(); // 开卷/合卷
+      btn.textContent = open ? '📜 收起注脚' : `📜 本棒史实注脚（${panel.querySelectorAll('.footnote').length} 条）· 点开看`;
+    });
+    cardEl.appendChild(btn);
+    cardEl.appendChild(panel);
+    pendingCardNotes = null;
+  }
+  stage.appendChild(cardEl);
+  attachDrag(cardEl, card);
+  if (kind === 'vignette') SFX.death();
+  else if (kind === 'transition' || kind === 'rolepick') {
+    if (skipEraSfx) skipEraSfx = false;
+    else SFX.era();
+  }
+  document.getElementById('dateline').textContent = card.d ? '— ' + card.d + ' —' : '';
+  document.getElementById('btnLText').textContent = card.L.lab;
+  document.getElementById('btnRText').textContent = card.R.lab;
+  showHintDots(null, 0);
+}
+
+function showCurrent() { showCard(queue[qi], 'play'); }
+
+// ---------------- drag ----------------
+function attachDrag(el, card) {
+  let startX = 0, dx = 0, dragging = false;
+  const hintL = el.querySelector('.hintL');
+  const hintR = el.querySelector('.hintR');
+  function onDown(e) {
+    dragging = true;
+    startX = (e.touches ? e.touches[0].clientX : e.clientX);
+    el.style.transition = 'none';
+  }
+  function onMove(e) {
+    if (!dragging) return;
+    const x = (e.touches ? e.touches[0].clientX : e.clientX);
+    dx = x - startX;
+    el.style.transform = `translateX(${dx}px) rotate(${dx / 14}deg)`;
+    const op = Math.min(1, Math.abs(dx) / 90);
+    if (dx < -20) { hintL.style.opacity = op; hintR.style.opacity = 0; showHintDots(card.L.fx, op); }
+    else if (dx > 20) { hintR.style.opacity = op; hintL.style.opacity = 0; showHintDots(card.R.fx, op); }
+    else { hintL.style.opacity = 0; hintR.style.opacity = 0; showHintDots(null, 0); }
+    if (e.cancelable) e.preventDefault();
+  }
+  function onUp() {
+    if (!dragging) return;
+    dragging = false;
+    if (dx < -80) commit('L');
+    else if (dx > 80) commit('R');
+    else {
+      el.style.transition = 'transform 0.2s';
+      el.style.transform = '';
+      hintL.style.opacity = 0; hintR.style.opacity = 0;
+      showHintDots(null, 0);
+    }
+    dx = 0;
+  }
+  el.addEventListener('pointerdown', onDown);
+  window.addEventListener('pointermove', onMove, { passive: false });
+  window.addEventListener('pointerup', onUp);
+  el.addEventListener('touchstart', onDown, { passive: true });
+  window.addEventListener('touchmove', onMove, { passive: false });
+  window.addEventListener('touchend', onUp);
+}
+
+// ---------------- 主流程 ----------------
+function commit(side) {
+  if (!activeCard) return;
+  const { card, kind } = activeCard;
+  const choice = card[side];
+  if (cardEl) {
+    cardEl.style.transition = 'transform 0.2s ease-in, opacity 0.2s';
+    cardEl.style.transform = `translateX(${side === 'L' ? -520 : 520}px) rotate(${side === 'L' ? -26 : 26}deg)`;
+    cardEl.style.opacity = '0';
+  }
+  activeCard = null;
+
+  if (kind === 'vignette') { setTimeout(() => afterDeath(), 220); return; }
+  if (kind === 'transition') { setTimeout(() => { renderStats(null); showCurrent(); }, 220); return; }
+  if (kind === 'rolepick') {
+    const role = side === 'L' ? pendingRoles[0] : pendingRoles[1];
+    pendingRoles = null;
+    setTimeout(() => applyRole(role), 220);
+    return;
+  }
+  if (kind === 'resume') {
+    const saved = pendingResume;
+    pendingResume = null;
+    setTimeout(() => {
+      if (side === 'R' && saved) restoreCheckpoint(saved);
+      else { clearCheckpoint(); newGame(); }
+    }, 220);
+    return;
+  }
+
+  const changed = {};
+  for (const k of Object.keys(choice.fx || {})) {
+    const v = Math.round(choice.fx[k] * FX_SCALE);
+    stats[k] += v;
+    changed[k] = v;
+  }
+  if (choice.mile && !legacy.miles.includes(choice.mile)) {
+    legacy.miles.push(choice.mile);
+    everLit.add(choice.mile);
+    saveSet('herstory_everLit', everLit);
+  }
+  if (card.note && !legacy.notes.includes(card.note)) legacy.notes.push(card.note);
+  if (card.note && !eraNotes.includes(card.note)) eraNotes.push(card.note);
+  renderStats(changed);
+  showHintDots(null, 0);
+
+  // Breakout「走夜路」: 路径风险累积
+  if (card.brStart) nightRisk = 0;
+  if (choice.risk) nightRisk += choice.risk;
+
+  // 死亡判定: 事件死 > 夜路组合 > 端点死(经组合变体解析)
+  let deathKey = null;
+  if (choice.kill) {
+    deathKey = choice.kill;
+  } else if (choice.brResolve && nightRisk >= 2) {
+    deathKey = 'nightroad';
+  } else {
+    for (const s of STATS) {
+      if (stats[s.key] <= 0) { deathKey = resolveDeath(s.key + '0'); break; }
+      if (stats[s.key] >= 100) { deathKey = resolveDeath(s.key + '100'); break; }
+    }
+  }
+  for (const s of STATS) stats[s.key] = Math.max(0, Math.min(100, stats[s.key]));
+  renderStats(null);
+
+  setTimeout(() => {
+    if (deathKey) {
+      deathInfo = deathKey;
+      everDeaths.add(deathKey);
+      saveSet('herstory_everDeaths', everDeaths);
+      genLog.push({ era: ERAS[gen], protag: ERAS[gen]._protag || ERAS[gen].protag, fate: 'died', deathKey });
+      const dv = DEATHS[deathKey];
+      if (card.note && !legacy.notes.includes(card.note)) legacy.notes.push(card.note);
+      if (card.note && !eraNotes.includes(card.note)) eraNotes.push(card.note);
+      pendingCardNotes = eraNotes.slice(); // 死亡卡底部附本棒注脚
+      showCard({
+        d: '', sp: dv.title, role: '这一代到此为止', cameo: '✣',
+        t: dv.t + (gen < ERAS.length - 1 ? ' —— 但故事没有停。' : ''),
+        L: { lab: '合上她的眼睛' }, R: { lab: '记住她' },
+      }, 'vignette');
+    } else if (qi >= queue.length - 1) {
+      genLog.push({ era: ERAS[gen], protag: ERAS[gen]._protag || ERAS[gen].protag, fate: 'survived' });
+      SFX.survive(); // 活过这个时代 — 明朗一点
+      skipEraSfx = true;
+      nextEra(false);
+    } else {
+      qi++;
+      showCurrent();
+    }
+  }, 230);
+}
+
+function afterDeath() {
+  if (gen >= ERAS.length - 1) { showFinal(); return; }
+  nextEra(true);
+}
+
+function nextEra(died) {
+  gen++;
+  if (gen >= ERAS.length) { showFinal(); return; }
+  // 善终的棒: 注脚附在转场/选职业卡底部 (死亡的棒已附在死亡卡上, 不重复)
+  if (!died && eraNotes.length) pendingCardNotes = eraNotes.slice();
+  eraNotes = [];
+  const era = ERAS[gen];
+  const carry = died ? 0.25 : 0.4;
+  for (const s of STATS) {
+    let v = 50 + Math.round((stats[s.key] - 50) * carry) + rnd(-5, 5); // 投胎自带随机
+    stats[s.key] = Math.max(25, Math.min(78, v));
+  }
+  if (died && deathInfo && DEATHS[deathInfo]) {
+    const k = deathInfo.replace(/0|100/, '');
+    if (stats[k] !== undefined) stats[k] = Math.max(22, stats[k] - 8);
+  }
+  const bonus = Math.min(6, legacy.miles.length);
+  // 火种回响不再全压「自己」(否则收集火种=加速纯洁螺旋)，折半分给「话语」
+  const bSelf = Math.ceil(bonus / 2), bVoice = Math.floor(bonus / 2);
+  stats.self = Math.min(70, stats.self + bSelf);
+  stats.voice = Math.min(82, stats.voice + bVoice);
+  deathInfo = null;
+  saveCheckpoint();
+
+  const inherit = legacy.miles.length
+    ? `这场接力至今点燃 ${legacy.miles.length} 处火种，它们替这一代暖了身：自我 +${bSelf}、话语 +${bVoice}（火种加成封顶 +6）。`
+    : '前面的棒次没能留下多少痕迹——一切几乎从头来过。';
+  if (era.roles) { // 职业二选一的棒: 先选人, 再建牌堆
+    document.getElementById('eraBanner').textContent =
+      waveOf(era.id).short + ' ｜ ' + era.banner;
+    offerRoles(era, era.transitionIn.t + ' ' + inherit);
+    return;
+  }
+  queue = buildQueue(era);
+  trackReachable();
+  qi = 0;
+  document.getElementById('eraBanner').textContent =
+    waveOf(era.id).short + ' ｜ ' + era.banner + ' — ' + era.protag;
+  showCard({
+    d: era.banner, sp: '—— 接 力 ——', role: era.protag, cameo: '✦',
+    t: era.transitionIn.t + ' ' + inherit,
+    L: { lab: '深吸一口气' }, R: { lab: '开始' },
+  }, 'transition');
+}
+
+// ---------------- 终局 ----------------
+function showFinal() {
+  const fateLine = g => {
+    if (g.fate === 'survived') return '活过了她的时代。';
+    return '死于「' + DEATHS[g.deathKey].title + '」。';
+  };
+  document.getElementById('endTitle').textContent = '1848 — 2026';
+  let html = genLog.length + ' 棒接力，从 1848 跑到 2026——178 年，这一次是全程。<br>';
+  let lastWave = 0;
+  genLog.forEach(g => {
+    const w = waveOf(g.era.id);
+    if (w.n !== lastWave) {
+      html += `<div style="margin-top:10px;font-size:12px;letter-spacing:2px;color:#7a684c">── ${w.label} ──</div>`;
+      lastWave = w.n;
+    }
+    html += `<div class="genline"><b>${g.era.banner}</b><br>${g.protag || g.era.protag} — ${fateLine(g)}</div>`;
+  });
+  html += `<div style="margin-top:14px"><b>火种：整场接力共点燃 ${legacy.miles.length} 处 / 本局抽到的卡里共路过 ${reachable.size} 处</b>`
+    + `<span style="font-size:12px;color:#7a684c">（全图共 ${Object.keys(MILESTONES).length} 处——每局只随机路过一部分）</span><br>`;
+  for (const [k, label] of Object.entries(MILESTONES)) {
+    if (!reachable.has(k)) continue; // 本局没抽到的不显示, 避免误读成"没推动"
+    html += `<span class="mile${legacy.miles.includes(k) ? '' : ' off'}">${legacy.miles.includes(k) ? '🔥 ' : '✗ '}${label}</span>`;
+  }
+  html += `<div style="margin-top:6px;font-size:12px;color:#7a684c">历局累计：火种 ${everLit.size}/${Object.keys(MILESTONES).length} · 死法 ${everDeaths.size}/${Object.keys(DEATHS).length}</div>`;
+  html += `</div><div style="margin-top:14px;font-style:italic">历史上：美国女性 1920 年获得投票权，南方黑人女性的选票被架空到 1965；法国女性 1944 年才能投票，1965 年才能自己开银行账户；美国已婚女性 1974 年才能独立办信用卡。Alice Paul 1923 年起草的平等权利修正案，至今（2026）仍未写进宪法；2022 年，稳固了半个世纪的 Roe 被推翻——里程碑也会倒退，这正是接力不能停的原因。<br><br>这局你抽到的只是每个时代的一小角。</div>`;
+  document.getElementById('endBody').innerHTML = html;
+  document.getElementById('endNotes').innerHTML =
+    legacy.notes.map(n => `<div class="footnote">${n}</div>`).join('');
+  document.getElementById('endScreen').classList.add('show');
+  clearCheckpoint(); // 跑完全程, 下次从头开始
+}
+
+// ---------------- 输入 ----------------
+document.getElementById('btnL').addEventListener('click', () => {
+  if (!document.getElementById('endScreen').classList.contains('show')) commit('L');
+});
+document.getElementById('btnR').addEventListener('click', () => {
+  if (!document.getElementById('endScreen').classList.contains('show')) commit('R');
+});
+document.addEventListener('keydown', e => {
+  if (document.getElementById('endScreen').classList.contains('show')) {
+    if (e.key === ' ' || e.key === 'Enter') newGame();
+    return;
+  }
+  if (e.key === 'ArrowLeft') commit('L');
+  else if (e.key === 'ArrowRight') commit('R');
+});
+document.getElementById('restart').addEventListener('click', newGame);
+// 音效: 首次触碰解锁 AudioContext (移动端自动播放策略) + 静音开关记忆
+document.addEventListener('pointerdown', () => ac(), { once: true });
+const muteBtn = document.getElementById('muteBtn');
+muteBtn.textContent = muted ? '🔇' : '🔊';
+muteBtn.addEventListener('click', () => {
+  muted = !muted;
+  try { localStorage.setItem('herstory_mute', muted ? '1' : '0'); } catch (e) {}
+  muteBtn.textContent = muted ? '🔇' : '🔊';
+  if (!muted) SFX.era(); // 开声时给个确认音
+});
+
+// 启动: 封面页点任意处 → (有半路存档先问续不续; ?start= 显式指定时直接按指定棒开)
+function startRun() {
+  const saved = loadCheckpoint();
+  if (saved && saved.gen > 0 && START_GEN === 0 && ERAS[saved.gen]) {
+    pendingResume = saved;
+    stats = saved.stats; // 让状态条先显示存档值
+    legacy = { miles: saved.miles || [], notes: saved.notes || [] };
+    genLog = []; reachable = new Set(saved.reachable || []); deathInfo = null;
+    renderStats(null);
+    document.getElementById('eraBanner').textContent =
+      waveOf(ERAS[saved.gen].id).short + ' ｜ ' + ERAS[saved.gen].banner;
+    showCard({
+      d: '—— 存 档 ——', sp: '上次的接力还在半路', role: ERAS[saved.gen].banner, cameo: '✦',
+      t: `上次你跑到了第 ${saved.gen + 1} 棒，身后已点燃 ${(saved.miles || []).length} 处火种。继续，还是从 1848 重新开始？`,
+      L: { lab: '从头开始' }, R: { lab: `继续第 ${saved.gen + 1} 棒` },
+    }, 'resume');
+    return;
+  }
+  newGame();
+}
+document.getElementById('coverScreen').addEventListener('click', () => {
+  document.getElementById('coverScreen').classList.remove('show');
+  ac(); // 顺便解锁移动端音频
+  startRun();
+}, { once: true });
+</script>
 </body>
 </html>
