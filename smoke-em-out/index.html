@@ -1504,16 +1504,14 @@ function drawStartScreen() {
   ctx.font = 'bold 30px sans-serif';
   ctx.fillText(EN ? "🧋 Smoke 'Em Out" : '🧋 拍灭二手烟', CX, 54);
   // 玩法 (只留前置必需的 2 行 — 细节玩一局就懂, 玩家 拍板砍掉)
-  ctx.font = '14px sans-serif';
+  // v0.32: 长句改 fitFillText — 竖屏(W=400)装不下的英文长句自动缩字号, 不再两头裁切
   ctx.fillStyle = '#ccd';
-  ctx.fillText(EN ? "No smoking in the subway station — but some people don't care" : '地铁站台禁止吸烟 — 但总有人不管', CX, 92);
-  ctx.font = '13px sans-serif';
+  fitFillText(EN ? "No smoking in the subway station — but some people don't care" : '地铁站台禁止吸烟 — 但总有人不管', CX, 92, 14, W - 16);
   ctx.fillStyle = '#aab';
-  ctx.fillText(EN ? 'Spot the smokers → fling milk tea (tap left / right half)' : '看到叼烟+飘烟的人 → 左 / 右手甩奶茶（点屏幕左 / 右半边）', CX, 116);
+  fitFillText(EN ? 'Spot the smokers → fling milk tea (tap left / right half)' : '看到叼烟+飘烟的人 → 左 / 右手甩奶茶（点屏幕左 / 右半边）', CX, 116, 13, W - 16);
   // v0.13 提示: 横竖屏 (v0.30: iPhone 静音键提示移除 — 不是人人用 iPhone, 换成显眼的声音开关)
-  ctx.font = 'bold 13px sans-serif';
   ctx.fillStyle = '#7ad0ff';
-  ctx.fillText(EN ? '🔄 Plays in portrait or landscape — best with sound on 🎧' : '🔄 横屏 / 竖屏都能玩　·　🎧 戴耳机 / 开音效更带感', CX, 142);
+  fitFillText(EN ? '🔄 Plays in portrait or landscape — best with sound on 🎧' : '🔄 横屏 / 竖屏都能玩　·　🎧 戴耳机 / 开音效更带感', CX, 142, 13, W - 16, true);
   // v0.30 声音开关 (默认开, 点击切换); v0.31 上移并收窄, 不再压到"时长"标签
   {
     const sw = 150, sh = 24, sx = CX - sw / 2, sy = 152;
@@ -1531,16 +1529,25 @@ function drawStartScreen() {
   drawOptRow(EN ? 'Time' : '时长', DURS.map(durLabel), DURS.indexOf(settings.dur), 198, 64, 10, dy, 'dur', startOpts);
   drawOptRow(EN ? 'Speed' : '速度', SPEEDS.map(s => s.name), settings.speed, 250, 84, 6, dy, 'speed', startOpts);
   drawOptRow(EN ? 'Aim' : '瞄准', AIMS, settings.aim, 302, 84, 6, dy, 'aim', startOpts);
-  ctx.font = '11px sans-serif';
   ctx.fillStyle = '#778';
-  ctx.fillText(settings.aim === 1
+  fitFillText(settings.aim === 1
     ? (EN ? 'Manual: tap ON a smoker to hit — splashing bystanders costs −1' : '手动：点哪打哪 — 打中烟民得分，误伤路人 -1')
-    : (EN ? 'Auto: tap left / right half to rapid-fire, auto-locks smokers' : '自动：点左 / 右半屏即连发，自动锁定烟民'), CX, 344);
+    : (EN ? 'Auto: tap left / right half to rapid-fire, auto-locks smokers' : '自动：点左 / 右半屏即连发，自动锁定烟民'), CX, 344, 11, W - 16);
   // 开始 (设置按钮以外点哪都开始)
-  ctx.font = 'bold 20px sans-serif';
   ctx.fillStyle = '#ffce5e';
-  ctx.fillText(EN ? 'Tap anywhere / press [Space] to start' : '点空白处 / 按 [空格] 开始', CX, 368);
+  fitFillText(EN ? 'Tap anywhere / press [Space] to start' : '点空白处 / 按 [空格] 开始', CX, 368, 20, W - 16, true);
   ctx.restore();
+}
+
+// v0.32: 自动缩字号画文本 — 文案超出 maxW 时逐级缩小字号直到放得下 (修竖屏英文长句被裁切)
+function fitFillText(txt, x, y, basePx, maxW, bold) {
+  let px = basePx;
+  ctx.font = (bold ? 'bold ' : '') + px + 'px sans-serif';
+  while (px > 9 && ctx.measureText(txt).width > maxW) {
+    px--;
+    ctx.font = (bold ? 'bold ' : '') + px + 'px sans-serif';
+  }
+  ctx.fillText(txt, x, y);
 }
 
 let overBtn = null;  // 结算屏"再来一局"按钮命中区 (canvas 坐标)
@@ -1595,10 +1602,9 @@ function drawOverScreen() {
   overOpts = [];
   if (state.diedEarly) {
     // v0.19 (玩家): 有喜感的"没撑到地铁进站"当大字头条; "桃心烧光了"降为小字脚注
-    ctx.font = 'bold 24px sans-serif';
     ctx.fillStyle = '#ff6a5a';
-    ctx.fillText(EN ? '💀 Smoked out' : '💀 二手烟漏太多', CX, 56);
-    ctx.fillText(EN ? 'You passed out before the train came' : '没撑到地铁进站', CX, 88);
+    fitFillText(EN ? '💀 Smoked out' : '💀 二手烟漏太多', CX, 56, 24, W - 16, true);
+    fitFillText(EN ? 'You passed out before the train came' : '没撑到地铁进站', CX, 88, 24, W - 16, true);
     ctx.font = '14px sans-serif';
     ctx.fillStyle = '#99a';
     ctx.fillText(EN ? '🖤 Out of hearts' : '🖤 桃心烧光了', CX, 118);
@@ -1617,13 +1623,11 @@ function drawOverScreen() {
     ctx.save();
     ctx.translate(CX + jx, 64 + jy);
     ctx.scale(sc, sc);
-    ctx.font = `bold ${isMaxSpeed() ? 40 : 36}px sans-serif`;
     ctx.fillStyle = wc.c1;
-    ctx.fillText(wc.t, 0, 0);
+    fitFillText(wc.t, 0, 0, isMaxSpeed() ? 40 : 36, W - 24, true); // v0.32 竖屏英文标题不裁切
     ctx.restore();
-    ctx.font = 'bold 18px sans-serif';
     ctx.fillStyle = wc.c2;
-    ctx.fillText(wc.s, CX, 100);
+    fitFillText(wc.s, CX, 100, 18, W - 16, true);
   }
   // v0.12 滚分: 0.3s 起步, 0.9s 滚到位, 然后"盖章"弹一下
   const cprog = state.overAt ? Math.max(0, Math.min(1, (ageOv - 300) / 900)) : 1;
@@ -1639,17 +1643,15 @@ function drawOverScreen() {
   ctx.restore();
   const total = state.kills + state.escaped;
   const pct = total > 0 ? Math.round(state.kills / total * 100) : 0;
-  ctx.font = '14px sans-serif';
   ctx.fillStyle = '#99a';
-  ctx.fillText(EN
+  fitFillText(EN
     ? `Escaped ${state.escaped} · Max combo ×${state.comboMaxThisRun} · Accuracy ${pct}%` + (state.innocentHits ? ` · 💢Oops ${state.innocentHits}` : '')
-    : `溜走 ${state.escaped} 个 · 最高连击 ×${state.comboMaxThisRun} · 命中率 ${pct}%` + (state.innocentHits ? ` · 💢误伤 ${state.innocentHits}` : ''), CX, 172);
+    : `溜走 ${state.escaped} 个 · 最高连击 ×${state.comboMaxThisRun} · 命中率 ${pct}%` + (state.innocentHits ? ` · 💢误伤 ${state.innocentHits}` : ''), CX, 172, 14, W - 16);
   // v0.12 新纪录星标 (滚分盖章后才亮, 金色呼吸闪)
   if (state.newRecord && state.countStamped) {
-    ctx.font = 'bold 14px sans-serif';
     ctx.fillStyle = '#ffd700';
     ctx.globalAlpha = 0.65 + Math.sin(nowO / 150) * 0.35;
-    ctx.fillText(EN ? `★ NEW RECORD ★  ${settings.dur}s · ${SPEEDS[settings.speed].name} best` : `★ 新纪录 ★  ${settings.dur}秒·${SPEEDS[settings.speed].name} 档最佳`, CX, 189);
+    fitFillText(EN ? `★ NEW RECORD ★  ${settings.dur}s · ${SPEEDS[settings.speed].name} best` : `★ 新纪录 ★  ${settings.dur}秒·${SPEEDS[settings.speed].name} 档最佳`, CX, 189, 14, W - 16, true);
     ctx.globalAlpha = 1;
   }
   // 大按钮 — 只有点它才重玩 (空格也行)
