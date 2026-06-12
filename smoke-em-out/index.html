@@ -1,0 +1,1999 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>拍灭二手烟 🧋</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d0d18;
+    color: #e8e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 16px;
+    user-select: none;
+    overscroll-behavior: none;
+  }
+  /* 手机全屏模式: 隐藏页面 chrome, 只留 UI 条 + canvas */
+  body.fsmode { padding: 0; justify-content: center; }
+  body.fsmode h1, body.fsmode #subtitle, body.fsmode #instructions,
+  body.fsmode #asset-status, body.fsmode #file-warning { display: none; }
+  body.fsmode #ui {
+    max-width: none; width: auto; align-self: center;
+    border: none; background: rgba(26,26,46,0.85);
+    gap: 18px; padding: 4px 14px; font-size: 15px;
+    position: fixed; top: env(safe-area-inset-top, 0); z-index: 5;
+    border-radius: 0 0 8px 8px;
+  }
+  body.fsmode canvas { max-width: none; border: none; aspect-ratio: auto; }
+  #rotate-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(13,13,24,0.96);
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; font-size: 18px; text-align: center;
+  }
+  #rotate-overlay .icon { font-size: 52px; animation: rot 1.6s ease-in-out infinite; }
+  @keyframes rot { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(90deg); } }
+  h1 { font-size: 22px; margin-bottom: 6px; letter-spacing: 1px; }
+  #subtitle { color: #888; font-size: 12px; margin-bottom: 14px; text-align: center; }
+  #file-warning {
+    display: none;
+    width: 100%;
+    max-width: 600px;
+    margin-bottom: 12px;
+    padding: 10px 14px;
+    background: #5a1a1a;
+    border: 2px solid #c44;
+    border-radius: 4px;
+    color: #ffd0d0;
+    font-size: 13px;
+    line-height: 1.7;
+    text-align: center;
+  }
+  #file-warning code {
+    background: #2a2a3e;
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: #ffce5e;
+    word-break: break-all;
+  }
+  #ui {
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    background: #1a1a2e;
+    border: 2px solid #333;
+    border-bottom: none;
+    font-size: 18px;
+  }
+  #timer { font-family: monospace; font-size: 22px; color: #ffce5e; }
+  #hearts { letter-spacing: 2px; font-size: 16px; }
+  #score { font-weight: bold; }
+  #combo { color: #ff8c4a; font-weight: bold; min-width: 78px; text-align: right; }
+  canvas {
+    display: block;
+    background: #14141f;
+    border: 2px solid #333;
+    width: 100%;
+    max-width: 600px;
+    height: auto;
+    aspect-ratio: 3 / 2;
+    touch-action: none;
+  }
+  #instructions {
+    margin-top: 14px;
+    color: #888;
+    font-size: 13px;
+    text-align: center;
+    line-height: 1.7;
+  }
+  kbd {
+    background: #2a2a3e;
+    border: 1px solid #444;
+    border-radius: 3px;
+    padding: 2px 7px;
+    font-family: monospace;
+    color: #ffce5e;
+  }
+  #asset-status {
+    margin-top: 8px;
+    color: #666;
+    font-size: 11px;
+    font-family: monospace;
+    text-align: center;
+    max-width: 600px;
+  }
+  .asset-loaded { color: #6acb6a; }
+  .asset-missing { color: #c44; }
+</style>
+</head>
+<body>
+
+<h1>拍灭二手烟 🧋</h1>
+<div id="subtitle">地铁站台 · 路人横穿屏幕 · 看到吸烟的 → 左右手甩奶茶 · 撑到地铁进站</div>
+
+<div id="file-warning">
+  ⚠️ 你是<strong>双击打开</strong>的 (<code>file://</code>) — 浏览器禁止抠图, 之后换真图会带绿背景。<br>
+  请改用本地 server 打开: <code>http://localhost:8767/v0.13_smoke_em_out.html</code><br>
+  (server 没开: 在 vault 根运行 <code>python 01-projects/rapid-response/serve_nocache.py</code>)
+</div>
+
+<div id="ui">
+  <div id="timer">20.0s</div>
+  <div id="hearts">❤️❤️❤️❤️❤️</div>
+  <div id="score">拦下: 0</div>
+  <div id="combo"></div>
+  <div id="audio-dbg" style="display:none">♪—</div>
+</div>
+
+<canvas id="canvas" width="600" height="400"></canvas>
+
+<div id="instructions">
+  <strong>PC</strong>: <kbd>←</kbd> 左手丢 · <kbd>→</kbd> 右手丢 · <kbd>空格</kbd> 开始/重玩<br>
+  <strong>手机</strong>: 点屏幕<strong>左半边 / 右半边</strong> = 左手 / 右手（整个半边都有效, 不用点底下的手）<br>
+  横屏 = 双拇指 · 竖屏 = 单拇指（站台在顶部, 广场变竖向 6 道）<br>
+  泄愤 / 走火入魔 档 = 装填更快 + 奶茶<strong>波及附近吸烟者</strong>（连锁飞溅）<br>
+  看到<strong>叼烟+飘烟</strong>的就丢 — 不用瞄准, 自动命中那侧最近的吸烟者
+</div>
+
+<div id="asset-status" style="display:none">资产状态加载中…</div>
+
+<div id="rotate-overlay">
+  <div class="icon">📱</div>
+  <div>横屏更爽 — 请旋转手机<br><span style="font-size:13px;color:#888">双拇指 = 左右手各拿一杯奶茶</span></div>
+</div>
+
+<script>
+'use strict';
+
+// ============== v0.29 双语 (单文件内置, 按路径切换) ==============
+// /en/ 路径 (或 ?lang=en 调试) = 英文; 其余 = 中文。同一文件部署到 / 和 /en/, 零漂移。
+const EN = /\/en(\/|$)/.test(location.pathname) || new URLSearchParams(location.search).get('lang') === 'en';
+
+// ============================================================
+//  拍灭二手烟 v0.13 — 开局屏可选模式 + 横竖屏/音效提示 (依据玩家反馈)
+//  ① 时长/速度档从"结算页才出现"前移到开局屏 — 第一次进来就能选
+//     (原先刻意只在第二局后给, 现判定第一页不再算麻烦; 想试不同
+//      mode 的新玩家不该被挡在一局之后)。点设置按钮只改不开局,
+//     点别处/空格照旧秒开 — 保留"零延迟第一口"。
+//  ② 开局屏高亮一行提示: 🔄 横屏/竖屏都能玩 · 🎧 戴耳机/开音效更带感
+//     (音效以后会做得更 dramatic, 先把"开声音"的预期立起来)
+//  v0.12 原注释: 胜利演出 (依据玩家反馈: 通关 anti-climax)
+//  街机 results ceremony 配方 (juice 调研: 滚分/烟花/permanence):
+//  ① 分档结算文案: 正常/赶地铁/泄愤("泄愤成功")/走火入魔(炸裂) 各一套
+//  ② 撑到终点的瞬间先爆一波 (高档): 金字横幅 + 震屏 + 冲击波
+//  ③ 结算屏胜利烟花 (泄愤档常规放 / 走火入魔密集放 + 白闪开场 +
+//     标题脉冲抖动), 烟花盖在黑遮罩上、垫在文字下
+//  ④ 拦截数滚动计数 ~0.9s → "盖章"弹一下 + 音效
+//  ⑤ 新纪录系统: localStorage 按 (时长×速度档) 存最佳, 破纪录闪金星
+//  ⑥ 胜利小号: 上行琶音 (档越高音越多), 走火入魔加爆破白噪垫底
+//  v0.11 原注释: 速度档手感重做 (依据玩家反馈)
+//  诊断: 速度档只放大"需求"(出生密度×2.8), 玩家"产能"(投掷循环
+//  固定 410ms/手) 不变 → 高档结构性必败, 桃心秒烧, 点了没反应。
+//  对应 textbook 01-22 flow (挑战≈技能才有 flow) + 01-35 effectance
+//  (输入必须对环境有效) + 12_juice (无拖尾的高速 = teleport 感)。
+//  ① 投掷随速度档提速: 装填时间 300ms ÷ (1+(档倍率-1)×0.65)
+//     正常 300 / 赶地铁 ~234 / 泄愤 ~182 / 走火入魔 ~139ms
+//  ② 装填缓冲: 装填中点的那一下不再被吃掉, 装填一好立刻自动甩
+//     (狂点 = 顶速连发, 手感不再"点了没用")
+//  ③ 连锁飞溅 (泄愤 70px / 走火入魔 110px): 落点波及附近吸烟者,
+//     人越密一杯收越多 → 产能自动跟上密度 = 走火入魔的"大爆炸"
+//  ④ 速度可视化: 步频跟实际速度走 (之前固定步频→快了像滑行) +
+//     高档速度线 + 开局档名横幅 + 走火入魔红晕 (连击越高越浓)
+//  v0.10 原注释: 资产槽扩展 (P1 小改码, 玩法不动)
+//  ① 竖屏背景槽位 bg-portrait (1024×1536): 竖屏布局用它,
+//     缺图时回退程序画背景 (不拿横屏 3:2 图硬拉伸成 5:8)
+//  ② 命中飞溅贴图 splash 接入: 命中瞬间在落点弹出→淡出,
+//     程序粒子保留叠加; 缺图时表现与 v0.9 完全一致
+//  ③ sprite 槽位 5 → 10 (变体文件名见 美术需求清单 §2 v0.10 扩展);
+//     spawn 只在"已加载"的变体里抽 — 图部分到货时分布均匀
+//  v0.9 原注释:
+//  ① 结算页"再来一局"下加两排设置 (默认记住上次, localStorage):
+//     时长 20/40/60 秒 · 速度档 正常/赶地铁/泄愤/走火入魔
+//     (刻意不放在开局前 — 第一口爽感零延迟, 玩过一局才给开关)
+//  ② "你上车了" → "你如愿上车了"
+//  ③ 手机无声排查: UI 条实时显示音频状态 + iOS 静音buffer解锁补丁
+//  v0.8 原注释:
+//  ① 提速: 行人更快 + 出生更密 (PACE 1.15 / 触屏 1.35) — "20秒没过多少人"
+//  ② 竖屏自适应: 不再强制横屏 — 竖屏换布局 (站台横条在顶部,
+//     下方变成竖向广场 6 条 lane, 单拇指点左右半屏即可玩)
+//  调试: URL 加 ?layout=portrait 或 ?layout=landscape 可在 PC 上强制布局
+//  v0.7 原注释:
+//  依据 textbook/01_design_theory/36_mobile_touch_vs_pc_game_feel_调研:
+//  ① 触屏检测 → 全屏化 (隐藏页面 chrome, canvas fit-scale + letterbox)
+//  ② devicePixelRatio 内部分辨率 (高分屏不糊)
+//  ③ 竖屏提示横屏 (双拇指 = 双手 flipper fantasy)
+//  ④ Android navigator.vibrate 渐进增强 (iPhone 网页无震动, 不赌 hack)
+//  ⑤ 触屏 juice 加大 1.35x (补偿键盘触觉缺失)
+//  v0.6 原注释:
+//  新增: 奶茶杯抛物线飞行 + 飞行洒落尾迹 / 命中皇冠状飞溅 +
+//  液体拉丝 / 珍珠落地弹跳 / 身上挂浆下滴 / 地面奶茶渍 /
+//  高连击镜头溅渍
+//  Core loop: people parade across a subway platform; smokers
+//  carry a cigarette + smoke wisp. ← / → fling milk tea with
+//  your left/right hand at the nearest smoker on that side
+//  (auto-target, no aiming). Survive-nothing — just rack up the
+//  count before the train arrives. The 爽 = the 乒乓 rhythm.
+// ============================================================
+
+// ============== Constants ==============
+// v0.8: 双布局 — 横屏(原版) / 竖屏(站台在顶, 竖向广场 6 lane)
+const LAYOUTS = {
+  landscape: { W: 600, H: 400, wallH: 96, trackH: 44, lineY: 150,
+               LANES: [168, 212, 256], handY: 366, handInset: 60, signY: 48 },
+  portrait:  { W: 400, H: 640, wallH: 90, trackH: 40, lineY: 142,
+               LANES: [210, 270, 330, 390, 450, 510], handY: 600, handInset: 52, signY: 44 },
+};
+let LAYOUT_MODE = 'landscape';
+let W = 600, H = 400, CX = 300;
+let LANES = LAYOUTS.landscape.LANES;
+let HAND_L = { x: 60, y: 366 };
+let HAND_R = { x: W - 60, y: 366 };
+
+function applyLayout(mode) {
+  LAYOUT_MODE = mode;
+  const L = LAYOUTS[mode];
+  W = L.W; H = L.H; CX = W / 2;
+  LANES = L.LANES;
+  HAND_L = { x: L.handInset, y: L.handY };
+  HAND_R = { x: W - L.handInset, y: L.handY };
+}
+function LY() { return LAYOUTS[LAYOUT_MODE]; }
+
+// v0.20: SMOKER_RATE 已废弃 — 抽烟改由 PEOPLE_META 的 per-角色概率决定 (性别/职业相关)
+
+// v0.9: 可调设置 (结算页改, localStorage 记住)
+const SETTINGS_KEY = 'smoke_settings_v09';
+const SPEEDS = [
+  // mult = 行人走路速度(主差异, 越高档走得越快) · dens = 出生密度(人多寡)
+  // v0.23: 复盘后把 dens 大幅调回 — v0.20 误把密度从~2.8 砍到 2.0 + 抽烟率腰斩 → 走火入魔只剩43。
+  //        现在 dens 拉回高位, 配合 PEOPLE_META 提高的烟民率, 找回"赶地铁~25 / 泄愤~50 / 走火入魔100+"
+  { name: EN ? 'Commute' : '赶地铁',  mult: 1.25, dens: 1.9, aoe: 0,   banner: '#ffce5e' },
+  { name: EN ? 'Vent' : '杀无赦',     mult: 2.0,  dens: 4.0, aoe: 70,  banner: '#ff8c4a' }, // v0.30 玩家: 泄愤→杀无赦 (EN 仍 Vent)
+  { name: EN ? 'Berserk' : '走火入魔', mult: 2.9,  dens: 7.0, aoe: 110, banner: '#ff5a3a' },
+];
+const DURS = [20, 40, 60];
+const AIMS = EN ? ['Auto', 'Manual'] : ['自动', '手动']; // v0.27: 自动=点左右半屏自动索敌; 手动=直接点中烟民才出手
+const durLabel = d => EN ? d + 's' : d + ' 秒'; // v0.29 时长按钮文案
+const AIM_R = 60;              // 手动模式命中判定半径 (逻辑像素)
+let settings = { dur: 20, speed: 0, aim: 0, sound: 1 }; // v0.30: sound 默认开
+try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) {}
+// v0.18: 旧存档可能存了越界的 speed (去档前的索引), clamp 回合法范围
+settings.speed = Math.max(0, Math.min(SPEEDS.length - 1, settings.speed | 0));
+if (DURS.indexOf(settings.dur) < 0) settings.dur = 20;
+settings.aim = settings.aim === 1 ? 1 : 0;
+settings.sound = settings.sound === 0 ? 0 : 1;
+function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {} }
+function isMaxSpeed() { return settings.speed === SPEEDS.length - 1; } // 走火入魔 = 最高档
+
+// v0.12 最佳纪录: 按 "时长_速度档" 各存一个最高拦截数
+const BEST_KEY = 'smoke_best_v012';
+let bests = {};
+try { bests = JSON.parse(localStorage.getItem(BEST_KEY) || '{}'); } catch (e) {}
+function saveBests() { try { localStorage.setItem(BEST_KEY, JSON.stringify(bests)); } catch (e) {} }
+function speedMult() { return SPEEDS[settings.speed].mult; }   // 行人走路速度
+function densMult() { return SPEEDS[settings.speed].dens; }    // v0.20 出生密度 (与 mult 分离)
+// v0.11: 玩家产能跟着速度档走 — 装填时间随档位缩短 (不到 1:1, 保留紧张感)
+function reloadMs() { return RELOAD_MS / (1 + (speedMult() - 1) * 0.65); }
+function aoeRadius() { return SPEEDS[settings.speed].aoe || 0; }
+
+const PERSON_W = 44;               // logical body width
+const PERSON_H = 74;               // logical body height
+const PERSON_DRAW_SIZE = 128;      // v0.27: 112→128 — 朋友反馈"人太小看不清"; 装机量主流屏(6.1"/360-390pt)比 玩家 的 15 Pro Max(6.7"/430pt) 线性小 ~10-15%, +14% 让主流屏看到 玩家 原来的物理尺寸
+const RELOAD_MS = 300;             // per-hand cooldown → forces L-R-L-R rhythm
+const THROW_MS = 165;              // v0.25: 110→165 飞行慢一点, 让奶茶杯(及左右手镜像)看得清
+const SPLASH_SPRITE_MS = 380;      // v0.10 命中飞溅贴图寿命 (弹出→淡出)
+const SHOCKWAVE_MS = 320;          // v0.11 连锁飞溅冲击波环寿命
+
+const BASE_SCORE = 2;
+const COMBO_WINDOW = 1200;         // ms to keep a combo alive
+const START_HEARTS = 5;            // soft floor — each escaped smoker burns one
+
+// v0.14: 单一"无烟人物池" — 抽烟与否由引擎运行时决定 (不再分 smoker/nonsmoker 两套图)
+const CHROMA_TOLERANCE = 90;
+const SPRITE_MAX_DIM = 256;
+
+const CLOTHES = ['#7a6a55', '#4a6a8a', '#8a5a5a', '#5a7a5a', '#6a5a7a', '#9a7a4a', '#445a6a'];
+
+// ============== Asset manifest (Design B — side view) ==============
+// flat folder + naming convention: [game]-[design]-[type]-[variant]-[num].png
+// All optional — missing files gracefully fall back to procedural placeholders.
+// v0.14: people = 一套"不叼烟"的人物图 (透明 PNG, 切图脚本已 key 成透明)。
+// 引擎给当前抽烟的人程序画香烟; 打中即停画 = 视觉上戒了。同一个人既能当烟民也能当路人。
+// v0.30: 资产只存一份在游戏根; /en/ 子路径页面要往上一级找 (修"英文版小人消失": /en/assets/ 404)
+const ASSET_BASE = /\/en(\/|$)/.test(location.pathname) ? '../assets/' : 'assets/';
+const A = f => ASSET_BASE + f;
+const ASSETS = {
+  bg: A('nosmoking-designB-bg-1.png'),
+  bgPortrait: A('nosmoking-designB-bg-portrait-1.png'), // v0.10 竖屏背景 (1024×1536)
+  splash: A('nosmoking-designB-splash-2.png'), // v0.19 飞杯动感版 (杯体+盖分离+泼洒)
+  // v0.16: 大头 Q 版 roster (全家福8 一图 10 人)
+  people: [
+    A('nosmoking-designB-person-suit-1.png'),     // 上班族
+    A('nosmoking-designB-person-rider-1.png'),    // 外卖员
+    A('nosmoking-designB-person-fashion-1.png'),  // 潮人女
+    A('nosmoking-designB-person-worker-1.png'),   // 工人
+    A('nosmoking-designB-person-granny-1.png'),   // 拎菜阿姨
+    A('nosmoking-designB-person-student-1.png'),  // 学生
+    A('nosmoking-designB-person-nurse-1.png'),    // 护士
+    A('nosmoking-designB-person-hoodie-1.png'),   // 卫衣青年
+    A('nosmoking-designB-person-elder-1.png'),    // 老大爷
+    A('nosmoking-designB-person-office-1.png'),   // 白领女
+  ],
+  sfxThrow: A('nosmoking-sfx-throw-1.wav'),
+  sfxSplat: A('nosmoking-sfx-splat-1.wav'),
+};
+const NUM_VARIATIONS = ASSETS.people.length;
+
+// v0.20: 每个角色的性别 + 抽烟概率 (与 people 同序)。
+// 现实: 中国烟民 ~96% 男性; 学生/护士/小孩不抽。→ smk = 该角色被随机点成烟民的概率。
+//   男性可烟者高概率, 女性极低 (凑那 4%), 学生/护士=0。
+// v0.23: 男性可烟者概率拉高 (找回烟民数量/爽感); 仍保 学生/护士=0、女性极低 → 烟民 ~96% 男
+const PEOPLE_META = [
+  { g: 'M', smk: 0.82 }, // 0 suit 上班族
+  { g: 'M', smk: 0.82 }, // 1 rider 外卖员
+  { g: 'F', smk: 0.05 }, // 2 fashion 潮人女
+  { g: 'M', smk: 0.8  }, // 3 worker 工人
+  { g: 'F', smk: 0.06 }, // 4 granny 拎菜阿姨
+  { g: 'F', smk: 0    }, // 5 student 学生 (小孩, 永不抽)
+  { g: 'F', smk: 0    }, // 6 nurse 护士 (永不抽)
+  { g: 'M', smk: 0.78 }, // 7 hoodie 卫衣青年
+  { g: 'M', smk: 0.75 }, // 8 elder 老大爷
+  { g: 'F', smk: 0.05 }, // 9 office 白领女
+];
+function metaOf(v) { return PEOPLE_META[v] || { g: 'M', smk: 0.5 }; }
+
+const img = {
+  bg: null,
+  bgPortrait: null, // v0.10 竖屏背景
+  splash: null,
+  people: new Array(ASSETS.people.length).fill(null),
+};
+const sfxBuf = { throw: null, splat: null };
+
+// ============== Chroma-key + image loader (proven from v0.4) ==============
+function chromaKey(image) {
+  const w = image.naturalWidth || image.width;
+  const h = image.naturalHeight || image.height;
+  if (!w || !h) return image;
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const cx = c.getContext('2d');
+  cx.drawImage(image, 0, 0);
+  let data;
+  try { data = cx.getImageData(0, 0, w, h); }
+  catch (e) { return image; } // tainted (file://) → return original unprocessed
+  const d = data.data;
+  const tl = 0, tr = (w - 1) * 4, bl = (h - 1) * w * 4;
+  const kr = (d[tl] + d[tr] + d[bl]) / 3;
+  const kg = (d[tl+1] + d[tr+1] + d[bl+1]) / 3;
+  const kb = (d[tl+2] + d[tr+2] + d[bl+2]) / 3;
+  const tol2 = CHROMA_TOLERANCE * CHROMA_TOLERANCE;
+  for (let i = 0; i < d.length; i += 4) {
+    const dr = d[i] - kr, dg = d[i+1] - kg, db = d[i+2] - kb;
+    if (dr*dr + dg*dg + db*db < tol2) d[i+3] = 0;
+  }
+  cx.putImageData(data, 0, 0);
+  if (w > SPRITE_MAX_DIM || h > SPRITE_MAX_DIM) {
+    const scale = SPRITE_MAX_DIM / Math.max(w, h);
+    const small = document.createElement('canvas');
+    small.width = Math.round(w * scale);
+    small.height = Math.round(h * scale);
+    const scx = small.getContext('2d');
+    scx.imageSmoothingEnabled = false;
+    scx.drawImage(c, 0, 0, small.width, small.height);
+    return small;
+  }
+  return c;
+}
+
+// v0.14: 透明 sprite 只降采样 (不抠绿 — 切图脚本已 key 成透明), 平滑缩放卡通线条
+function downscale(image) {
+  const w = image.naturalWidth || image.width, h = image.naturalHeight || image.height;
+  if (!w || !h || (w <= SPRITE_MAX_DIM && h <= SPRITE_MAX_DIM)) return image;
+  const scale = SPRITE_MAX_DIM / Math.max(w, h);
+  const c = document.createElement('canvas');
+  c.width = Math.round(w * scale); c.height = Math.round(h * scale);
+  const cx = c.getContext('2d');
+  cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high';
+  cx.drawImage(image, 0, 0, c.width, c.height);
+  return c;
+}
+
+// mode: 'chroma' (绿底抠绿) | 'sprite' (透明图只降采样) | 'plain' (原样)
+function loadImage(src, mode) {
+  return new Promise(resolve => {
+    const i = new Image();
+    i.onload = () => resolve(mode === 'chroma' ? chromaKey(i) : mode === 'sprite' ? downscale(i) : i);
+    i.onerror = () => resolve(null);
+    i.src = src;
+  });
+}
+
+async function fetchArrayBuffer(url) {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    return await r.arrayBuffer();
+  } catch (e) { return null; }
+}
+
+async function loadAllAssets() {
+  const tasks = [];
+  tasks.push(loadImage(ASSETS.bg, 'plain').then(x => img.bg = x));
+  tasks.push(loadImage(ASSETS.bgPortrait, 'plain').then(x => img.bgPortrait = x));
+  tasks.push(loadImage(ASSETS.splash, 'chroma').then(x => img.splash = x));
+  ASSETS.people.forEach((src, i) => tasks.push(loadImage(src, 'sprite').then(x => img.people[i] = x)));
+  tasks.push(fetchArrayBuffer(ASSETS.sfxThrow).then(b => sfxBuf.throw = b));
+  tasks.push(fetchArrayBuffer(ASSETS.sfxSplat).then(b => sfxBuf.splat = b));
+  await Promise.all(tasks);
+  updateAssetStatus();
+}
+
+function updateAssetStatus() {
+  const el = document.getElementById('asset-status');
+  const mark = (ok, name) => `<span class="${ok ? 'asset-loaded' : 'asset-missing'}">${ok ? '✓' : '✗'} ${name}</span>`;
+  el.innerHTML = [
+    mark(img.bg, 'bg横'),
+    mark(img.bgPortrait, 'bg竖'),
+    mark(img.splash, 'splash'),
+    mark(img.people.filter(x => x).length > 0, `people(${img.people.filter(x=>x).length}/${NUM_VARIATIONS})`),
+    mark(sfxBuf.throw, 'sfx_throw'),
+    mark(sfxBuf.splat, 'sfx_splat'),
+  ].join(' · ');
+}
+
+// ============== Audio: Web Audio 直连 (v0.23 回到早期在手机/微信能出声的写法) ==============
+// 复盘: Web Audio (v0.2–v0.18) 当年在 玩家 手机+微信里有声、不卡、音色好;
+// v0.20–v0.22 为修"无声"绕去 HTML5 (塑料音 + 微信卡); v0.21 给 Web Audio 加 masterGain+静音loop
+// 反而把它弄哑。v0.23: 回最朴素 Web Audio 直连 destination (无 masterGain/无静音loop, 即早期写法),
+// 中频带滤波音色 (丰富有区别 + 手机喇叭放得出); 触发极廉价 → 不卡(含微信)。
+let audioCtx = null, audioReady = false;
+
+function initAudio() {
+  if (audioCtx) { if (audioCtx.state !== 'running') audioCtx.resume().catch(() => {}); return; }
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  audioCtx.resume().catch(() => {});
+  try { const b = audioCtx.createBuffer(1, 1, 22050), s = audioCtx.createBufferSource(); s.buffer = b; s.connect(audioCtx.destination); s.start(0); } catch (e) {}
+  audioReady = true;
+}
+function noiseBuf(dur, decay) {
+  const n = Math.floor(audioCtx.sampleRate * dur), buf = audioCtx.createBuffer(1, n, audioCtx.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, decay);
+  return buf;
+}
+// 甩杯 = 带通中频噪声 whoosh (空灵, 与命中明显不同)
+function playThrow() {
+  if (!audioCtx || !settings.sound) return; // v0.30 声音开关
+  const src = audioCtx.createBufferSource(); src.buffer = noiseBuf(0.12, 1.2);
+  const f = audioCtx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1700; f.Q.value = 0.8;
+  const g = audioCtx.createGain(); g.gain.value = 0.55;
+  src.connect(f).connect(g).connect(audioCtx.destination);
+  src.start(audioCtx.currentTime);
+}
+// 命中 = 低通扫频湿噪 + 中音"啵"(260→130Hz) — 厚实乒乓
+function playSplat() {
+  if (!audioCtx || !settings.sound) return; // v0.30 声音开关
+  const now = audioCtx.currentTime;
+  const src = audioCtx.createBufferSource(); src.buffer = noiseBuf(0.18, 1.6);
+  const f = audioCtx.createBiquadFilter(); f.type = 'lowpass';
+  f.frequency.setValueAtTime(3200, now); f.frequency.exponentialRampToValueAtTime(700, now + 0.18);
+  const g = audioCtx.createGain(); g.gain.value = 0.85;
+  src.connect(f).connect(g).connect(audioCtx.destination);
+  src.start(now);
+  const osc = audioCtx.createOscillator(), og = audioCtx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(260, now); osc.frequency.exponentialRampToValueAtTime(130, now + 0.1);
+  og.gain.setValueAtTime(0.6, now); og.gain.exponentialRampToValueAtTime(0.01, now + 0.13);
+  osc.connect(og).connect(audioCtx.destination);
+  osc.start(now); osc.stop(now + 0.13);
+}
+// 开局叮 = 上行两三角音
+function playStartDing() {
+  if (!audioCtx || !settings.sound) return; // v0.30 声音开关
+  const now = audioCtx.currentTime;
+  [660, 990].forEach((freq, i) => {
+    const t = now + 0.04 + i * 0.1;
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'triangle'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0, t); g.gain.linearRampToValueAtTime(0.4, t + 0.01); g.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+    o.connect(g).connect(audioCtx.destination); o.start(t); o.stop(t + 0.2);
+  });
+}
+// 连击 = 方波叮, 音高随连击上升 (纯乐音, 与噪声类的甩杯/命中拉开)
+function playComboChime(level) {
+  if (!audioCtx || !settings.sound) return; // v0.30 声音开关
+  const now = audioCtx.currentTime;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = 'square'; o.frequency.setValueAtTime(620 + (level || 0) * 70, now);
+  g.gain.setValueAtTime(0.18, now); g.gain.exponentialRampToValueAtTime(0.01, now + 0.11);
+  o.connect(g).connect(audioCtx.destination); o.start(now); o.stop(now + 0.11);
+}
+// 胜利小号 = 上行琶音, 档越高音越多; 最高档加爆破白噪
+function playVictoryJingle(level) {
+  if (!audioCtx || !settings.sound) return; // v0.30 声音开关
+  const t0 = audioCtx.currentTime + 0.05, top = SPEEDS.length - 1;
+  const notes = level >= top ? [392, 523, 659, 784, 1047] : level >= top - 1 ? [392, 523, 659, 784] : [523, 659, 784];
+  notes.forEach((f, i) => {
+    const t = t0 + i * 0.09;
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'square'; o.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(0.18, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.22);
+    o.connect(g).connect(audioCtx.destination); o.start(t); o.stop(t + 0.22);
+  });
+  if (level >= top) {
+    const src = audioCtx.createBufferSource(); src.buffer = noiseBuf(0.5, 2);
+    const f = audioCtx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1800;
+    const g = audioCtx.createGain(); g.gain.value = 0.5;
+    src.connect(f).connect(g).connect(audioCtx.destination); src.start(t0);
+  }
+}
+// 列车进站 = 低通锯齿扫频
+function playTrainArrive() {
+  if (!audioCtx || !settings.sound) return; // v0.30 声音开关
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+  osc.type = 'sawtooth'; osc.frequency.setValueAtTime(70, now); osc.frequency.linearRampToValueAtTime(150, now + 0.9);
+  g.gain.setValueAtTime(0.0, now); g.gain.linearRampToValueAtTime(0.22, now + 0.3); g.gain.exponentialRampToValueAtTime(0.01, now + 1.4);
+  const f = audioCtx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 600;
+  osc.connect(f).connect(g).connect(audioCtx.destination); osc.start(now); osc.stop(now + 1.4);
+}
+
+// ============== Canvas ==============
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+// ============== 手机适配层 (v0.7 → v0.8 双布局) ==============
+const FORCE_LAYOUT = new URLSearchParams(location.search).get('layout'); // 调试: ?layout=portrait
+const IS_TOUCH = FORCE_LAYOUT ? true : window.matchMedia('(pointer: coarse)').matches;
+const JUICE = IS_TOUCH ? 1.35 : 1;   // 触屏无键盘触觉 → 视觉反馈加大补偿
+const PACE = IS_TOUCH ? 1.35 : 1.15; // v0.8 提速: 行人速度 & 出生密度倍率
+let bootDone = false;
+
+function fitCanvas() {
+  if (!IS_TOUCH) return; // PC 默认横屏布局不变 (除非 ?layout= 强制)
+  document.body.classList.add('fsmode');
+  const portrait = FORCE_LAYOUT
+    ? FORCE_LAYOUT === 'portrait'
+    : window.matchMedia('(orientation: portrait)').matches;
+  const want = portrait ? 'portrait' : 'landscape';
+  if (want !== LAYOUT_MODE) {
+    // v0.8.1: 对局中锁定布局 — 玩到一半转屏不切换不重开; 回合结束后转屏才生效
+    const inRound = bootDone && state && (state.status === 'playing' || state.status === 'arriving');
+    if (!inRound) {
+      applyLayout(want);
+      if (bootDone && state) {
+        if (state.status === 'over') {
+          // 结算屏保留, 只清掉旧布局坐标系里的对象
+          state.people = []; state.cups = []; state.particles = []; state.puddles = []; state.splashSprites = []; state.shockwaves = []; state.celebParticles = []; state.flyingCigs = [];
+        } else {
+          state = freshState('start');
+        }
+      }
+    }
+  }
+  // fit-scale + letterbox: 保持比例撑满可视区, 不拉伸
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const scale = Math.min(vw / W, vh / H);
+  canvas.style.width = Math.floor(W * scale) + 'px';
+  canvas.style.height = Math.floor(H * scale) + 'px';
+  // devicePixelRatio 内部分辨率 → 高分屏不糊 (cap 2 控性能)
+  const dpr = Math.min(2, Math.ceil(window.devicePixelRatio || 1));
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+}
+window.addEventListener('resize', fitCanvas);
+window.addEventListener('orientationchange', fitCanvas);
+fitCanvas();
+
+function tryFullscreen() {
+  if (!IS_TOUCH) return;
+  const el = document.documentElement;
+  if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+  // iOS Safari 不支持任意元素全屏 — 忽略即可, fsmode 布局已最大化
+}
+
+// ============== State ==============
+let state = null;
+
+function freshState(status) {
+  return {
+    status: status,            // 'start' | 'playing' | 'arriving' | 'over'
+    people: [],
+    cups: [],                  // milk-tea projectiles in flight
+    particles: [],
+    puddles: [],               // 地面奶茶渍 (摊开后慢慢淡出)
+    splashSprites: [],         // v0.10 命中飞溅贴图实例 (有图才生成)
+    flyingCigs: [],            // v0.15 被打飞的香烟 (旋转飞出掉地)
+    shockwaves: [],            // v0.11 连锁飞溅冲击波环
+    modeBannerUntil: 0,        // v0.11 开局档名横幅 (startRound 时设)
+    innocentHits: 0,           // v0.28 误伤路人数 (手动模式)
+    overAt: 0,                 // v0.12 进结算的时刻 (驱动滚分/烟花/白闪)
+    newRecord: false,          // v0.12 本局是否破纪录
+    countStamped: false,       // v0.12 滚分是否已"盖章"
+    lastFireworkAt: 0,         // v0.12 上次放烟花时刻
+    celebParticles: [],        // v0.12 胜利烟花粒子 (结算屏专用层)
+    screenSplats: [],          // 高连击时溅到"镜头"上的渍
+    floatingTexts: [],
+    kills: 0,
+    escaped: 0,                // smokers who walked off unhit
+    hearts: START_HEARTS,      // soft floor — burn out = early game over
+    diedEarly: false,          // true = hearts ran out before the train came
+    timeLeft: settings.dur,
+    startTime: 0,
+    lastSpawnTime: 0,
+    arriveStartTime: 0,
+    trainX: -380,
+    shakeIntensity: 0,
+    hitPauseUntil: 0,
+    redFlashUntil: 0,
+    combo: 0,
+    comboMaxThisRun: 0,
+    lastHitTime: 0,
+    hands: {
+      left:  { reloadUntil: 0, throwUntil: 0, queued: false, queuedPt: null },
+      right: { reloadUntil: 0, throwUntil: 0, queued: false, queuedPt: null },
+    },
+  };
+}
+state = freshState('start');
+bootDone = true;
+
+// ============== Spawning ==============
+function progress() {
+  return 1 - state.timeLeft / settings.dur; // 0 → 1 over the round
+}
+
+// v0.14: 从"已加载的无烟人物"里抽变体 (烟民/路人共用同一池, 抽烟与否在 spawn 决定);
+// 一张图都没到货时随便抽 (procedural 占位不看 variation, 衣服色由 CLOTHES 决定)
+function pickVariation() {
+  const loaded = [];
+  for (let i = 0; i < img.people.length; i++) if (img.people[i]) loaded.push(i);
+  if (!loaded.length) return Math.floor(Math.random() * NUM_VARIATIONS);
+  return loaded[Math.floor(Math.random() * loaded.length)];
+}
+
+function spawnPerson() {
+  const fromLeft = Math.random() < 0.5;
+  const lane = LANES[Math.floor(Math.random() * LANES.length)];
+  // v0.30: 手动瞄准模式行人放慢 22% — 朋友反馈"手动连 Commute 都跟不上"(瞄准移动目标需要追踪时间)
+  const aimFactor = settings.aim === 1 ? 0.78 : 1;
+  const speed = (0.9 + Math.random() * 0.5) * (1 + progress() * 1.6) * PACE * speedMult() * aimFactor; // v0.9 速度档
+  // v0.20: 先定是谁, 再按该角色的抽烟概率掷骰 (学生/护士=0, 男性高/女性极低 → ~96% 烟民为男)
+  const variation = pickVariation();
+  const type = Math.random() < metaOf(variation).smk ? 'smoker' : 'nonsmoker';
+  state.people.push({
+    x: fromLeft ? -PERSON_W : W + PERSON_W,
+    y: lane,
+    lane,
+    dir: fromLeft ? 1 : -1,
+    speed,
+    baseSpeed: speed,
+    type,
+    variation,
+    clothes: CLOTHES[Math.floor(Math.random() * CLOTHES.length)],
+    extinguished: false,        // hit smoker → stops smoking, scurries off
+    flashUntil: 0,
+    spawnTime: performance.now(),
+    counted: false,             // escaped-count bookkeeping
+  });
+}
+
+// ============== Targeting ==============
+// ← / → auto-pick the nearest still-smoking smoker on that side.
+// "nearest" = closest to screen centre-x → you clear the ones most in your face.
+function findTarget(side) {
+  let best = null, bestDist = Infinity;
+  for (const p of state.people) {
+    if (p.type !== 'smoker' || p.extinguished) continue;
+    // v0.11: 已有奶茶在飞向他 → 跳过换下一个 (狂点连发时不再两杯砸同一人)
+    if (state.cups.some(c => c.target === p)) continue;
+    const isLeft = p.x < CX;
+    if (side === 'left' && !isLeft) continue;
+    if (side === 'right' && isLeft) continue;
+    const dist = Math.abs(p.x - CX);
+    if (dist < bestDist) { bestDist = dist; best = p; }
+  }
+  return best;
+}
+
+// ============== Input — the flipper ==============
+function triggerSide(side) {
+  if (state.status !== 'playing') return;
+  const now = performance.now();
+  const hand = side === 'left' ? state.hands.left : state.hands.right;
+  // v0.11 装填缓冲: 装填中点的那一下记下来, 装填一好立刻自动甩出
+  // (此前被静默吃掉 → "再怎么点也跟不上"的失控感来源)
+  if (now < hand.reloadUntil) { hand.queued = true; return; }
+  hand.queued = false;
+
+  hand.throwUntil = now + THROW_MS;
+  hand.reloadUntil = now + THROW_MS + reloadMs(); // v0.11 装填随速度档缩短
+  playThrow();
+
+  const target = findTarget(side);
+  const origin = side === 'left' ? HAND_L : HAND_R;
+  if (!target) {
+    // whiff — hand still throws (responsive), no cup, no penalty
+    return;
+  }
+  // launch a milk-tea cup on a parabolic arc; impact + juice land when it arrives
+  state.cups.push({
+    x: origin.x, y: origin.y,
+    ox: origin.x, oy: origin.y,
+    target,
+    bornAt: now,
+    side,  // v0.21: 左/右手 → 飞行杯左右镜像
+  });
+}
+
+// v0.27 手动瞄准: 点哪打哪 — 点中烟民 (AIM_R 内) 则锁定他, 点空了奶茶飞到点击点摔一滩。
+// 服务 Challenge/精确型玩家 (Quantic Foundry 光谱); 自动模式仍是默认 (乒乓节奏是本作核心)。
+function manualThrow(x, y) {
+  if (state.status !== 'playing') return;
+  const now = performance.now();
+  const side = x < CX ? 'left' : 'right';
+  const hand = state.hands[side];
+  if (now < hand.reloadUntil) { hand.queued = true; hand.queuedPt = { x, y }; return; }
+  hand.queued = false; hand.queuedPt = null;
+
+  hand.throwUntil = now + THROW_MS;
+  hand.reloadUntil = now + THROW_MS + reloadMs();
+  playThrow();
+
+  // 找点击点附近最近的还在抽的烟民
+  let best = null, bd = Infinity;
+  for (const p of state.people) {
+    if (p.type !== 'smoker' || p.extinguished) continue;
+    if (state.cups.some(c => c.target === p)) continue;
+    const dx = p.x - x, dy = p.y - y, d2 = dx * dx + dy * dy;
+    if (d2 < bd) { bd = d2; best = p; }
+  }
+  const origin = side === 'left' ? HAND_L : HAND_R;
+  if (best && bd <= AIM_R * AIM_R) {
+    state.cups.push({ x: origin.x, y: origin.y, ox: origin.x, oy: origin.y, target: best, bornAt: now, side });
+    return;
+  }
+  // v0.28: 没点中烟民 → 看是否点到了无辜路人 (误伤有代价, 见 bystanderHit)
+  let bi = null, bid = Infinity;
+  for (const p of state.people) {
+    if (p.type === 'smoker' || p.extinguished) continue;
+    if (state.cups.some(c => c.target === p)) continue;
+    const dx = p.x - x, dy = p.y - y, d2 = dx * dx + dy * dy;
+    if (d2 < bid) { bid = d2; bi = p; }
+  }
+  if (bi && bid <= AIM_R * AIM_R) {
+    state.cups.push({ x: origin.x, y: origin.y, ox: origin.x, oy: origin.y, target: bi, innocent: true, bornAt: now, side });
+  } else {
+    // 点空地: 奶茶仍然飞出去, 落在点击点摔一滩 (miss 有反馈但无额外惩罚 — 浪费一发已是代价)
+    state.cups.push({ x: origin.x, y: origin.y, ox: origin.x, oy: origin.y, target: null, tx: x, ty: y, bornAt: now, side });
+  }
+}
+
+// v0.28 误伤路人: 奶茶真打到他 — 被糊+愤怒+仓皇逃走, 拦下数 -1, 连击清零。
+// 设计取舍: 不烧桃心 (桃心语义=漏掉的烟民); 惩罚要"有感但不毁局"。
+function bystanderHit(p, side) {
+  const now = performance.now();
+  if (p.extinguished) return;
+  p.extinguished = true;          // 复用挂浆/逃跑/滴落表现 (nonsmoker 不参与桃心结算)
+  p.flashUntil = now + 90;
+  p.soakedAt = now;
+  p.speed = p.baseSpeed * 2.1;
+  state.innocentHits++;
+  state.kills = Math.max(0, state.kills - 1);
+  state.combo = 0;
+  const cx = p.x, cy = p.y - PERSON_H * 0.18;
+  spawnSplash(cx, cy, p.y + PERSON_H / 2, 0);
+  if (img.splash) {
+    state.splashSprites.push({ x: cx, y: cy, bornAt: now, rot: (Math.random() - 0.5) * 0.35,
+      mir: side === 'right' ? -1 : 1, size: 80 * JUICE });
+  }
+  state.puddles.push({ x: p.x, y: p.y + PERSON_H / 2 + 3, r: 5, maxR: 18, life: 1 });
+  spawnFloatingText(cx, p.y - PERSON_H * 0.75, EN ? '💢 Oops −1' : '💢 误伤 -1', '#ff5a5a', 22);
+  playSplat();
+}
+
+// ============== Impact (cup lands on a smoker) ==============
+// v0.11: chained = 被连锁波及的二级命中 (只一层, 不递归引爆全屏)
+function impact(target, cx, cy, chained, side) {
+  const now = performance.now();
+  if (target.extinguished) return;
+  target.extinguished = true;
+  target.flashUntil = now + 90;
+  target.soakedAt = now;                 // 驱动挂浆下滴
+  target.speed = target.baseSpeed * 1.9; // soaked → scurries off, embarrassed
+
+  // v0.15: 香烟被打飞 — 从嘴叼处旋转飞出 + 掉地 (替代"凭空消失"的生硬感)
+  state.flyingCigs.push({
+    x: target.x + target.dir * 9,
+    y: target.y - PERSON_DRAW_SIZE * 0.23,
+    vx: -target.dir * (1.5 + Math.random() * 1.5) - 0.5, // 往脸的反方向弹飞
+    vy: -3.5 - Math.random() * 1.5,
+    rot: 0,
+    vrot: (Math.random() < 0.5 ? -1 : 1) * (0.3 + Math.random() * 0.3),
+    bornAt: now,
+    floorY: target.y + PERSON_H / 2,
+  });
+
+  // 地面奶茶渍 — 在脚下摊开, 慢慢淡掉
+  state.puddles.push({
+    x: target.x, y: target.y + PERSON_H / 2 + 3,
+    r: 5, maxR: 20 + Math.random() * 14, life: 1,
+  });
+
+  state.kills++;
+  state.combo++;
+  state.lastHitTime = now;
+  if (state.combo > state.comboMaxThisRun) state.comboMaxThisRun = state.combo;
+  const mult = state.combo >= 3 ? state.combo : 1;
+  const gained = BASE_SCORE * mult;
+
+  // juice
+  state.hitPauseUntil = now + 45;
+  state.shakeIntensity = Math.max(state.shakeIntensity, (7 + state.combo * 0.4) * (IS_TOUCH ? 1.3 : 1));
+  spawnSplash(cx, cy, target.y + PERSON_H / 2, state.combo);
+  // v0.10: 命中飞溅贴图 — 有图才生成, 程序粒子照常叠在上面
+  if (img.splash) {
+    state.splashSprites.push({
+      x: cx, y: cy, bornAt: now,
+      rot: (Math.random() - 0.5) * 0.35,             // v0.26: 减小随机旋转, 让杯子大体朝下
+      mir: side === 'right' ? -1 : 1,                // v0.26: 右手命中 → 飞溅图左右镜像
+      size: (92 + Math.min(state.combo, 8) * 6) * JUICE, // v0.16: 放大盖住脸 (糊脸)
+    });
+  }
+  // 高连击 → 奶茶溅到"镜头"上
+  if (state.combo >= 4) {
+    state.screenSplats.push({
+      x: Math.random() * W, y: Math.random() * H * 0.5,
+      r: 14 + Math.random() * 22, life: 1,
+    });
+  }
+  const txt = mult > 1 ? `+${gained}!` : `+${gained}`;
+  const col = mult > 1 ? '#ff8c4a' : '#ffce5e';
+  spawnFloatingText(cx, cy - 24, txt, col, 22 + Math.min(mult * 3, 18));
+
+  playSplat();
+  // Android 网页震动 (渐进增强; iPhone 网页无此能力, 见调研 36 §1.4)
+  if (navigator.vibrate) {
+    try { navigator.vibrate(state.combo >= 3 ? [12, 30, 12] : 12); } catch (e) {}
+  }
+  if (state.combo >= 2) setTimeout(() => playComboChime(state.combo), 25);
+
+  // v0.11 连锁飞溅 (泄愤/走火入魔): 落点波及附近还在抽的吸烟者 —
+  // 人越密一杯收越多, 产能自动跟上出生密度 = 高档的"大爆炸"机制
+  if (!chained) {
+    const R = aoeRadius();
+    if (R > 0) {
+      state.shockwaves.push({ x: cx, y: cy, bornAt: now, maxR: R });
+      for (const p of state.people) {
+        if (p === target || p.type !== 'smoker' || p.extinguished) continue;
+        const dx = p.x - cx, dy = p.y - cy;
+        if (dx * dx + dy * dy <= R * R) impact(p, p.x, p.y - PERSON_H * 0.18, true, side); // 连锁继承同手镜像
+      }
+    }
+  }
+}
+
+// ============== Particles ==============
+function spawnSplash(x, y, floorY, combo) {
+  const extra = Math.min(combo || 0, 8); // 连击越高溅得越夸张
+  // 皇冠状主溅射 — 液体向上呈扇形炸开 (经典 splash crown)
+  const crownN = 7 + extra;
+  for (let i = 0; i < crownN; i++) {
+    const a = -Math.PI / 2 + (i / (crownN - 1) - 0.5) * 1.9; // 上半扇形
+    const sp = 3.5 + Math.random() * 3.5;
+    state.particles.push({
+      x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 1.2,
+      life: 1, decay: 0.028 + Math.random() * 0.015,
+      color: Math.random() < 0.55 ? '#b07840' : '#d9a868',
+      size: 2.5 + Math.random() * 3, gravity: 0.24,
+      shape: 'streak', floorY,
+    });
+  }
+  // 四散液滴
+  for (let i = 0; i < 14 + extra * 2; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = 2 + Math.random() * 5.5;
+    state.particles.push({
+      x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 1.5,
+      life: 1, decay: 0.03 + Math.random() * 0.02,
+      color: Math.random() < 0.5 ? '#8b5a2b' : '#b07840',
+      size: 3 + Math.random() * 3, gravity: 0.22,
+      shape: 'round', floorY,
+    });
+  }
+  // 珍珠 — 落地会弹跳
+  for (let i = 0; i < 5 + Math.floor(extra / 2); i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = 3 + Math.random() * 4;
+    state.particles.push({
+      x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 2.5,
+      life: 1, decay: 0.014,
+      color: '#2a1a10', size: 4, gravity: 0.3,
+      shape: 'pearl', floorY, bounces: 2,
+    });
+  }
+  // 奶白高光 sparkle
+  for (let i = 0; i < 6; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = 4 + Math.random() * 4;
+    state.particles.push({
+      x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 2,
+      life: 1, decay: 0.05,
+      color: '#ffe8c0', size: 2 + Math.random() * 2, gravity: 0.15,
+      shape: 'round',
+    });
+  }
+}
+
+function updateParticles() {
+  for (const p of state.particles) {
+    p.x += p.vx; p.y += p.vy; p.vy += p.gravity; p.life -= p.decay;
+    // 落地: 珍珠弹跳, 液滴摊成小渍后快速淡出
+    if (p.floorY && p.y >= p.floorY && p.vy > 0) {
+      if (p.shape === 'pearl' && p.bounces > 0) {
+        p.bounces--;
+        p.y = p.floorY;
+        p.vy *= -0.5;
+        p.vx *= 0.7;
+      } else if (p.shape !== 'pearl') {
+        p.y = p.floorY;
+        p.vx *= 0.4; p.vy = 0; p.gravity = 0;
+        p.shape = 'round';
+        p.decay = Math.max(p.decay, 0.06);
+      } else {
+        p.vy = 0; p.vx *= 0.8; p.gravity = 0;
+      }
+    }
+  }
+  state.particles = state.particles.filter(p => p.life > 0 && p.y < H + 30);
+}
+
+function renderParticles() {
+  for (const p of state.particles) {
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle = p.color;
+    const sz = p.size * JUICE; // 触屏粒子加大, 补触觉缺失
+    if (p.shape === 'streak') {
+      // 液体拉丝 — 沿速度方向画一条短线
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = sz * 0.9;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(p.x - p.vx * 2.4, p.y - p.vy * 2.4);
+      ctx.stroke();
+    } else if (p.shape === 'round' || p.shape === 'pearl') {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, sz / 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillRect(p.x - sz / 2, p.y - sz / 2, sz, sz);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ============== Floating text ==============
+function spawnFloatingText(x, y, text, color, size) {
+  state.floatingTexts.push({ x, y, text, color, size, life: 1, vy: -2.4 });
+}
+function updateFloatingTexts() {
+  for (const t of state.floatingTexts) { t.y += t.vy; t.vy *= 0.94; t.life -= 0.02; }
+  state.floatingTexts = state.floatingTexts.filter(t => t.life > 0);
+}
+function renderFloatingTexts() {
+  for (const t of state.floatingTexts) {
+    ctx.font = `bold ${t.size}px sans-serif`;
+    ctx.fillStyle = t.color;
+    ctx.globalAlpha = Math.max(0, Math.min(1, t.life * 1.5));
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 4;
+    ctx.strokeText(t.text, t.x, t.y);
+    ctx.fillText(t.text, t.x, t.y);
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ============== Update ==============
+function update() {
+  const now = performance.now();
+  if (state.status === 'playing') {
+    if (now < state.hitPauseUntil) return;
+    state.timeLeft = Math.max(0, settings.dur - (now - state.startTime) / 1000);
+
+    // v0.11 装填缓冲出膛: 装填好了且有排队的那一下 → 立刻甩
+    for (const side of ['left', 'right']) {
+      const hand = state.hands[side];
+      if (hand.queued && now >= hand.reloadUntil) {
+        hand.queued = false;
+        if (settings.aim === 1 && hand.queuedPt) { const pt = hand.queuedPt; hand.queuedPt = null; manualThrow(pt.x, pt.y); }
+        else triggerSide(side);
+      }
+    }
+
+    // spawn — rate escalates over the round
+    // v0.8: 提速 + 按 lane 数补密度; v0.9: 速度档进一步加密
+    // v0.23: 道数→密度 改用 sqrt 放缓 (竖屏6道不再硬翻倍, 否则桃心被冲爆); 密度用 dens
+    const interval = (900 - progress() * 560) / PACE / Math.sqrt(LANES.length / 3) / densMult();
+    if (now - state.lastSpawnTime > interval) {
+      spawnPerson();
+      state.lastSpawnTime = now;
+    }
+
+    if (state.timeLeft <= 0) {
+      state.status = 'arriving';
+      state.arriveStartTime = now;
+      playTrainArrive();
+      // v0.12: 高档撑到终点的那一瞬间就该爆一下 (结算屏还有第二波)
+      // v0.18: 去"正常"档后泄愤=1/走火入魔=2, 高档阈值从 >=2 改 >=1 (泄愤也算高档)
+      if (settings.speed >= 1) {
+        spawnFloatingText(CX, H * 0.4, isMaxSpeed() ? (EN ? 'YOU MADE IT!!!' : '撑 住 了 !!!') : (EN ? 'SO GOOD!' : '解 气 !'), '#ffd700', 38);
+        state.shakeIntensity = 14;
+        state.shockwaves.push({ x: CX, y: H * 0.4, bornAt: now, maxR: Math.min(W, H) * 0.45 });
+      }
+    }
+  } else if (state.status === 'arriving') {
+    // train slides in; everyone hurries off
+    state.trainX += 9;
+    for (const p of state.people) p.speed = p.baseSpeed * 2.4;
+    if (now - state.arriveStartTime > 2600) enterOver(now);
+  } else if (state.status === 'over') {
+    // v0.12 结算演出: 胜利烟花 + 滚分盖章 (失败局不放)
+    if (!state.diedEarly && settings.speed >= 1 && state.overAt) { // v0.18: >=2→>=1
+      const cadence = isMaxSpeed() ? 300 : 600;
+      if (now - state.lastFireworkAt > cadence) {
+        state.lastFireworkAt = now;
+        spawnFirework(isMaxSpeed());
+      }
+    }
+    for (const p of state.celebParticles) { p.x += p.vx; p.y += p.vy; p.vy += 0.055; p.life -= p.decay; }
+    state.celebParticles = state.celebParticles.filter(p => p.life > 0);
+    if (!state.countStamped && state.overAt && now - state.overAt > 1250) {
+      state.countStamped = true;
+      if (!state.diedEarly && state.kills > 0) playComboChime(6); // 滚分到位"盖章"声
+    }
+  }
+
+  if (state.status === 'playing' || state.status === 'arriving') {
+    // move people
+    for (const p of state.people) {
+      p.x += p.dir * p.speed;
+      // walk wobble handled in render
+    }
+    // cull off-screen; an escaped smoker (during play) burns a heart
+    state.people = state.people.filter(p => {
+      const off = p.x < -PERSON_W * 2 || p.x > W + PERSON_W * 2;
+      if (off && p.type === 'smoker' && !p.extinguished && !p.counted
+          && state.status === 'playing') {
+        state.escaped++;
+        p.counted = true;
+        state.hearts--;
+        state.redFlashUntil = now + 320;
+        state.shakeIntensity = Math.max(state.shakeIntensity, 9);
+        const fx = p.dir > 0 ? W - 50 : 50; // edge they escaped through
+        spawnFloatingText(fx, 200, '-1 ❤️', '#ff5a5a', 26);
+        if (state.hearts <= 0) {
+          state.hearts = 0;
+          state.diedEarly = true;
+          enterOver(now); // v0.12 (内部含 fitCanvas — 对局中若转过屏, 此刻应用新布局)
+        }
+      }
+      return !off;
+    });
+
+    // update cups — 抛物线飞行 + 飞行中洒落的奶茶尾迹
+    // v0.27: target 可为 null (手动模式点空) → 飞向固定点 (tx,ty), 落地摔一滩
+    for (const cup of state.cups) {
+      const elapsed = now - cup.bornAt;
+      const t = Math.min(1, elapsed / THROW_MS);
+      const tx = cup.target ? cup.target.x : cup.tx;
+      const ty = cup.target ? cup.target.y - PERSON_H * 0.18 : cup.ty;
+      cup.x = cup.ox + (tx - cup.ox) * t;
+      cup.y = cup.oy + (ty - cup.oy) * t - Math.sin(t * Math.PI) * 52; // arc
+      if (Math.random() < 0.75) {
+        state.particles.push({
+          x: cup.x + (Math.random() - 0.5) * 8,
+          y: cup.y + (Math.random() - 0.5) * 8,
+          vx: (Math.random() - 0.5) * 1.2, vy: -0.4 + Math.random() * 0.8,
+          life: 0.7, decay: 0.06,
+          color: Math.random() < 0.6 ? '#b07840' : '#d9a868',
+          size: 2 + Math.random() * 2.5, gravity: 0.18, shape: 'round',
+        });
+      }
+      if (t >= 1) {
+        if (cup.target && cup.innocent) {
+          bystanderHit(cup.target, cup.side); // v0.28 误伤路人
+        } else if (cup.target) {
+          impact(cup.target, cup.target.x, cup.target.y - PERSON_H * 0.18, false, cup.side); // v0.26 传左右手
+        } else {
+          // v0.27 手动模式点空: 奶茶摔地上 — 小飞溅 + 地面渍 + 闷一点的 splat (miss 也要有反馈)
+          spawnSplash(cup.tx, cup.ty, cup.ty + 10, 0);
+          state.puddles.push({ x: cup.tx, y: cup.ty + 10, r: 4, maxR: 16 + Math.random() * 8, life: 1 });
+          playSplat();
+        }
+        cup.done = true;
+      }
+    }
+    state.cups = state.cups.filter(c => !c.done);
+
+    // combo decay
+    if (state.combo > 0 && now - state.lastHitTime > COMBO_WINDOW) state.combo = 0;
+
+    state.shakeIntensity *= 0.85;
+    if (state.shakeIntensity < 0.1) state.shakeIntensity = 0;
+
+    updateParticles();
+    updateFloatingTexts();
+
+    // 地面奶茶渍: 先摊开再慢慢淡出
+    for (const pd of state.puddles) {
+      if (pd.r < pd.maxR) pd.r += (pd.maxR - pd.r) * 0.18;
+      pd.life -= 0.004;
+    }
+    state.puddles = state.puddles.filter(pd => pd.life > 0);
+
+    // 镜头溅渍淡出
+    for (const s of state.screenSplats) s.life -= 0.012;
+    state.screenSplats = state.screenSplats.filter(s => s.life > 0);
+
+    // v0.10 飞溅贴图过期清理 (弹出/淡出动画在绘制端按 bornAt 算)
+    state.splashSprites = state.splashSprites.filter(s => now - s.bornAt < SPLASH_SPRITE_MS);
+    state.shockwaves = state.shockwaves.filter(s => now - s.bornAt < SHOCKWAVE_MS); // v0.11
+
+    // v0.15 被打飞的香烟: 抛物线 + 旋转, 落地后停住一会儿再淡出
+    for (const c of state.flyingCigs) {
+      if (c.y < c.floorY || c.vy < 0) { c.x += c.vx; c.y += c.vy; c.vy += 0.32; c.rot += c.vrot; }
+      else { c.vx *= 0.8; c.x += c.vx; c.rot += c.vrot * 0.2; }
+    }
+    state.flyingCigs = state.flyingCigs.filter(c => now - c.bornAt < 1100 && c.x > -20 && c.x < W + 20);
+
+    // 刚被泼中的人持续往下滴奶茶
+    for (const p of state.people) {
+      if (p.extinguished && p.soakedAt && now - p.soakedAt < 1600 && Math.random() < 0.3) {
+        state.particles.push({
+          x: p.x + (Math.random() - 0.5) * PERSON_W * 0.7,
+          y: p.y - PERSON_H * 0.2 + Math.random() * PERSON_H * 0.4,
+          vx: p.dir * p.speed * 0.4, vy: 0.5,
+          life: 0.8, decay: 0.05,
+          color: Math.random() < 0.6 ? '#8b5a2b' : '#b07840',
+          size: 2 + Math.random() * 2, gravity: 0.2,
+          shape: 'round', floorY: p.y + PERSON_H / 2,
+        });
+      }
+    }
+  }
+}
+
+// ============== Render — background ==============
+function drawBackground() {
+  // v0.10: 按布局选背景; 竖屏缺专用图时回退程序画 (不拿 3:2 图硬拉伸)
+  const bgImg = LAYOUT_MODE === 'portrait' ? img.bgPortrait : img.bg;
+  if (bgImg) {
+    ctx.drawImage(bgImg, 0, 0, W, H);
+  } else {
+    // procedural subway platform placeholder (v0.8: 尺寸全部走 layout)
+    const Lo = LY();
+    const floorTop = Lo.wallH + Lo.trackH;
+    // upper wall
+    ctx.fillStyle = '#23232f';
+    ctx.fillRect(0, 0, W, Lo.wallH);
+    // track recess (train arrives here, behind people)
+    ctx.fillStyle = '#0c0c12';
+    ctx.fillRect(0, Lo.wallH, W, Lo.trackH);
+    // platform floor
+    const g = ctx.createLinearGradient(0, floorTop, 0, H);
+    g.addColorStop(0, '#34343f');
+    g.addColorStop(1, '#26262f');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, floorTop, W, H - floorTop);
+    // yellow safety line
+    ctx.fillStyle = '#caa23a';
+    ctx.fillRect(0, Lo.lineY, W, 5);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    for (let x = 0; x < W; x += 26) ctx.fillRect(x, Lo.lineY, 13, 5);
+    // floor tiles
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= W; x += 50) { ctx.beginPath(); ctx.moveTo(x, Lo.lineY + 10); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let y = floorTop + 40; y < H; y += 44) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  }
+
+  // No-smoking sign (always drawn — sets the "明显禁烟的地方" context)
+  ctx.save();
+  ctx.translate(CX, LY().signY);
+  ctx.fillStyle = '#e8e8f0';
+  ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#c0392b';
+  ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI * 2);
+  ctx.arc(0, 0, 19, 0, Math.PI * 2, true); ctx.fill();
+  ctx.font = '22px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🚬', 0, 1);
+  ctx.strokeStyle = '#c0392b';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(-17, 17); ctx.lineTo(17, -17);
+  ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle = '#888';
+  ctx.font = 'bold 13px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(EN ? 'NO SMOKING ON PLATFORM' : '地铁站内 禁止吸烟', CX, LY().wallH - 10);
+}
+
+// ============== Render — train (round-end) ==============
+function drawTrain() {
+  if (state.status !== 'arriving' && state.status !== 'over') return;
+  const tx = state.trainX;
+  const ty = LY().wallH, th = LY().trackH + 2;
+  ctx.fillStyle = '#3a4a5a';
+  ctx.fillRect(tx, ty, 360, th);
+  ctx.fillStyle = '#1a2530';
+  ctx.fillRect(tx, ty + th - 6, 360, 6);
+  // windows
+  ctx.fillStyle = '#bfe0ff';
+  for (let i = 0; i < 5; i++) ctx.fillRect(tx + 22 + i * 68, ty + 10, 44, 20);
+  // open doors
+  ctx.fillStyle = '#101820';
+  for (let i = 0; i < 2; i++) ctx.fillRect(tx + 60 + i * 150, ty + 8, 26, th - 14);
+  // headlight
+  ctx.fillStyle = '#ffe89a';
+  ctx.fillRect(tx + 354, ty + 16, 6, 12);
+}
+
+// ============== Render — a person ==============
+function drawPerson(p) {
+  const t = performance.now();
+  const walkPhase = (t - p.spawnTime) * p.speed / 105; // v0.11 步频跟实际速度走 (固定步频会让快人像滑行)
+  const bob = Math.abs(Math.sin(walkPhase)) * 3;
+  const flash = t < p.flashUntil;
+  // v0.14: 单一无烟人物池; sprite 基准朝右, 向左走时镜像
+  const sprite = img.people[p.variation] || img.people.find(s => s) || null;
+  const faceFlip = p.dir < 0 ? -1 : 1;
+
+  ctx.save();
+  ctx.translate(p.x, p.y - bob);
+
+  // v0.11 速度线 — 泄愤/走火入魔 档让"变快"看得见 (12_juice: 高速无拖尾 = teleport 感)
+  if (speedMult() >= 2 && (state.status === 'playing' || state.status === 'arriving')) {
+    ctx.strokeStyle = 'rgba(200,210,230,0.22)';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 3; i++) {
+      const ly = -PERSON_H * 0.28 + i * PERSON_H * 0.26;
+      ctx.beginPath();
+      ctx.moveTo(-p.dir * (PERSON_W * 0.5 + 4), ly);
+      ctx.lineTo(-p.dir * (PERSON_W * 0.5 + 14 + p.speed * 5), ly);
+      ctx.stroke();
+    }
+  }
+
+  if (sprite) {
+    ctx.save();
+    ctx.scale(faceFlip, 1);
+    const s = PERSON_DRAW_SIZE;
+    ctx.imageSmoothingEnabled = true; // v0.14: 卡通线条平滑缩放 (restore 后恢复)
+    ctx.drawImage(sprite, -s / 2, -s / 2, s, s);
+    if (flash) {
+      ctx.globalCompositeOperation = 'source-atop';
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillRect(-s / 2, -s / 2, s, s);
+      ctx.globalCompositeOperation = 'source-over';
+    } else if (p.extinguished) {
+      // 奶茶挂浆 — source-atop 只染在 sprite 像素内
+      ctx.globalCompositeOperation = 'source-atop';
+      ctx.fillStyle = 'rgba(140,90,50,0.45)';
+      ctx.beginPath();
+      ctx.arc(-s * 0.08, -s * 0.16, s * 0.2, 0, Math.PI * 2);
+      ctx.arc(s * 0.1, -s * 0.04, s * 0.16, 0, Math.PI * 2);
+      ctx.arc(-s * 0.02, s * 0.1, s * 0.13, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    ctx.restore();
+  } else {
+    // procedural placeholder person
+    const bw = PERSON_W, bh = PERSON_H;
+    // legs (simple alternating walk)
+    const legSwing = Math.sin(walkPhase) * 6;
+    ctx.fillStyle = '#2c2c38';
+    ctx.fillRect(-10 + legSwing, bh / 2 - 18, 8, 20);
+    ctx.fillRect(2 - legSwing, bh / 2 - 18, 8, 20);
+    // body
+    ctx.fillStyle = flash ? '#fff' : (p.extinguished ? '#5a6a8a' : p.clothes);
+    ctx.fillRect(-bw / 2, -bh / 2 + 18, bw, bh - 30);
+    // head
+    ctx.fillStyle = flash ? '#fff' : '#d8a878';
+    ctx.beginPath();
+    ctx.arc(0, -bh / 2 + 10, 13, 0, Math.PI * 2);
+    ctx.fill();
+    // face emoji
+    ctx.font = '16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const face = p.extinguished ? '😵' : (p.type === 'smoker' ? '😏' : '🙂');
+    ctx.fillText(face, faceFlip * 2, -bh / 2 + 10);
+    // 奶茶挂浆 — 头肩一大块 + 两条往下流的痕 + 粘住的珍珠
+    if (p.extinguished) {
+      ctx.fillStyle = 'rgba(140,90,50,0.55)';
+      ctx.beginPath();
+      ctx.arc(-4, -bh / 2 + 16, 12, 0, Math.PI * 2);
+      ctx.arc(7, -bh / 2 + 24, 9, 0, Math.PI * 2);
+      ctx.fill();
+      const dripT = p.soakedAt ? Math.min(1, (t - p.soakedAt) / 900) : 1;
+      ctx.fillRect(-8, -bh / 2 + 20, 3, 10 + dripT * 22);
+      ctx.fillRect(5, -bh / 2 + 26, 3, 6 + dripT * 18);
+      ctx.fillStyle = '#2a1a10';
+      ctx.beginPath();
+      ctx.arc(-2, -bh / 2 + 22, 2.2, 0, Math.PI * 2);
+      ctx.arc(9, -bh / 2 + 30, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+// ============== Render — cigarette + smoke (separate pass, always on top) ==
+function drawPersonCigarette(p) {
+  if (p.type !== 'smoker' || p.extinguished) return;
+  const t = performance.now();
+  const walkPhase = (t - p.spawnTime) * p.speed / 105; // v0.11 步频跟实际速度走 (固定步频会让快人像滑行)
+  const bob = Math.abs(Math.sin(walkPhase)) * 3;
+  // v0.14: 引擎程序画一根干净卡通烟 (替换违和的 emoji); 嘴在行进方向一侧
+  // v0.15: 嘴位置随人物放大缩放 (用 DRAW_SIZE 相对量)
+  const mx = p.x + p.dir * 11;
+  const my = p.y - bob - PERSON_DRAW_SIZE * 0.23;
+  const tipx = mx + p.dir * 10, tipy = my + 1;
+
+  // 烟雾从烟头升起 — "这人在抽烟"的可读信号 (v0.27: 加大加浓, 小屏朋友反馈看不清)
+  ctx.fillStyle = 'rgba(220,220,220,0.5)';
+  for (let i = 0; i < 3; i++) {
+    const ph = t / 470 + i * 0.8 + p.spawnTime * 0.001;
+    const sx = tipx + Math.sin(ph) * 5;
+    const sy = tipy - 7 - i * 10;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 3.2 + i * 1.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // 香烟: 白杆 + 橙红烟头 (v0.27: 加粗)
+  ctx.strokeStyle = '#f2f0ea';
+  ctx.lineWidth = 3.4;
+  ctx.lineCap = 'butt';
+  ctx.beginPath();
+  ctx.moveTo(mx, my);
+  ctx.lineTo(tipx, tipy);
+  ctx.stroke();
+  ctx.fillStyle = '#ff6a2a';
+  ctx.beginPath();
+  ctx.arc(tipx, tipy, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// ============== Render — milk-tea cups in flight ==============
+function drawCups() {
+  const now = performance.now();
+  for (const cup of state.cups) {
+    ctx.save();
+    ctx.translate(cup.x, cup.y);
+    // v0.24: 之前用快速旋转, 把左右镜像盖住了看不出来。改成"左右手反向的固定倾斜 + 轻微晃动":
+    //   左手杯往一边歪、右手杯往另一边歪 (scale 镜像杯形 + 镜像空间里固定右倾) → 一眼看出左右对称。
+    const mir = cup.side === 'right' ? -1 : 1;
+    ctx.scale(mir, 1);
+    const wob = Math.sin((now - cup.bornAt) / 50) * 0.28;
+    ctx.rotate(0.6 + wob);                 // v0.25: 倾斜更明显
+    ctx.font = '38px sans-serif';          // v0.25: 26→38 杯子放大, 看得清
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🧋', 0, 0);
+    ctx.restore();
+  }
+}
+
+// ============== Render — your two hands ==============
+function drawHand(side) {
+  const now = performance.now();
+  const hand = side === 'left' ? state.hands.left : state.hands.right;
+  const anchor = side === 'left' ? HAND_L : HAND_R;
+  const throwing = now < hand.throwUntil;
+  const reloading = now < hand.reloadUntil;
+
+  // throw recoil — hand juts up briefly
+  const recoil = throwing ? -14 : 0;
+  ctx.save();
+  ctx.translate(anchor.x, anchor.y + recoil);
+
+  // arm
+  ctx.fillStyle = '#c89060';
+  ctx.fillRect(-13, 0, 26, 70);
+  // hand
+  ctx.fillStyle = '#d8a878';
+  ctx.beginPath();
+  ctx.arc(0, 0, 17, 0, Math.PI * 2);
+  ctx.fill();
+
+  // milk tea cup in hand — present only when loaded (not mid-throw)
+  if (!throwing) {
+    const ready = !reloading;
+    // v0.11: 排队那杯亮一点 — 告诉玩家"这下没白点, 马上甩"
+    ctx.globalAlpha = ready ? 1 : (hand.queued ? 0.62 : 0.35);
+    ctx.font = '26px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🧋', 0, -6);
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+
+  // side hint label
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(side === 'left' ? '← 左手' : '右手 →', anchor.x, H - 8);
+}
+
+// ============== Render — UI / screens ==============
+function drawUI() {
+  document.getElementById('timer').textContent = Math.max(0, state.timeLeft).toFixed(1) + 's';
+  let hh = '';
+  for (let i = 0; i < START_HEARTS; i++) {
+    hh += i < state.hearts ? '❤️' : '<span style="opacity:.25">🖤</span>';
+  }
+  document.getElementById('hearts').innerHTML = hh;
+  document.getElementById('score').textContent = (EN ? 'Hits: ' : '拦下: ') + state.kills;
+  const comboEl = document.getElementById('combo');
+  comboEl.textContent = state.combo >= 2 ? (EN ? `Combo ×${state.combo}` : `连击 ×${state.combo}`) : '';
+  // v0.20 音频状态 (HTML5 audio): 解锁了显示 🔊已开
+  const adb = document.getElementById('audio-dbg');
+  if (audioReady) { adb.textContent = '🔊已开'; adb.style.color = '#6acb6a'; }
+  else { adb.textContent = '🔇点屏幕'; adb.style.color = '#ffce5e'; }
+}
+
+function drawComboBanner() {
+  if (state.combo < 3) return;
+  const t = (performance.now() - state.lastHitTime) / COMBO_WINDOW;
+  const op = Math.max(0, 1 - t);
+  const sc = 1 + Math.max(0, (1 - t / 0.3)) * 0.4;
+  ctx.save();
+  ctx.translate(CX, 120);
+  ctx.scale(sc, sc);
+  ctx.font = `bold ${24 + state.combo * 2}px sans-serif`;
+  ctx.fillStyle = '#ff8c4a';
+  ctx.globalAlpha = op;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 4;
+  const txt = EN ? `×${state.combo} COMBO!` : `×${state.combo} 连击!`;
+  ctx.strokeText(txt, 0, 0);
+  ctx.fillText(txt, 0, 0);
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+function drawStartScreen() {
+  ctx.fillStyle = 'rgba(0,0,0,0.8)';
+  ctx.fillRect(0, 0, W, H);
+  const dy = (H - 400) / 2;
+  ctx.save();
+  ctx.translate(0, dy); // 竖屏时文案垂直居中
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  startOpts = [];
+  // 标题
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 30px sans-serif';
+  ctx.fillText(EN ? "🧋 Smoke 'Em Out" : '🧋 拍灭二手烟', CX, 54);
+  // 玩法 (只留前置必需的 2 行 — 细节玩一局就懂, 玩家 拍板砍掉)
+  ctx.font = '14px sans-serif';
+  ctx.fillStyle = '#ccd';
+  ctx.fillText(EN ? "No smoking on this platform — but some people don't care" : '地铁站台禁止吸烟 — 但总有人不管', CX, 92);
+  ctx.font = '13px sans-serif';
+  ctx.fillStyle = '#aab';
+  ctx.fillText(EN ? 'Spot the smokers → fling milk tea (tap left / right half)' : '看到叼烟+飘烟的人 → 左 / 右手甩奶茶（点屏幕左 / 右半边）', CX, 116);
+  // v0.13 提示: 横竖屏 (v0.30: iPhone 静音键提示移除 — 不是人人用 iPhone, 换成显眼的声音开关)
+  ctx.font = 'bold 13px sans-serif';
+  ctx.fillStyle = '#7ad0ff';
+  ctx.fillText(EN ? '🔄 Plays in portrait or landscape — best with sound on 🎧' : '🔄 横屏 / 竖屏都能玩　·　🎧 戴耳机 / 开音效更带感', CX, 148);
+  // v0.30 声音开关 (默认开, 点击切换; 替代 iPhone 提示行)
+  {
+    const sw = 150, sh = 26, sx = CX - sw / 2, sy = 162;
+    ctx.fillStyle = settings.sound ? '#2a4a3e' : '#3a2a2a';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(sx, sy, sw, sh, 13); else ctx.rect(sx, sy, sw, sh);
+    ctx.fill();
+    ctx.strokeStyle = settings.sound ? '#5a9a7a' : '#7a5a5a'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillStyle = settings.sound ? '#8ee0b0' : '#d0a0a0';
+    ctx.fillText(settings.sound ? (EN ? '🔊 Sound: ON' : '🔊 声音：开') : (EN ? '🔇 Sound: OFF' : '🔇 声音：关'), CX, sy + sh / 2 + 1);
+    startOpts.push({ x: sx, y: sy + dy, w: sw, h: sh, type: 'sound', idx: 0 });
+  }
+  // v0.13 三排设置 — 一进来就能选 (不必玩完一局才解锁); v0.27 加瞄准模式
+  drawOptRow(EN ? 'Time' : '时长', DURS.map(durLabel), DURS.indexOf(settings.dur), 192, 64, 10, dy, 'dur', startOpts);
+  drawOptRow(EN ? 'Speed' : '速度', SPEEDS.map(s => s.name), settings.speed, 246, 84, 6, dy, 'speed', startOpts);
+  drawOptRow(EN ? 'Aim' : '瞄准', AIMS, settings.aim, 300, 84, 6, dy, 'aim', startOpts);
+  ctx.font = '11px sans-serif';
+  ctx.fillStyle = '#778';
+  ctx.fillText(settings.aim === 1
+    ? (EN ? 'Manual: tap ON a smoker to hit — splashing bystanders costs −1' : '手动：点哪打哪 — 打中烟民得分，误伤路人 -1')
+    : (EN ? 'Auto: tap left / right half to rapid-fire, auto-locks smokers' : '自动：点左 / 右半屏即连发，自动锁定烟民'), CX, 342);
+  // 开始 (设置按钮以外点哪都开始)
+  ctx.font = 'bold 20px sans-serif';
+  ctx.fillStyle = '#ffce5e';
+  ctx.fillText(EN ? 'Tap anywhere / press [Space] to start' : '点空白处 / 按 [空格] 开始', CX, 368);
+  ctx.restore();
+}
+
+let overBtn = null;  // 结算屏"再来一局"按钮命中区 (canvas 坐标)
+let overOpts = [];   // v0.9 结算屏设置按钮命中区 [{x,y,w,h,type,idx}]
+let startOpts = [];  // v0.13 开局屏设置按钮命中区 (同结构, 分桶避免与结算屏串味)
+
+// bucket = 命中区收集到哪个数组 (开局屏 startOpts / 结算屏 overOpts)
+function drawOptRow(label, items, selIdx, y, btnW, gap, dy, type, bucket) {
+  ctx.font = '12px sans-serif';
+  ctx.fillStyle = '#778';
+  ctx.fillText(label, CX, y - 10);
+  const totalW = items.length * btnW + (items.length - 1) * gap;
+  let x = CX - totalW / 2;
+  for (let i = 0; i < items.length; i++) {
+    const sel = i === selIdx;
+    ctx.fillStyle = sel ? '#ffce5e' : '#2a2a3e';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, btnW, 30, 7); else ctx.rect(x, y, btnW, 30);
+    ctx.fill();
+    if (!sel) { ctx.strokeStyle = '#555'; ctx.lineWidth = 1; ctx.stroke(); }
+    ctx.font = sel ? 'bold 14px sans-serif' : '13px sans-serif';
+    ctx.fillStyle = sel ? '#1a1a2e' : '#bbc';
+    ctx.fillText(items[i], x + btnW / 2, y + 16);
+    (bucket || overOpts).push({ x, y: y + dy, w: btnW, h: 30, type, idx: i });
+    x += btnW + gap;
+  }
+}
+
+// v0.12 分档胜利文案 — 泄愤要"泄愤成功", 走火入魔要炸裂
+// v0.18: 与 SPEEDS 对齐 (去掉"正常"对应条), 索引: 0赶地铁 / 1泄愤 / 2走火入魔
+const WIN_COPY = EN ? [
+  { t: '🚇 Made your train',  s: '...and hosed down every smoker on the way', c1: '#7ad0ff', c2: '#bfe0ff' },
+  { t: '😤 Vented!',          s: 'God, that felt good',                      c1: '#ffb05e', c2: '#ffd9a0' },
+  { t: '🔥 BERSERK · CLEARED', s: "You're not human — you're a milk tea turret", c1: '#ff6a3a', c2: '#ffc09a' },
+] : [
+  { t: '🚇 卡点上车',       s: '赶上了, 还顺手清了一路二手烟',  c1: '#7ad0ff', c2: '#bfe0ff' },
+  { t: '😤 泄愤成功',       s: '这口气总算顺了',               c1: '#ffb05e', c2: '#ffd9a0' },
+  { t: '🔥 走火入魔 · 通关', s: '你已不是人, 是人形奶茶炮台',   c1: '#ff6a3a', c2: '#ffc09a' },
+];
+
+function drawOverScreen() {
+  const nowO = performance.now();
+  const ageOv = state.overAt ? nowO - state.overAt : 9999;
+  ctx.fillStyle = 'rgba(0,0,0,0.86)';
+  ctx.fillRect(0, 0, W, H);
+  renderCelebParticles(); // v0.12 胜利烟花: 盖在遮罩上, 垫在文字下
+  const dy = (H - 400) / 2;
+  ctx.save();
+  ctx.translate(0, dy);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  overOpts = [];
+  if (state.diedEarly) {
+    // v0.19 (玩家): 有喜感的"没撑到地铁进站"当大字头条; "桃心烧光了"降为小字脚注
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillStyle = '#ff6a5a';
+    ctx.fillText(EN ? '💀 Smoked out' : '💀 二手烟漏太多', CX, 56);
+    ctx.fillText(EN ? 'You passed out before the train came' : '没撑到地铁进站', CX, 88);
+    ctx.font = '14px sans-serif';
+    ctx.fillStyle = '#99a';
+    ctx.fillText(EN ? '🖤 Out of hearts' : '🖤 桃心烧光了', CX, 118);
+  } else {
+    const wc = WIN_COPY[settings.speed];
+    // 走火入魔: 标题脉冲呼吸 + 开场 0.7s 余震抖动 (玩家: "震出屏幕"是爽点)
+    let jx = 0, jy = 0, sc = 1;
+    if (isMaxSpeed()) {
+      sc = 1 + Math.sin(nowO / 170) * 0.045;
+      if (ageOv < 700) {
+        const k = (1 - ageOv / 700) * 9;
+        jx = (Math.random() - 0.5) * k;
+        jy = (Math.random() - 0.5) * k;
+      }
+    }
+    ctx.save();
+    ctx.translate(CX + jx, 64 + jy);
+    ctx.scale(sc, sc);
+    ctx.font = `bold ${isMaxSpeed() ? 40 : 36}px sans-serif`;
+    ctx.fillStyle = wc.c1;
+    ctx.fillText(wc.t, 0, 0);
+    ctx.restore();
+    ctx.font = 'bold 18px sans-serif';
+    ctx.fillStyle = wc.c2;
+    ctx.fillText(wc.s, CX, 100);
+  }
+  // v0.12 滚分: 0.3s 起步, 0.9s 滚到位, 然后"盖章"弹一下
+  const cprog = state.overAt ? Math.max(0, Math.min(1, (ageOv - 300) / 900)) : 1;
+  const shown = Math.floor(state.kills * cprog);
+  const stampAge = ageOv - 1250;
+  const pop = stampAge > 0 && stampAge < 260 ? 1 + (1 - stampAge / 260) * 0.3 : 1;
+  ctx.save();
+  ctx.translate(CX, 142);
+  ctx.scale(pop, pop);
+  ctx.font = 'bold 23px sans-serif';
+  ctx.fillStyle = '#ffce5e';
+  ctx.fillText(EN ? `Splashed ${shown} smokers` : `拦下二手烟 ${shown} 个`, 0, 0);
+  ctx.restore();
+  const total = state.kills + state.escaped;
+  const pct = total > 0 ? Math.round(state.kills / total * 100) : 0;
+  ctx.font = '14px sans-serif';
+  ctx.fillStyle = '#99a';
+  ctx.fillText(EN
+    ? `Escaped ${state.escaped} · Max combo ×${state.comboMaxThisRun} · Accuracy ${pct}%` + (state.innocentHits ? ` · 💢Oops ${state.innocentHits}` : '')
+    : `溜走 ${state.escaped} 个 · 最高连击 ×${state.comboMaxThisRun} · 命中率 ${pct}%` + (state.innocentHits ? ` · 💢误伤 ${state.innocentHits}` : ''), CX, 172);
+  // v0.12 新纪录星标 (滚分盖章后才亮, 金色呼吸闪)
+  if (state.newRecord && state.countStamped) {
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillStyle = '#ffd700';
+    ctx.globalAlpha = 0.65 + Math.sin(nowO / 150) * 0.35;
+    ctx.fillText(EN ? `★ NEW RECORD ★  ${settings.dur}s · ${SPEEDS[settings.speed].name} best` : `★ 新纪录 ★  ${settings.dur}秒·${SPEEDS[settings.speed].name} 档最佳`, CX, 189);
+    ctx.globalAlpha = 1;
+  }
+  // 大按钮 — 只有点它才重玩 (空格也行)
+  const bw = 230, bh = 50, bx = CX - bw / 2, by = 198;
+  ctx.fillStyle = '#ffce5e';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 12); else ctx.rect(bx, by, bw, bh);
+  ctx.fill();
+  ctx.font = 'bold 21px sans-serif';
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillText(EN ? 'PLAY AGAIN' : '再 来 一 局', CX, by + bh / 2 + 1);
+  overBtn = { x: bx, y: by + dy, w: bw, h: bh };
+  // v0.9 两排设置 — 默认记住上次, 点了只改设置不开局
+  drawOptRow(EN ? 'Time' : '时长', DURS.map(durLabel), DURS.indexOf(settings.dur), 268, 64, 10, dy, 'dur', overOpts);
+  drawOptRow(EN ? 'Speed' : '速度', SPEEDS.map(s => s.name), settings.speed, 316, 84, 6, dy, 'speed', overOpts);
+  drawOptRow(EN ? 'Aim' : '瞄准', AIMS, settings.aim, 364, 84, 6, dy, 'aim', overOpts); // v0.27
+  ctx.restore();
+  // v0.12 走火入魔通关: 进结算瞬间白闪一下 (爆炸的余光)
+  if (!state.diedEarly && isMaxSpeed() && state.overAt) {
+    const fa = 1 - ageOv / 260;
+    if (fa > 0) {
+      ctx.fillStyle = `rgba(255,240,220,${fa * 0.9})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+  }
+}
+
+// ============== Render — 地面奶茶渍 ==============
+function renderPuddles() {
+  for (const pd of state.puddles) {
+    ctx.globalAlpha = Math.max(0, Math.min(0.45, pd.life * 0.45));
+    ctx.fillStyle = '#7a4f26';
+    ctx.beginPath();
+    ctx.ellipse(pd.x, pd.y, pd.r, pd.r * 0.32, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // 奶白高光
+    ctx.globalAlpha = Math.max(0, Math.min(0.18, pd.life * 0.18));
+    ctx.fillStyle = '#e8c79a';
+    ctx.beginPath();
+    ctx.ellipse(pd.x - pd.r * 0.2, pd.y - 1, pd.r * 0.5, pd.r * 0.14, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ============== v0.12 胜利烟花 (结算屏专用层) ==============
+function spawnFirework(big) {
+  const fx = W * (0.15 + Math.random() * 0.7);
+  const fy = H * (0.10 + Math.random() * 0.38);
+  const colors = big ? ['#ffd700', '#ff8c4a', '#ff5a3a', '#ffe8c0', '#ffffff']
+                     : ['#ffd700', '#d9a868', '#ffe8c0', '#b07840'];
+  const n = big ? 26 : 18;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + Math.random() * 0.3;
+    const sp = (big ? 2.6 : 2.0) + Math.random() * 2.2;
+    state.celebParticles.push({
+      x: fx, y: fy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+      life: 1, decay: 0.012 + Math.random() * 0.012,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      size: big ? 3.5 : 2.8,
+    });
+  }
+}
+
+function renderCelebParticles() {
+  for (const p of state.celebParticles) {
+    ctx.globalAlpha = Math.max(0, p.life) * 0.9;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.life + 0.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ============== Render — v0.15 被打飞的香烟 ==============
+function renderFlyingCigs() {
+  const now = performance.now();
+  for (const c of state.flyingCigs) {
+    const age = now - c.bornAt;
+    ctx.save();
+    ctx.globalAlpha = age > 800 ? Math.max(0, 1 - (age - 800) / 300) : 1;
+    ctx.translate(c.x, c.y);
+    ctx.rotate(c.rot);
+    // 白杆 + 橙烟头
+    ctx.strokeStyle = '#f2f0ea'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(5, 0); ctx.stroke();
+    ctx.fillStyle = '#ff6a2a';
+    ctx.beginPath(); ctx.arc(5, 0, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ============== Render — v0.11 连锁飞溅冲击波环 ==============
+function renderShockwaves() {
+  const now = performance.now();
+  for (const sw of state.shockwaves) {
+    const t = (now - sw.bornAt) / SHOCKWAVE_MS;
+    if (t < 0 || t >= 1) continue;
+    ctx.globalAlpha = (1 - t) * 0.55;
+    ctx.strokeStyle = '#ffd9a0';
+    ctx.lineWidth = 3 * (1 - t) + 1;
+    ctx.beginPath();
+    ctx.arc(sw.x, sw.y, sw.maxR * (0.25 + 0.75 * t), 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ============== Render — v0.11 开局档名横幅 ==============
+function drawModeBanner() {
+  if (!state.modeBannerUntil) return;
+  const now = performance.now();
+  if (now >= state.modeBannerUntil) return;
+  const left = (state.modeBannerUntil - now) / 1400; // 1 → 0
+  const sp = SPEEDS[settings.speed];
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, left * 2.5);
+  ctx.font = `bold ${isMaxSpeed() ? 44 : 36}px sans-serif`;
+  ctx.fillStyle = sp.banner;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 5;
+  const txt = sp.name + (isMaxSpeed() ? '!!!' : '!');
+  ctx.strokeText(txt, CX, H * 0.3);
+  ctx.fillText(txt, CX, H * 0.3);
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+// ============== Render — v0.10 命中飞溅贴图 ==============
+// 前 25% 快速弹出 (0.55→1.15 倍), 之后缓缩 + 淡出; 程序粒子叠其上
+function renderSplashSprites() {
+  if (!img.splash) return;
+  const now = performance.now();
+  for (const s of state.splashSprites) {
+    const t = (now - s.bornAt) / SPLASH_SPRITE_MS;
+    if (t < 0 || t >= 1) continue;
+    const pop = t < 0.25 ? 0.55 + (t / 0.25) * 0.6 : 1.15 - (t - 0.25) * 0.25;
+    const sz = s.size * pop;
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.scale(s.mir || 1, 1); // v0.26: 右手命中左右镜像 (杯子在右边)
+    ctx.rotate(s.rot);
+    ctx.globalAlpha = t < 0.25 ? 1 : 1 - (t - 0.25) / 0.75;
+    ctx.drawImage(img.splash, -sz / 2, -sz / 2, sz, sz);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ============== Main render ==============
+function render() {
+  ctx.save();
+  if (state.shakeIntensity > 0) {
+    ctx.translate((Math.random() - 0.5) * state.shakeIntensity,
+                  (Math.random() - 0.5) * state.shakeIntensity);
+  }
+
+  drawBackground();
+  drawTrain();
+  renderPuddles();
+
+  // people sorted by lane (lower lane = nearer = drawn later/on top)
+  const ordered = state.people.slice().sort((a, b) => a.y - b.y);
+  for (const p of ordered) drawPerson(p);
+  for (const p of ordered) drawPersonCigarette(p);  // separate pass — never occluded
+
+  renderSplashSprites(); // v0.10 飞溅贴图垫在粒子之下当主形体
+  renderShockwaves();    // v0.11 连锁冲击波环
+  renderParticles();
+  renderFlyingCigs();    // v0.15 被打飞的香烟 (粒子之上)
+  drawCups();
+  renderFloatingTexts();
+  drawComboBanner();
+  drawModeBanner(); // v0.11
+
+  // hands always on top (foreground)
+  drawHand('left');
+  drawHand('right');
+
+  ctx.restore();
+
+  // v0.11 走火入魔氛围 — 屏幕边缘红晕, 连击越高越浓 (屏幕空间, 不随镜头抖)
+  if (isMaxSpeed() && (state.status === 'playing' || state.status === 'arriving')) {
+    const vg = ctx.createRadialGradient(CX, H / 2, Math.min(W, H) * 0.38, CX, H / 2, Math.max(W, H) * 0.72);
+    vg.addColorStop(0, 'rgba(200,40,20,0)');
+    vg.addColorStop(1, `rgba(200,40,20,${0.12 + Math.min(state.combo, 8) * 0.012})`);
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // red flash when a heart burns
+  const nowR = performance.now();
+  if (nowR < state.redFlashUntil) {
+    const tt = 1 - (state.redFlashUntil - nowR) / 320;
+    ctx.fillStyle = `rgba(200,50,50,${0.4 * (1 - tt)})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // 高连击的镜头溅渍 (屏幕空间, 不随镜头抖)
+  for (const s of state.screenSplats) {
+    ctx.globalAlpha = Math.max(0, s.life * 0.22);
+    ctx.fillStyle = '#8b5a2b';
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(s.x + s.r * 0.7, s.y + s.r * 0.5, s.r * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  drawUI();
+  if (state.status === 'start') drawStartScreen();
+  else if (state.status === 'over') drawOverScreen();
+}
+
+// ============== Loop ==============
+function loop() {
+  update();
+  render();
+  requestAnimationFrame(loop);
+}
+
+// ============== Game flow ==============
+// v0.12: 统一的进结算入口 — 纪录结算 + 胜利演出起手
+function enterOver(now) {
+  state.status = 'over';
+  state.overAt = now;
+  state.lastFireworkAt = 0;
+  const key = settings.dur + '_' + settings.speed + (settings.aim === 1 ? '_m' : ''); // v0.27 手动模式单独记纪录
+  state.newRecord = state.kills > 0 && state.kills > (bests[key] || 0);
+  if (state.newRecord) { bests[key] = state.kills; saveBests(); }
+  if (!state.diedEarly) playVictoryJingle(settings.speed);
+  fitCanvas();
+}
+
+function startRound() {
+  state = freshState('playing');
+  state.startTime = performance.now();
+  state.lastSpawnTime = performance.now();
+  playStartDing(); // v0.19 开局"叮" (也是声音是否响的确定性测试)
+  // v0.11 开局档名横幅 (最缓档不打, 高档让你知道自己选了什么)
+  if (settings.speed > 0) state.modeBannerUntil = state.startTime + 1400;
+}
+
+// ============== Input wiring ==============
+function handleStartRestart() {
+  initAudio();
+  if (state.status === 'start' || state.status === 'over') startRound();
+}
+
+document.addEventListener('keydown', e => {
+  if (['ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
+  initAudio();
+  if (state.status === 'start' || state.status === 'over') {
+    if (e.key === ' ' || e.key === 'Enter') startRound();
+    return;
+  }
+  if (state.status !== 'playing') return;
+  if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') triggerSide('left');
+  else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') triggerSide('right');
+});
+
+// touch / click — left half of canvas = left hand, right half = right hand
+function handlePointer(clientX, clientY) {
+  initAudio();
+  const rect = canvas.getBoundingClientRect();
+  const x = (clientX - rect.left) / rect.width * W;
+  const y = (clientY - rect.top) / rect.height * H;
+  if (state.status === 'over') {
+    // v0.8: 结算屏只认大按钮 — 随便点不会跳过, 给你时间看战绩
+    if (overBtn && x >= overBtn.x && x <= overBtn.x + overBtn.w &&
+        y >= overBtn.y && y <= overBtn.y + overBtn.h) {
+      tryFullscreen();
+      startRound();
+      return;
+    }
+    // v0.9: 设置按钮 — 只改设置不开局
+    for (const o of overOpts) {
+      if (x >= o.x && x <= o.x + o.w && y >= o.y && y <= o.y + o.h) {
+        if (o.type === 'dur') settings.dur = DURS[o.idx];
+        else if (o.type === 'aim') settings.aim = o.idx;
+        else settings.speed = o.idx;
+        saveSettings();
+        return;
+      }
+    }
+    return;
+  }
+  if (state.status === 'start') {
+    // v0.13: 开局屏点设置按钮 = 只改设置不开局; 点别处 = 开局
+    for (const o of startOpts) {
+      if (x >= o.x && x <= o.x + o.w && y >= o.y && y <= o.y + o.h) {
+        if (o.type === 'dur') settings.dur = DURS[o.idx];
+        else if (o.type === 'aim') settings.aim = o.idx;
+        else if (o.type === 'sound') settings.sound = settings.sound ? 0 : 1; // v0.30 开关切换
+        else settings.speed = o.idx;
+        saveSettings();
+        return;
+      }
+    }
+    tryFullscreen();
+    startRound();
+    return;
+  }
+  if (state.status !== 'playing') return;
+  if (settings.aim === 1) manualThrow(x, y);            // v0.27 手动瞄准: 点哪打哪
+  else triggerSide(x < CX ? 'left' : 'right');
+}
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  for (const t of e.changedTouches) handlePointer(t.clientX, t.clientY);
+}, { passive: false });
+canvas.addEventListener('mousedown', e => handlePointer(e.clientX, e.clientY));
+
+// 音频兜底 (v0.8.1): iOS 的 WebAudio 解锁在 touchend 时机最稳;
+// v0.20: HTML5 audio 解锁兜底 — 任意触摸都尝试解锁 (idempotent)
+document.addEventListener('touchend', initAudio, { passive: true });
+
+// ============== v0.29 EN: DOM 文案切换 (canvas 外的页面元素) ==============
+if (EN) {
+  document.title = "Smoke 'Em Out 🧋";
+  const h1 = document.querySelector('h1');
+  if (h1) h1.textContent = "Smoke 'Em Out 🧋";
+  const sub = document.getElementById('subtitle');
+  if (sub) sub.textContent = 'Subway platform · pedestrians stream past · spot the smokers → fling milk tea · hold out till your train arrives';
+  const ins = document.getElementById('instructions');
+  if (ins) ins.innerHTML =
+    '<strong>PC</strong>: <kbd>←</kbd> throw left · <kbd>→</kbd> throw right · <kbd>Space</kbd> start/replay<br>' +
+    '<strong>Mobile</strong>: tap the <strong>left / right half</strong> of the screen = left / right hand<br>' +
+    'Spot the <strong>cigarette + smoke wisp</strong> and fling — auto mode locks on, manual mode you aim';
+}
+
+// ============== Boot ==============
+if (location.protocol === 'file:') {
+  const warn = document.getElementById('file-warning');
+  if (warn) warn.style.display = 'block';
+}
+loadAllAssets();
+requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>
