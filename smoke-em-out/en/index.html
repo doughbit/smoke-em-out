@@ -332,23 +332,37 @@ const ASSETS = {
     A('smoke_em_out-2D-person-elder-plain-cut-1.png'),    // 老大爷
     A('smoke_em_out-2D-person-office-plain-cut-1.png'),   // 白领女
   ],
+  // v0.36: 叼烟版 (与 people 同序; student=null 永不抽)。烟民走路时显示这版(自带烟),
+  //         打中瞬间换回 plain(烟消失)+飞溅盖住切换。缺图则回退 plain+引擎程序画烟。
+  peopleSmoke: [
+    A('smoke_em_out-2D-person-suit-smoke-cut-1.png'),     // 0 上班族
+    A('smoke_em_out-2D-person-rider-smoke-cut-1.png'),    // 1 外卖员
+    A('smoke_em_out-2D-person-fashion-smoke-cut-1.png'),  // 2 潮人女
+    A('smoke_em_out-2D-person-worker-smoke-cut-1.png'),   // 3 工人
+    A('smoke_em_out-2D-person-granny-smoke-cut-1.png'),   // 4 阿姨
+    null,                                                  // 5 学生 (永不抽, 无烟版)
+    A('smoke_em_out-2D-person-nurse-smoke-cut-1.png'),    // 6 护士
+    A('smoke_em_out-2D-person-hoodie-smoke-cut-1.png'),   // 7 卫衣青年
+    A('smoke_em_out-2D-person-elder-smoke-cut-1.png'),    // 8 老大爷
+    A('smoke_em_out-2D-person-office-smoke-cut-1.png'),   // 9 白领女
+  ],
   sfxThrow: A('smoke_em_out-sfx-throw-1.wav'),
   sfxSplat: A('smoke_em_out-sfx-splat-1.wav'),
 };
 const NUM_VARIATIONS = ASSETS.people.length;
 
-// v0.20: 每个角色的性别 + 抽烟概率 (与 people 同序)。
-// 现实: 中国烟民 ~96% 男性; 学生/护士/小孩不抽。→ smk = 该角色被随机点成烟民的概率。
-//   男性可烟者高概率, 女性极低 (凑那 4%), 学生/护士=0。
-// v0.23: 男性可烟者概率拉高 (找回烟民数量/爽感); 仍保 学生/护士=0、女性极低 → 烟民 ~96% 男
+// 每个角色的性别 + 抽烟概率 (与 people 同序)。smk = 该角色被随机点成烟民的概率。
+// 现实: 中国烟民 ~96% 男性。男性高概率; 成年女性极低且分散(避免"固定一个女烟民"刻板); 学生(小孩)永不抽。
+// v0.36: 4 个成年女性都给 ~0.05 (含护士, 玩家 做了护士叼烟版 → 允许偶尔抽, 增加女烟民多样性)。
+//   烟民男性占比 = 5×0.8 / (5×0.8 + 4×0.05) ≈ 95%; 哪个女性抽随机分散在 4 人中。
 const PEOPLE_META = [
   { g: 'M', smk: 0.82 }, // 0 suit 上班族
   { g: 'M', smk: 0.82 }, // 1 rider 外卖员
   { g: 'F', smk: 0.05 }, // 2 fashion 潮人女
   { g: 'M', smk: 0.8  }, // 3 worker 工人
-  { g: 'F', smk: 0.06 }, // 4 granny 拎菜阿姨
+  { g: 'F', smk: 0.05 }, // 4 granny 阿姨(相机女)
   { g: 'F', smk: 0    }, // 5 student 学生 (小孩, 永不抽)
-  { g: 'F', smk: 0    }, // 6 nurse 护士 (永不抽)
+  { g: 'F', smk: 0.05 }, // 6 nurse 护士 (偶尔, 有叼烟版)
   { g: 'M', smk: 0.78 }, // 7 hoodie 卫衣青年
   { g: 'M', smk: 0.75 }, // 8 elder 老大爷
   { g: 'F', smk: 0.05 }, // 9 office 白领女
@@ -360,6 +374,7 @@ const img = {
   bgPortrait: null, // v0.10 竖屏背景
   splash: null,
   people: new Array(ASSETS.people.length).fill(null),
+  peopleSmoke: new Array(ASSETS.people.length).fill(null), // v0.36 叼烟版
 };
 const sfxBuf = { throw: null, splat: null };
 
@@ -436,6 +451,7 @@ async function loadAllAssets() {
   tasks.push(loadImage(ASSETS.bgPortrait, 'plain').then(x => img.bgPortrait = x));
   tasks.push(loadImage(ASSETS.splash, 'chroma').then(x => img.splash = x));
   ASSETS.people.forEach((src, i) => tasks.push(loadImage(src, 'sprite').then(x => img.people[i] = x)));
+  (ASSETS.peopleSmoke || []).forEach((src, i) => { if (src) tasks.push(loadImage(src, 'sprite').then(x => img.peopleSmoke[i] = x)); }); // v0.36 叼烟版
   tasks.push(fetchArrayBuffer(ASSETS.sfxThrow).then(b => sfxBuf.throw = b));
   tasks.push(fetchArrayBuffer(ASSETS.sfxSplat).then(b => sfxBuf.splat = b));
   await Promise.all(tasks);
@@ -1268,8 +1284,10 @@ function drawPerson(p) {
   const walkPhase = (t - p.spawnTime) * p.speed / 105; // v0.11 步频跟实际速度走 (固定步频会让快人像滑行)
   const bob = Math.abs(Math.sin(walkPhase)) * 3;
   const flash = t < p.flashUntil;
-  // v0.14: 单一无烟人物池; sprite 基准朝右, 向左走时镜像
-  const sprite = img.people[p.variation] || img.people.find(s => s) || null;
+  // v0.14: sprite 基准朝右, 向左走时镜像
+  // v0.36: 烟民未被打中 → 用叼烟版(自带烟); 否则用无烟版。打中即换回无烟版(烟消失)。
+  const useSmoke = p.type === 'smoker' && !p.extinguished && img.peopleSmoke[p.variation];
+  const sprite = (useSmoke ? img.peopleSmoke[p.variation] : img.people[p.variation]) || img.people.find(s => s) || null;
   const faceFlip = p.dir < 0 ? -1 : 1;
 
   ctx.save();
@@ -1376,6 +1394,9 @@ function drawPersonCigarette(p) {
     ctx.arc(sx, sy, 3.2 + i * 1.8, 0, Math.PI * 2);
     ctx.fill();
   }
+  // v0.36: 叼烟版 sprite 自带香烟 → 不再程序画烟杆(否则双烟); 但保留上面的动画烟雾(可读性+生动)。
+  //         只有缺叼烟版的烟民(回退)才程序画烟杆+烟头。
+  if (img.peopleSmoke[p.variation]) return;
   // 香烟: 白杆 + 橙红烟头 (v0.27: 加粗)
   ctx.strokeStyle = '#f2f0ea';
   ctx.lineWidth = 3.4;
