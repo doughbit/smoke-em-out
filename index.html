@@ -613,6 +613,7 @@ function freshState(status) {
     flyingCigs: [],            // v0.15 被打飞的香烟 (旋转飞出掉地)
     shockwaves: [],            // v0.11 连锁飞溅冲击波环
     modeBannerUntil: 0,        // v0.11 开局档名横幅 (startRound 时设)
+    innocentHits: 0,           // v0.28 误伤路人数 (手动模式)
     overAt: 0,                 // v0.12 进结算的时刻 (驱动滚分/烟花/白闪)
     newRecord: false,          // v0.12 本局是否破纪录
     countStamped: false,       // v0.12 滚分是否已"盖章"
@@ -755,10 +756,45 @@ function manualThrow(x, y) {
   const origin = side === 'left' ? HAND_L : HAND_R;
   if (best && bd <= AIM_R * AIM_R) {
     state.cups.push({ x: origin.x, y: origin.y, ox: origin.x, oy: origin.y, target: best, bornAt: now, side });
+    return;
+  }
+  // v0.28: 没点中烟民 → 看是否点到了无辜路人 (误伤有代价, 见 bystanderHit)
+  let bi = null, bid = Infinity;
+  for (const p of state.people) {
+    if (p.type === 'smoker' || p.extinguished) continue;
+    if (state.cups.some(c => c.target === p)) continue;
+    const dx = p.x - x, dy = p.y - y, d2 = dx * dx + dy * dy;
+    if (d2 < bid) { bid = d2; bi = p; }
+  }
+  if (bi && bid <= AIM_R * AIM_R) {
+    state.cups.push({ x: origin.x, y: origin.y, ox: origin.x, oy: origin.y, target: bi, innocent: true, bornAt: now, side });
   } else {
-    // 点空: 奶茶仍然飞出去, 落在点击点摔一滩 (miss 也有反馈)
+    // 点空地: 奶茶仍然飞出去, 落在点击点摔一滩 (miss 有反馈但无额外惩罚 — 浪费一发已是代价)
     state.cups.push({ x: origin.x, y: origin.y, ox: origin.x, oy: origin.y, target: null, tx: x, ty: y, bornAt: now, side });
   }
+}
+
+// v0.28 误伤路人: 奶茶真打到他 — 被糊+愤怒+仓皇逃走, 拦下数 -1, 连击清零。
+// 设计取舍: 不烧桃心 (桃心语义=漏掉的烟民); 惩罚要"有感但不毁局"。
+function bystanderHit(p, side) {
+  const now = performance.now();
+  if (p.extinguished) return;
+  p.extinguished = true;          // 复用挂浆/逃跑/滴落表现 (nonsmoker 不参与桃心结算)
+  p.flashUntil = now + 90;
+  p.soakedAt = now;
+  p.speed = p.baseSpeed * 2.1;
+  state.innocentHits++;
+  state.kills = Math.max(0, state.kills - 1);
+  state.combo = 0;
+  const cx = p.x, cy = p.y - PERSON_H * 0.18;
+  spawnSplash(cx, cy, p.y + PERSON_H / 2, 0);
+  if (img.splash) {
+    state.splashSprites.push({ x: cx, y: cy, bornAt: now, rot: (Math.random() - 0.5) * 0.35,
+      mir: side === 'right' ? -1 : 1, size: 80 * JUICE });
+  }
+  state.puddles.push({ x: p.x, y: p.y + PERSON_H / 2 + 3, r: 5, maxR: 18, life: 1 });
+  spawnFloatingText(cx, p.y - PERSON_H * 0.75, '💢 误伤 -1', '#ff5a5a', 22);
+  playSplat();
 }
 
 // ============== Impact (cup lands on a smoker) ==============
@@ -1072,7 +1108,9 @@ function update() {
         });
       }
       if (t >= 1) {
-        if (cup.target) {
+        if (cup.target && cup.innocent) {
+          bystanderHit(cup.target, cup.side); // v0.28 误伤路人
+        } else if (cup.target) {
           impact(cup.target, cup.target.x, cup.target.y - PERSON_H * 0.18, false, cup.side); // v0.26 传左右手
         } else {
           // v0.27 手动模式点空: 奶茶摔地上 — 小飞溅 + 地面渍 + 闷一点的 splat (miss 也要有反馈)
@@ -1474,7 +1512,7 @@ function drawStartScreen() {
   drawOptRow('瞄准', AIMS, settings.aim, 300, 84, 6, dy, 'aim', startOpts);
   ctx.font = '11px sans-serif';
   ctx.fillStyle = '#778';
-  ctx.fillText(settings.aim === 1 ? '手动：直接点中烟民才出手，点空了奶茶摔地上' : '自动：点左 / 右半屏即连发，自动锁定烟民', CX, 342);
+  ctx.fillText(settings.aim === 1 ? '手动：点哪打哪 — 打中烟民得分，误伤路人 -1' : '自动：点左 / 右半屏即连发，自动锁定烟民', CX, 342);
   // 开始 (设置按钮以外点哪都开始)
   ctx.font = 'bold 20px sans-serif';
   ctx.fillStyle = '#ffce5e';
@@ -1576,7 +1614,8 @@ function drawOverScreen() {
   const pct = total > 0 ? Math.round(state.kills / total * 100) : 0;
   ctx.font = '14px sans-serif';
   ctx.fillStyle = '#99a';
-  ctx.fillText(`溜走 ${state.escaped} 个 · 最高连击 ×${state.comboMaxThisRun} · 命中率 ${pct}%`, CX, 172);
+  ctx.fillText(`溜走 ${state.escaped} 个 · 最高连击 ×${state.comboMaxThisRun} · 命中率 ${pct}%` +
+    (state.innocentHits ? ` · 💢误伤 ${state.innocentHits}` : ''), CX, 172);
   // v0.12 新纪录星标 (滚分盖章后才亮, 金色呼吸闪)
   if (state.newRecord && state.countStamped) {
     ctx.font = 'bold 14px sans-serif';
