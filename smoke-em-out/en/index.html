@@ -341,7 +341,7 @@ const ASSETS = {
     A('smoke_em_out-2D-person-worker-smoke-cut-1.png'),   // 3 工人
     A('smoke_em_out-2D-person-granny-smoke-cut-1.png'),   // 4 阿姨
     null,                                                  // 5 学生 (永不抽, 无烟版)
-    A('smoke_em_out-2D-person-nurse-smoke-cut-1.png'),    // 6 护士
+    null,                                                  // 6 护士 (v0.41 退出烟民; 叼烟图留 assets 未删)
     A('smoke_em_out-2D-person-hoodie-smoke-cut-2.png'),   // 7 卫衣青年
     A('smoke_em_out-2D-person-elder-smoke-cut-1.png'),    // 8 老大爷
     A('smoke_em_out-2D-person-office-smoke-cut-1.png'),   // 9 白领女
@@ -365,7 +365,7 @@ const PEOPLE_META = [
   { g: 'M', smk: 0.8  }, // 3 worker 工人
   { g: 'F', smk: 0.05 }, // 4 granny 阿姨(相机女)
   { g: 'F', smk: 0    }, // 5 student 学生 (小孩, 永不抽)
-  { g: 'F', smk: 0.05 }, // 6 nurse 护士 (偶尔, 有叼烟版)
+  { g: 'F', smk: 0    }, // 6 nurse 护士 (v0.41 玩家: 抽烟护士可能让人不舒服 → 退回永不抽)
   { g: 'M', smk: 0.78 }, // 7 hoodie 卫衣青年
   { g: 'M', smk: 0.75 }, // 8 elder 老大爷
   { g: 'F', smk: 0.05 }, // 9 office 白领女
@@ -1468,7 +1468,8 @@ function drawHand(side) {
     ctx.save();
     ctx.translate(anchor.x, anchor.y + recoil);
     if (side === 'left') ctx.scale(-1, 1);
-    const hw = 92;                              // 屏上宽度 (锚点=手腕中部, 图底沉到屏外)
+    // v0.41: 两态分开定宽 — 玩家 反馈持杯显得太大、甩出显得太小 (两张图手的占幅不同)
+    const hw = throwing ? 104 : 82;
     const hh = hi.height * (hw / hi.width);
     if (!throwing && reloading) ctx.globalAlpha = hand.queued ? 0.62 : 0.4;
     ctx.imageSmoothingEnabled = true;
