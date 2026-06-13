@@ -1761,6 +1761,20 @@ function drawOverScreen() {
   drawOptRow(EN ? 'Speed' : '速度', SPEEDS.map(s => s.name), settings.speed, 316, 84, 6, dy, 'speed', overOpts);
   drawOptRow(EN ? 'Aim' : '瞄准', AIMS, settings.aim, 364, 84, 6, dy, 'aim', overOpts); // v0.27
   ctx.restore();
+  // v0.47 结算屏右上角小喇叭 (玩家: 玩过一局后没处开关声音) — 画布绝对坐标, 不随 dy
+  {
+    const bs = 32, bx2 = W - bs - 8, by2 = 8;
+    ctx.fillStyle = settings.sound ? 'rgba(42,74,62,0.92)' : 'rgba(90,42,42,0.92)';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(bx2, by2, bs, bs, 9); else ctx.rect(bx2, by2, bs, bs);
+    ctx.fill();
+    ctx.strokeStyle = settings.sound ? '#5a9a7a' : '#c06a6a'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.font = '17px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(settings.sound ? '🔊' : '🔇', bx2 + bs / 2, by2 + bs / 2 + 1);
+    overOpts.push({ x: bx2, y: by2, w: bs, h: bs, type: 'sound', idx: 0 });
+  }
   // v0.12 走火入魔通关: 进结算瞬间白闪一下 (爆炸的余光)
   if (!state.diedEarly && isMaxSpeed() && state.overAt) {
     const fa = 1 - ageOv / 260;
@@ -2030,6 +2044,7 @@ function handlePointer(clientX, clientY) {
       if (x >= o.x && x <= o.x + o.w && y >= o.y && y <= o.y + o.h) {
         if (o.type === 'dur') settings.dur = DURS[o.idx];
         else if (o.type === 'aim') settings.aim = o.idx;
+        else if (o.type === 'sound') { settings.sound = settings.sound ? 0 : 1; if (settings.sound) { initAudio(); playStartDing(); } } // v0.47 结算屏小喇叭
         else settings.speed = o.idx;
         saveSettings();
         return;
