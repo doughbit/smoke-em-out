@@ -17,6 +17,7 @@
     flex-direction: column;
     align-items: center;
     min-height: 100vh;
+    min-height: 100dvh; /* v0.45: 动态视口高 — 100vh=工具栏收起的最大高, 工具栏在时 body 超可见区 → 画布偏下(两浏览器偏移不同) */
     padding: 16px;
     user-select: none;
     overscroll-behavior: none;
@@ -608,8 +609,10 @@ function fitCanvas() {
     }
   }
   // fit-scale + letterbox: 保持比例撑满可视区, 不拉伸
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+  // v0.45: visualViewport = 真实可见区 (Safari/Chrome 的 innerHeight 对工具栏口径不同 → 缩放/定位漂移)
+  const vv = window.visualViewport;
+  const vw = vv ? vv.width : window.innerWidth;
+  const vh = vv ? vv.height : window.innerHeight;
   const scale = Math.min(vw / W, vh / H);
   canvas.style.width = Math.floor(W * scale) + 'px';
   canvas.style.height = Math.floor(H * scale) + 'px';
@@ -622,6 +625,7 @@ function fitCanvas() {
 }
 window.addEventListener('resize', fitCanvas);
 window.addEventListener('orientationchange', fitCanvas);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', fitCanvas); // v0.45
 fitCanvas();
 
 function tryFullscreen() {
