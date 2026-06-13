@@ -118,6 +118,26 @@
   .coverHint { font-size: 12px; color: #7a684c; }
   #coverCta { margin-top: 30px; font-size: 14px; letter-spacing: 3px; color: #6b4a1f; animation: coverPulse 1.6s ease-in-out infinite; }
   @keyframes coverPulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+  #chapOpenBtn { /* 章节选择入口: 到过 >1 棒才显示 */
+    display: none; margin-top: 22px; font-size: 12px; letter-spacing: 1px;
+    padding: 6px 14px; border: 1px dashed #8a7654; color: #7a684c;
+    background: rgba(250,243,224,0.6); cursor: pointer;
+  }
+  #chapterScreen {
+    position: absolute; inset: 0; z-index: 55;
+    background: linear-gradient(180deg, #efe5cd, #ded0b0);
+    display: none; flex-direction: column; padding: 26px 22px 18px; overflow-y: auto;
+  }
+  #chapterScreen.show { display: flex; }
+  #chapTitle { font-size: 16px; letter-spacing: 4px; text-align: center; color: #3a2d1c;
+    border-bottom: 3px double #5a4a32; padding-bottom: 8px; margin: 0 0 6px; font-weight: normal; }
+  #chapSub { text-align: center; font-size: 11.5px; color: #7a684c; margin-bottom: 12px; }
+  .chapBtn { display: block; width: 100%; margin: 5px 0; padding: 9px 12px;
+    font-family: inherit; font-size: 13px; text-align: left;
+    background: rgba(250,243,224,0.9); border: 1px solid #8a7654; color: #3a2d1c; cursor: pointer; }
+  .chapBtn:active { background: #d9c9a3; }
+  #chapBack { margin: 16px auto 4px; font-family: inherit; font-size: 14px; letter-spacing: 3px;
+    padding: 9px 28px; background: #3a2d1c; color: #e8dcc0; border: 1px solid #8a7654; cursor: pointer; }
   #choices { display: flex; gap: 10px; margin-top: 10px; min-height: 58px; }
   .choiceBtn {
     flex: 1; font-family: inherit; font-size: 13px; line-height: 1.4;
@@ -168,6 +188,13 @@
     <div class="coverLine">五条刻度——空了会死，满了也会死。<br>死了不要紧：下一棒，接着跑。</div>
     <div class="coverHint">一棒约一分钟 · 中途退出，回来可从当前棒继续</div>
     <div id="coverCta">—— 点任意处，接过第一棒 ——</div>
+    <div id="chapOpenBtn"></div>
+  </div>
+  <div id="chapterScreen">
+    <h2 id="chapTitle">—— 选 择 起 点 ——</h2>
+    <div id="chapSub">到过的棒都可以重新出发——每次进入随机抽包、随机职业</div>
+    <div id="chapList"></div>
+    <button id="chapBack">返 回 封 面</button>
   </div>
   <div id="stats"></div>
   <div id="dateline"></div>
@@ -2430,7 +2457,7 @@ const ERAS = [
       t: '一位毕业多年的女博士实名举报博导性骚扰。一周后，校方通报：撤销其职务，取消其学者称号。',
       L: { lab: '"闹大了，对学校不好。"', fx: { self: -5 } },
       R: { lab: '"这是第一案。会有第二案。"', fx: { voice: +4, self: +5 } },
-      note: '2018 年初的北航案：中国高校 #MeToo 第一案，以校方实际处分收尾——它证明发声可以有结果，尽管后来的许多案子没等到同样的结尾。' },
+      note: '2018 年初的北航案：中国高校 #MeToo 第一案，以校方实际处分收尾——它证明发声可以有结果，尽管后来的许多案子没等到同样的结尾。而在此三年前，五位筹备"反公交性骚扰"贴纸行动的年轻女性曾被拘留 37 天——发声的成本，在这条时间线上从来不是抽象的。' },
     { id: 'N16-P1-C2',
       d: '开庭日 · 午休', sp: '同事', role: '刷着手机抬起头', cameo: '☙',
       t: '"今天开庭。好多女孩在法院外排队旁听，还有人举着牌子。"她看着你。"你说，去当个旁听的人，算不算太高调？"',
@@ -3052,6 +3079,9 @@ function saveSet(key, set) {
 }
 const everLit = loadSet('herstory_everLit');
 const everDeaths = loadSet('herstory_everDeaths');
+// 章节选择: 跨局记录"到过哪些棒" (玩家: 越往后内容越厚, 让玩家能从到过的任意棒重新出发)
+const everReached = loadSet('herstory_everReached');
+function recordReached(g) { everReached.add(g); saveSet('herstory_everReached', everReached); }
 
 function trackReachable() {
   for (const c of queue) {
@@ -3159,6 +3189,7 @@ function clearCheckpoint() {
 }
 function restoreCheckpoint(s) {
   gen = s.gen;
+  recordReached(gen);
   stats = s.stats;
   legacy = { miles: s.miles || [], notes: s.notes || [] };
   genLog = (s.genLog || []).map(e => ({
@@ -3196,8 +3227,9 @@ const START_GEN = (() => {
   return (n >= 0 && n < ERAS.length) ? n : 0;
 })();
 
-function newGame() {
-  gen = START_GEN;
+function newGame(atGen) { // atGen: 章节选择传入的起点棒 (事件对象/undefined 时走默认)
+  gen = (typeof atGen === 'number') ? atGen : START_GEN;
+  recordReached(gen);
   stats = {};
   for (const s of STATS) stats[s.key] = 50 + rnd(-8, 8); // 出生即随机
   legacy = { miles: [], notes: [] };
@@ -3466,6 +3498,7 @@ function afterDeath() {
 function nextEra(died) {
   gen++;
   if (gen >= ERAS.length) { showFinal(); return; }
+  recordReached(gen);
   // 善终的棒: 注脚附在转场/选职业卡底部 (死亡的棒已附在死亡卡上, 不重复)
   if (!died && eraNotes.length) pendingCardNotes = eraNotes.slice();
   eraNotes = [];
@@ -3599,6 +3632,38 @@ document.getElementById('coverScreen').addEventListener('click', () => {
   unmuteHack(); // iOS Safari 静音拨片对策 (真实点击手势内)
   startRun();
 }, { once: true });
+
+// 章节选择: 封面入口 + 列表
+function openChapters() {
+  const list = document.getElementById('chapList');
+  list.innerHTML = '';
+  [...everReached].sort((a, b) => a - b).forEach(g => {
+    if (!ERAS[g]) return;
+    const b = document.createElement('button');
+    b.className = 'chapBtn';
+    b.textContent = ERAS[g].banner + (ERAS[g].roles ? ' ｜ 职业随机' : '');
+    b.addEventListener('click', () => {
+      document.getElementById('chapterScreen').classList.remove('show');
+      document.getElementById('coverScreen').classList.remove('show');
+      ac(); unmuteHack();
+      clearCheckpoint();
+      newGame(g);
+    });
+    list.appendChild(b);
+  });
+  document.getElementById('chapterScreen').classList.add('show');
+}
+document.getElementById('chapBack').addEventListener('click', () =>
+  document.getElementById('chapterScreen').classList.remove('show'));
+(function initChapterEntry() {
+  if (everReached.size <= 1) return; // 第一次玩没得选, 不打扰
+  const cb = document.getElementById('chapOpenBtn');
+  cb.style.display = 'block';
+  cb.textContent = '▸ 选择起点（已到过 ' + everReached.size + ' 棒）';
+  ['pointerdown', 'touchstart', 'mousedown'].forEach(ev =>
+    cb.addEventListener(ev, e => e.stopPropagation()));
+  cb.addEventListener('click', e => { e.stopPropagation(); openChapters(); });
+})();
 </script>
 </body>
 </html>
