@@ -291,7 +291,7 @@ function aoeRadius() { return SPEEDS[settings.speed].aoe || 0; }
 
 const PERSON_W = 44;               // logical body width
 const PERSON_H = 74;               // logical body height
-const PERSON_DRAW_SIZE = 128;      // v0.27: 112→128 — 朋友反馈"人太小看不清"; 装机量主流屏(6.1"/360-390pt)比 玩家 的 15 Pro Max(6.7"/430pt) 线性小 ~10-15%, +14% 让主流屏看到 玩家 原来的物理尺寸
+const PERSON_DRAW_SIZE = 138;      // v0.46: 128→138 (+8%, 玩家: 还是稍小)。历史: v0.15 96→112, v0.27 112→128(小屏调研)。命中判定(PERSON_W/H)不变, 纯视觉放大
 const RELOAD_MS = 300;             // per-hand cooldown → forces L-R-L-R rhythm
 const THROW_MS = 165;              // v0.25: 110→165 飞行慢一点, 让奶茶杯(及左右手镜像)看得清
 const SPLASH_SPRITE_MS = 380;      // v0.10 命中飞溅贴图寿命 (弹出→淡出)
@@ -485,7 +485,37 @@ function updateAssetStatus() {
 // 中频带滤波音色 (丰富有区别 + 手机喇叭放得出); 触发极廉价 → 不卡(含微信)。
 let audioCtx = null, audioReady = false;
 
+// v0.46: iOS 音频会话提升 — 谜底终于钉死: iOS 的 Web Audio 在 Safari/Chrome 走"响铃"通道,
+// **静音模式开着就无声**; 微信把会话设成"媒体播放"所以永远有声 (Safari+Chrome 无声/微信有声 = 铁证)。
+// 治本 = 循环播放一个"纯静音样本"的媒体元素 (volume=1 但样本全 0, 听不见) → 本页会话提升为
+// "媒体播放" → Web Audio 跟着走媒体通道 → 静音模式也有声 (howler 同款标准做法)。
+// ⚠️ 与 v0.21 失败版的区别: 完全不碰 Web Audio 图 (那次的真凶是同时加的 masterGain)。
+let silentLoopEl = null;
+function ensurePlaybackSession() {
+  if (silentLoopEl) { if (silentLoopEl.paused) silentLoopEl.play().catch(() => {}); return; }
+  try {
+    const rate = 8000, n = (rate * 0.5) | 0, ab = new ArrayBuffer(44 + n * 2), v = new DataView(ab);
+    const ws = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    ws(0,'RIFF');v.setUint32(4,36+n*2,true);ws(8,'WAVE');ws(12,'fmt ');v.setUint32(16,16,true);
+    v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,rate,true);v.setUint32(28,rate*2,true);
+    v.setUint16(32,2,true);v.setUint16(34,16,true);ws(36,'data');v.setUint32(40,n*2,true);
+    // data 段保持全 0 = 纯静音
+    let bin = ''; const by = new Uint8Array(ab);
+    for (let i = 0; i < by.length; i++) bin += String.fromCharCode(by[i]);
+    silentLoopEl = new Audio('data:audio/wav;base64,' + btoa(bin));
+    silentLoopEl.loop = true;
+    silentLoopEl.volume = 1; // 样本全 0, 听不见; volume=0 反而不会提升会话
+    silentLoopEl.setAttribute('playsinline', '');
+    silentLoopEl.play().catch(() => {});
+  } catch (e) {}
+}
+// 切后台暂停静音循环 (别占媒体会话), 回前台由触摸/initAudio 恢复
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && silentLoopEl && !silentLoopEl.paused) silentLoopEl.pause();
+});
+
 function initAudio() {
+  ensurePlaybackSession(); // v0.46: 每次手势都确保媒体会话在 (幂等)
   if (audioCtx) { if (audioCtx.state !== 'running') audioCtx.resume().catch(() => {}); return; }
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   audioCtx.resume().catch(() => {});
