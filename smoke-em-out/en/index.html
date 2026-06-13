@@ -1448,21 +1448,29 @@ function drawPersonCigarette(p) {
     ctx.arc(sx, sy, 3.2 + i * 1.8, 0, Math.PI * 2);
     ctx.fill();
   }
-  // v0.36: 叼烟版 sprite 自带香烟 → 不再程序画烟杆(否则双烟); 但保留上面的动画烟雾(可读性+生动)。
-  //         只有缺叼烟版的烟民(回退)才程序画烟杆+烟头。
-  if (img.peopleSmoke[p.variation]) return;
-  // 香烟: 白杆 + 橙红烟头 (v0.27: 加粗)
-  ctx.strokeStyle = '#f2f0ea';
-  ctx.lineWidth = 3.4;
-  ctx.lineCap = 'butt';
-  ctx.beginPath();
-  ctx.moveTo(mx, my);
-  ctx.lineTo(tipx, tipy);
-  ctx.stroke();
-  ctx.fillStyle = '#ff6a2a';
-  ctx.beginPath();
-  ctx.arc(tipx, tipy, 2.5, 0, Math.PI * 2);
-  ctx.fill();
+  // 香烟杆: 只有缺叼烟版的(回退)才程序画 (有叼烟版时 sprite 自带烟杆, 再画就双烟)
+  if (!img.peopleSmoke[p.variation]) {
+    ctx.strokeStyle = '#f2f0ea';
+    ctx.lineWidth = 3.4;
+    ctx.lineCap = 'butt';
+    ctx.beginPath();
+    ctx.moveTo(mx, my);
+    ctx.lineTo(tipx, tipy);
+    ctx.stroke();
+  }
+  // v0.48 鲜艳红烟头 — 所有烟民都画 (朋友反馈"叼着烟不明显"): 脉冲发光的鲜红核, 一眼认出该打谁。
+  //   叼烟版 sprite 自带的小橙点位置≈此处, 这个亮红核叠在上面提可读性。
+  const pulse = 0.7 + 0.3 * Math.sin(t / 110 + p.spawnTime * 0.7);
+  const R = 8 + pulse;
+  const grad = ctx.createRadialGradient(tipx, tipy, 0, tipx, tipy, R);
+  grad.addColorStop(0, `rgba(255,70,40,${0.75 * pulse})`);
+  grad.addColorStop(1, 'rgba(255,40,20,0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(tipx, tipy, R, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ff3020';                            // 实心鲜艳红核
+  ctx.beginPath(); ctx.arc(tipx, tipy, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = `rgba(255,210,130,${0.85 * pulse})`;  // 灼烧高光小点
+  ctx.beginPath(); ctx.arc(tipx - p.dir * 0.8, tipy - 0.8, 1.3, 0, Math.PI * 2); ctx.fill();
 }
 
 // ============== Render — milk-tea cups in flight ==============
