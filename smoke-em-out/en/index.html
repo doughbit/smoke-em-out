@@ -1100,7 +1100,7 @@ function update() {
     if (state.hearts < 4) {
       const hb = 300 + state.hearts * 210; // 心跳间隔: 3心~930 / 2心~720 / 1心~510 ms (越低越快)
       if (now - state.lastHeartbeatAt > hb) { state.lastHeartbeatAt = now; playHeartbeat(0.18 + (4 - state.hearts) * 0.06); }
-      if (state.hearts <= 2) state.shakeIntensity = Math.max(state.shakeIntensity, (3 - state.hearts) * 1.2); // 2心:1.2 / 1心:2.4 持续底噪抖
+      if (state.hearts <= 3) state.shakeIntensity = Math.max(state.shakeIntensity, (4 - state.hearts) * 1.5); // 3心:1.5 / 2:3 / 1:4.5 持续底噪抖(更明显)
     }
 
     // v0.11 装填缓冲出膛: 装填好了且有排队的那一下 → 立刻甩
@@ -1171,7 +1171,7 @@ function update() {
         p.counted = true;
         state.hearts--;
         state.redFlashUntil = now + 320;
-        state.shakeIntensity = Math.max(state.shakeIntensity, 16); // v0.58 漏心震 9→16 (烧心是紧迫时刻, 给一记狠的)
+        state.shakeIntensity = Math.max(state.shakeIntensity, 22); // v0.61 漏心震 16→22 (更明显, 手机也感觉得到)
         const fx = p.dir > 0 ? W - 50 : 50; // edge they escaped through
         spawnFloatingText(fx, 200, '-1 ❤️', '#ff5a5a', 26);
         if (state.hearts <= 0) {
@@ -1994,8 +1994,31 @@ function render() {
     ctx.fillRect(0, 0, W, H);
   }
 
-  // v0.58 (玩家): 普通版撤掉低血红边 vignette — 留给以后"走火入魔"档再加(红边+收口隧道视野)。
-  //   普通版的低血紧迫感改走 ① 合成心跳(越低跳越快) ② 加强 shake (见 playHeartbeat + update 心跳调度 + 低血底噪抖)。
+  // v0.61 (玩家): 低血量红边"充血/血丝"感 — 加回并加重(手机后段太快, 心跳来不及, 视觉更抓得住)。
+  //   越低越红越明显 + 临界脉冲 + 边缘几道淡红血丝纹。不做"闭眼/收口"那么夸张。
+  if ((state.status === 'playing' || state.status === 'arriving') && state.hearts < 4) {
+    const lowHP = Math.max(0, (4 - state.hearts) / 4);              // 3心:.25 / 2:.5 / 1:.75
+    const pulse = state.hearts <= 2 ? (0.80 + Math.sin(nowR / 170) * 0.20) : 1;
+    const a = lowHP * 0.72 * pulse;                                 // 比 v0.57 的 0.5 更重
+    const vg = ctx.createRadialGradient(CX, H / 2, Math.min(W, H) * 0.24, CX, H / 2, Math.max(W, H) * 0.66);
+    vg.addColorStop(0, 'rgba(190,16,16,0)');
+    vg.addColorStop(0.55, `rgba(190,16,16,${a * 0.30})`);
+    vg.addColorStop(1, `rgba(165,8,8,${a})`);
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+    if (state.hearts <= 2) { // 边缘血丝: 几道淡红径向纹
+      ctx.save(); ctx.strokeStyle = `rgba(220,40,40,${a * 0.45})`; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      const RR = Math.max(W, H);
+      for (let i = 0; i < 9; i++) {
+        const ang = i / 9 * Math.PI * 2 + i * 1.7;
+        const r0 = RR * 0.40, r1 = RR * 0.6 + (i % 3) * 14;
+        ctx.beginPath();
+        ctx.moveTo(CX + Math.cos(ang) * r0, H / 2 + Math.sin(ang) * r0 * 0.82);
+        ctx.lineTo(CX + Math.cos(ang) * r1, H / 2 + Math.sin(ang) * r1 * 0.82);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
 
   // 高连击的镜头溅渍 (屏幕空间, 不随镜头抖)
   for (const s of state.screenSplats) {
