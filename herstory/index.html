@@ -55,7 +55,25 @@
     touch-action: none; cursor: grab;
   }
   .card.behind { transform: scale(0.94) translateY(10px); filter: brightness(0.96); pointer-events: none; }
-  .card.special { background: linear-gradient(180deg, #efe2c4, #e2d2ac); }
+  /* 接力/结局卡: 明显区别于普通选择卡 (读书会反馈: 看不出一棒结束了) */
+  .card.special {
+    background: linear-gradient(180deg, #efdcb0, #ddc287);
+    border: 2px solid #5a4a32;
+    box-shadow: 0 0 0 4px #efdcb0, 0 0 0 6px #5a4a32,
+                0 0 24px 5px rgba(190,150,70,0.5), 0 16px 32px rgba(40,28,12,0.5);
+    animation: specialLand 0.42s cubic-bezier(0.2,1.1,0.4,1);
+  }
+  @keyframes specialLand {
+    0%   { transform: scale(0.82); opacity: 0; }
+    60%  { transform: scale(1.045); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .cardRibbon { /* 卡顶整条横幅, 一眼读出"换棒了/结局了" */
+    align-self: stretch; margin: -16px -18px 12px; padding: 7px 0;
+    text-align: center; font-size: 12.5px; letter-spacing: 5px;
+    background: #3a2d1c; color: #f0e3c2; border-bottom: 2px solid #8a7654;
+  }
+  .cardRibbon.death { background: #5e2018; color: #f3d8cf; }
   .cameo {
     width: 58px; height: 70px; border-radius: 50%;
     background: radial-gradient(circle at 38% 32%, #4a3a26, #2b2218 75%);
@@ -91,14 +109,32 @@
     color: #6b4a1f; cursor: pointer; z-index: 4;
   }
   .notesBtn:active { background: #d9c9a3; }
-  .notesPanel {
-    position: absolute; left: 8px; right: 8px; top: 8px; bottom: 44px;
-    background: linear-gradient(180deg, #faf3e0, #f0e6cb);
-    border: 1px solid #8a7654; box-shadow: 0 6px 18px rgba(40,28,12,0.4);
-    padding: 10px 12px; overflow-y: auto; -webkit-overflow-scrolling: touch;
-    touch-action: pan-y; display: none; z-index: 5;
+  #noteScreen { /* 注脚近全屏: 顶一条窄标题 + 大块解释 + 滑到底关闭 (玩家) */
+    position: absolute; inset: 0; z-index: 45;
+    background: linear-gradient(180deg, #f3ead2, #e2d2ac);
+    display: none; flex-direction: column;
   }
-  .notesPanel.open { display: block; }
+  #noteScreen.show { display: flex; }
+  #noteHead {
+    flex: 0 0 auto; padding: 9px 40px 9px 16px; position: relative;
+    background: #3a2d1c; color: #f0e3c2; border-bottom: 2px solid #8a7654;
+    font-size: 12px; letter-spacing: 2px; text-align: center; line-height: 1.4;
+  }
+  #noteX {
+    position: absolute; top: 50%; right: 12px; transform: translateY(-50%);
+    font-size: 16px; color: #d8c69e; cursor: pointer; padding: 4px;
+  }
+  #noteBody {
+    flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    padding: 16px 18px 8px; font-size: 14px; line-height: 1.8; color: #2b2218;
+  }
+  #noteBody .footnote { margin-bottom: 14px; padding-left: 11px;
+    border-left: 2px solid rgba(138,118,84,0.5); }
+  #noteClose {
+    display: block; margin: 8px auto 20px; font-family: inherit;
+    font-size: 14px; letter-spacing: 3px; padding: 11px 34px;
+    background: #3a2d1c; color: #e8dcc0; border: 1px solid #8a7654; cursor: pointer;
+  }
   .cardNotesHead { font-size: 10px; letter-spacing: 2px; color: #7a684c; text-align: center; margin-bottom: 3px; }
   #muteBtn {
     position: fixed; top: 8px; right: 8px; z-index: 40;
@@ -205,6 +241,10 @@
     <button class="choiceBtn" id="btnR"><span class="arrow">右滑 ▶</span><span id="btnRText"></span></button>
   </div>
   <div id="foot"></div>
+  <div id="noteScreen">
+    <div id="noteHead"><span id="noteHeadText"></span><span id="noteX">✕</span></div>
+    <div id="noteBody"></div>
+  </div>
   <div id="endScreen">
     <h2 id="endTitle"></h2>
     <div id="endBody"></div>
@@ -3534,10 +3574,17 @@ const stage = document.getElementById('stage');
 let cardEl = null;
 let activeCard = null;
 
-function buildCardEl(card, behind, special) {
+function buildCardEl(card, behind, special, kind) {
   const el = document.createElement('div');
   el.className = 'card' + (behind ? ' behind' : '') + (special ? ' special' : '');
-  el.innerHTML = `
+  let ribbon = '';
+  if (special) {
+    const isDeath = kind === 'vignette';
+    const label = isDeath ? '✣　她 的 结 局　✣'
+      : (kind === 'rolepick' ? '✦　新 一 棒 · 选 择 身 份　✦' : '✦　交 棒 · 新 一 代　✦');
+    ribbon = `<div class="cardRibbon${isDeath ? ' death' : ''}">${label}</div>`;
+  }
+  el.innerHTML = ribbon + `
     <div class="cameo">${card.cameo || '❦'}</div>
     <div class="speaker">${card.sp || ''}</div>
     <div class="role">${card.role || ''}</div>
@@ -3547,31 +3594,41 @@ function buildCardEl(card, behind, special) {
 }
 
 let pendingCardNotes = null; // 注脚挂载: 下一张卡(死亡/转场)底部附本棒注脚
+let pendingNotesBanner = '';  // 注脚所属棒的标题 (近全屏注脚顶栏用)
+function openNotes(notes, banner) {
+  document.getElementById('noteHeadText').textContent =
+    banner + ' ｜ 本 棒 路 过 的 历 史（' + notes.length + ' 条）';
+  const body = document.getElementById('noteBody');
+  body.innerHTML = notes.map(n => `<div class="footnote">${n}</div>`).join('')
+    + '<button id="noteClose">合 上 · 继 续 接 力</button>';
+  body.scrollTop = 0;
+  document.getElementById('noteScreen').classList.add('show');
+  document.getElementById('noteClose').addEventListener('click', closeNotes);
+  SFX.notesOpen();
+}
+function closeNotes() {
+  document.getElementById('noteScreen').classList.remove('show');
+  SFX.notesClose();
+}
+document.getElementById('noteX').addEventListener('click', closeNotes);
+
 function showCard(card, kind) {
   activeCard = { card, kind };
   stage.innerHTML = '';
   if (kind === 'play' && qi + 1 < queue.length) {
-    stage.appendChild(buildCardEl(queue[qi + 1], true, false));
+    stage.appendChild(buildCardEl(queue[qi + 1], true, false, 'play'));
   }
-  cardEl = buildCardEl(card, false, kind !== 'play');
+  cardEl = buildCardEl(card, false, kind !== 'play', kind);
   if (pendingCardNotes && pendingCardNotes.length && kind !== 'play') {
+    const notes = pendingCardNotes.slice();
+    const banner = pendingNotesBanner;
     const btn = document.createElement('div');
     btn.className = 'notesBtn';
-    btn.textContent = `📜 本棒史实注脚（${pendingCardNotes.length} 条）· 点开看`;
-    const panel = document.createElement('div');
-    panel.className = 'notesPanel';
-    panel.innerHTML = '<div class="cardNotesHead">— 本 棒 史 实 注 脚 · 再点下方横幅收起 —</div>'
-      + pendingCardNotes.map(n => `<div class="footnote">${n}</div>`).join('');
-    // 阻断卡片拖拽: 横幅可点、浮层内可滚动, 卡片其余区域照常左右滑
-    [btn, panel].forEach(el => ['pointerdown', 'touchstart', 'mousedown'].forEach(ev =>
-      el.addEventListener(ev, e => e.stopPropagation())));
-    btn.addEventListener('click', () => {
-      const open = panel.classList.toggle('open');
-      if (open) SFX.notesOpen(); else SFX.notesClose(); // 开卷/合卷
-      btn.textContent = open ? '📜 收起注脚' : `📜 本棒史实注脚（${panel.querySelectorAll('.footnote').length} 条）· 点开看`;
-    });
+    btn.textContent = `📜 本棒史实注脚（${notes.length} 条）· 点开看`;
+    ['pointerdown', 'touchstart', 'mousedown'].forEach(ev =>
+      btn.addEventListener(ev, e => e.stopPropagation()));
+    btn.addEventListener('click', () => openNotes(notes, banner));
     cardEl.appendChild(btn);
-    cardEl.appendChild(panel);
     pendingCardNotes = null;
   }
   stage.appendChild(cardEl);
@@ -3711,6 +3768,7 @@ function commit(side) {
       if (card.note && !legacy.notes.includes(card.note)) legacy.notes.push(card.note);
       if (card.note && !eraNotes.includes(card.note)) eraNotes.push(card.note);
       pendingCardNotes = eraNotes.slice(); // 死亡卡底部附本棒注脚
+      pendingNotesBanner = ERAS[gen].banner; // 刚结束的这一棒 (gen 未增)
       showCard({
         d: '', sp: dv.title, role: '这一代到此为止', cameo: '✣',
         t: dv.t + (gen < ERAS.length - 1 ? ' —— 但故事没有停。' : ''),
@@ -3738,7 +3796,10 @@ function nextEra(died) {
   if (gen >= ERAS.length) { showFinal(); return; }
   recordReached(gen);
   // 善终的棒: 注脚附在转场/选职业卡底部 (死亡的棒已附在死亡卡上, 不重复)
-  if (!died && eraNotes.length) pendingCardNotes = eraNotes.slice();
+  if (!died && eraNotes.length) {
+    pendingCardNotes = eraNotes.slice();
+    pendingNotesBanner = ERAS[gen - 1].banner; // gen 已增, 注脚属上一棒
+  }
   eraNotes = [];
   const era = ERAS[gen];
   const carry = died ? 0.25 : 0.4;
@@ -3812,13 +3873,17 @@ function showFinal() {
 }
 
 // ---------------- 输入 ----------------
-document.getElementById('btnL').addEventListener('click', () => {
-  if (!document.getElementById('endScreen').classList.contains('show')) commit('L');
-});
-document.getElementById('btnR').addEventListener('click', () => {
-  if (!document.getElementById('endScreen').classList.contains('show')) commit('R');
-});
+function inputBlocked() {
+  return document.getElementById('endScreen').classList.contains('show')
+    || document.getElementById('noteScreen').classList.contains('show');
+}
+document.getElementById('btnL').addEventListener('click', () => { if (!inputBlocked()) commit('L'); });
+document.getElementById('btnR').addEventListener('click', () => { if (!inputBlocked()) commit('R'); });
 document.addEventListener('keydown', e => {
+  if (document.getElementById('noteScreen').classList.contains('show')) {
+    if (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter') closeNotes();
+    return;
+  }
   if (document.getElementById('endScreen').classList.contains('show')) {
     if (e.key === ' ' || e.key === 'Enter') newGame();
     return;
