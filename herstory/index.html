@@ -178,6 +178,21 @@
   .chapBtn:active { background: #d9c9a3; }
   #chapBack { margin: 16px auto 4px; font-family: inherit; font-size: 14px; letter-spacing: 3px;
     padding: 9px 28px; background: #3a2d1c; color: #e8dcc0; border: 1px solid #8a7654; cursor: pointer; }
+  #roleMenu { /* 3+ 职业的棒: 职业菜单(列全部选项); 2 职业棒仍走左右滑 (越往后路越宽) */
+    position: absolute; inset: 0; z-index: 50;
+    background: linear-gradient(180deg, #efe5cd, #ded0b0);
+    display: none; flex-direction: column; justify-content: center; padding: 26px 22px; overflow-y: auto;
+  }
+  #roleMenu.show { display: flex; }
+  #roleMenuTitle { font-size: 14px; letter-spacing: 3px; text-align: center; color: #3a2d1c;
+    border-bottom: 3px double #5a4a32; padding-bottom: 8px; margin: 0 0 12px; }
+  #roleMenuIntro { font-size: 13.5px; line-height: 1.75; color: #2b2218; text-align: justify;
+    max-width: 360px; margin: 0 auto 18px; }
+  .roleBtn { display: block; width: 100%; max-width: 360px; margin: 7px auto; padding: 13px 14px;
+    font-family: inherit; font-size: 14px; text-align: center; letter-spacing: 1px;
+    background: rgba(250,243,224,0.95); border: 1px solid #8a7654; color: #3a2d1c; cursor: pointer;
+    box-shadow: 0 2px 7px rgba(40,28,12,0.25); }
+  .roleBtn:active { background: #d9c9a3; }
   #choices { display: flex; gap: 10px; margin-top: 10px; min-height: 58px; }
   .choiceBtn {
     flex: 1; font-family: inherit; font-size: 13px; line-height: 1.4;
@@ -245,6 +260,11 @@
     <button class="choiceBtn" id="btnR"><span class="arrow">右滑 ▶</span><span id="btnRText"></span></button>
   </div>
   <div id="foot"></div>
+  <div id="roleMenu">
+    <div id="roleMenuTitle">—— 接 力 ｜ 这 一 棒，你 想 成 为 谁 ——</div>
+    <div id="roleMenuIntro"></div>
+    <div id="roleMenuList"></div>
+  </div>
   <div id="noteScreen">
     <div id="noteHead"><span id="noteHeadText"></span><span id="noteX">✕</span></div>
     <div id="noteBody"></div>
@@ -2205,6 +2225,16 @@ const ERAS = [
         note: '"套房会议"是行业半公开的潜规则装置；拒绝的代价真实存在——这正是它能运转几十年的原因。',
       },
     },
+    { protag: '电影导演，38 岁', packs: [5, 1, 4],
+      open: {
+        id: 'N13-OPEN-C',
+        d: '立项会', sp: '制片人', role: '念着候选导演名单', cameo: '♔',
+        t: '"这部预算八千万，是动作大片——观众潜意识里不信女导演扛得动这种盘子。你那部文艺片很好，但……这个，要不要让贤？"',
+        L: { lab: '（接了那部小成本文艺片）', fx: { money: +1, self: -4 } },
+        R: { lab: '"给我同样的预算，我把『扛不动』三个字拍进影史。"', fx: { voice: +4, self: +5, money: -2 } },
+        note: '好莱坞票房前百的影片里女导演长期只占个位数百分比。"观众不信"从来不是数据结论，是没给过机会的循环论证——不让你拍，就永远没有反例。',
+      },
+    },
   ],
   open: {
     id: 'N13-OPEN',
@@ -2316,6 +2346,26 @@ const ERAS = [
       R: { lab: '"你们管这个叫新闻业？"', fx: { voice: +4, self: +5, people: -2 } },
       note: '媒体公司以"独家买断"收购指控故事后压进保险柜（catch and kill）——沉默成了可以购买的资产，掩护机器的金融化形态。' },
   ],
+  [ // P6 镜头之后 (女导演专属)
+    { id: 'N13-P6-C1',
+      d: '试镜室', sp: '选角副导', role: '压低声音', cameo: '☙',
+      t: '"剧本里这个女主角太『不讨喜』了——她又不温柔又不性感。投资方问：观众凭什么共情一个这样的女人？"',
+      L: { lab: '（改柔和一点，先开机要紧）', fx: { money: +2, self: -4 } },
+      R: { lab: '"凭她是个人。男主角从来不用先讨喜。"', fx: { voice: +5, self: +5 } },
+      note: '"不讨喜的女主角"是行业对女性角色的隐形配额：复杂的男人叫深刻，复杂的女人叫不讨喜。改写这条标准，是女导演镜头后最安静的战斗。' },
+    { id: 'N13-P6-C2',
+      d: '融资路演', sp: '投资人', role: '翻着你的提案', cameo: '$',
+      t: '"题材我喜欢。但你只导过小片——我们给男导演的同类项目批了五倍预算。要不你先拿这个数，证明自己？"',
+      L: { lab: '（接了五分之一的预算）', fx: { money: +2, self: -3 } },
+      R: { lab: '"男导演的第一部大片，也没人要他先证明。"', fx: { voice: +4, self: +5, money: -1 } },
+      note: '"先证明自己"是只对女导演开的循环考题：小预算→小成绩→只配小预算。打破它的，往往是少数愿意第一次就下注的投资人。' },
+    { id: 'N13-P6-C3',
+      d: '颁奖季', sp: '提名名单', role: '最佳导演五个名字', cameo: '※',
+      t: '又一年，最佳导演提名五个全是男的。台下一个年轻女副导转头问你："姐，这条路……真的走得通吗？"',
+      L: { lab: '"别抱太大希望。"', fx: { self: -3, people: -2 } },
+      R: { lab: '"走得通——因为你已经在问了。下一个名单上有你。"', fx: { self: +5, people: +4, voice: +2 } },
+      note: '主流电影奖的最佳导演奖项，历史上颁给女性的次数屈指可数。每个"第一位"背后，是一长串被名单跳过的名字——和一个个还在问"走得通吗"的年轻人。' },
+  ],
   ],
   hazards: [
     { id: 'N13-HAZ-A',
@@ -2359,6 +2409,16 @@ const ERAS = [
         L: { lab: '（安全第一，各打五十大板）', fx: { voice: +2, self: -4 } },
         R: { lab: '"各引一句不等于真相在正中间。我按事实写。"', fx: { voice: +4, self: +5 } },
         note: '"虚假平衡"（false balance）：把不对称的争议剪成对称的"各执一词"。它看起来最公正，往往离事实最远——气候报道踩过的坑，性别报道又踩了一遍。',
+      },
+    },
+    { protag: '性别研究学者，41 岁', packs: [5, 1, 2],
+      open: {
+        id: 'N14-OPEN-C',
+        d: '系务会', sp: '系主任', role: '推过来一杯咖啡', cameo: '♔',
+        t: '"性别研究现在是雷区——你这个方向，论文写得越好，争议越大。评职称那关，要不要先换个『安全』的课题？"',
+        L: { lab: '"……也许我该研究点别的。"', fx: { self: -5 } },
+        R: { lab: '"学术的职责是把问题说清楚，不是说安全。"', fx: { voice: +4, self: +5, people: -2 } },
+        note: '当一个研究领域被舆论变成"雷区"，最先被劝退的往往是做得最扎实的人。学术自由的第一道防线，不在校外的骂战里，在系务会这张桌子上。',
       },
     },
   ],
@@ -2471,6 +2531,26 @@ const ERAS = [
       R: { lab: '（把两封威胁信并排截图发出：这就是这个议题的报道环境）', fx: { voice: +5, self: +5, body: -1 } },
       note: '报道极化议题的记者收双向威胁是常态——和版主们挨的交叉火力同构：位置不在两极的人，承受两极的火力。' },
   ],
+  [ // P6 评审桌 (性别研究学者专属)
+    { id: 'N14-P6-C1',
+      d: '公开课', sp: '一名学生', role: '课后举手', cameo: '☙',
+      t: '"老师，有同学说您课上讲的某些观点『让人不适』，要求换掉这门课的内容。学校在征求意见——您怎么想？"',
+      L: { lab: '（删掉争议章节，息事宁人）', fx: { self: -4, voice: -2 } },
+      R: { lab: '"不适不是删课的理由——大学是来被挑战的，不是来被安抚的。"', fx: { voice: +5, self: +5 } },
+      note: '"让我不适"近年成了校园里要求撤课、撤稿的高频理由。保护学生免受伤害与保护思想免被审查之间，这条线学者每天都要重画一次。' },
+    { id: 'N14-P6-C2',
+      d: '法庭旁听席', sp: '另一位女学者', role: '刚打完官司', cameo: '♛',
+      t: '"我因为公开发表观点被解雇，告了三年才赢——判决说，这属于受保护的信念。"她看着你。"但这三年，没人敢碰我的研究。"',
+      L: { lab: '"赢了官司，输了学术生涯，不值。"', fx: { self: -3 } },
+      R: { lab: '"判决会被引用一百次。你这三年，替后面所有人买了路。"', fx: { voice: +4, self: +5, people: +2 } },
+      note: '现实里确有学者因性别议题立场被解雇、上诉数年才胜诉，判决把"哲学信念"纳入反歧视保护。个人赢得艰难，但判例会成为下一个人的地基。' },
+    { id: 'N14-P6-C3',
+      d: '深夜书房', sp: '一封约稿', role: '来自被遗忘的领域', cameo: '✉',
+      t: '一位 1980 年代就写过开创性论文、后来被两边遗忘的老学者请你为她的文集作序。"我的书架，是这个领域的地基。"',
+      L: { lab: '（婉拒，怕沾争议）', fx: { self: -3 } },
+      R: { lab: '（写序：先认你的奠基者，再谈别的）', fx: { voice: +4, self: +5, people: +2 }, mile: 'stone' },
+      note: '每个学科都有被双方绕开的奠基者——承认她、引用她，本身就是对抗遗忘的学术行动。和论坛里那张"被遗忘的人"是同一处火种：忽略你的奠基者，本身就是一种攻击。' },
+  ],
   ],
   hazards: [
     { id: 'N14-HAZ-A',
@@ -2513,6 +2593,16 @@ const ERAS = [
         L: { lab: '（改成爽剧大纲）', fx: { money: +3, self: -4 } },
         R: { lab: '"一个什么都没发生的普通女人，也能让一百万人哭。"', fx: { voice: +4, self: +5 } },
         note: '조남주（KBS 编剧出身）2016 年写《82 年生金智英》——主角没遭遇任何戏剧性暴力，只有日常的累积微歧视。"太丧没市场"的判断，被两百万册销量和一部电影证伪。',
+      },
+    },
+    { protag: '游戏配音演员，28 岁', packs: [4, 1, 3],
+      open: {
+        id: 'N15-OPEN-C',
+        d: '录音棚 · 开工前', sp: '项目经理', role: '把手机递过来', cameo: '✗',
+        t: '"玩家在网上扒你的关注列表，说你『关注女权账号』。下午要录的角色是顶流——把那条转发删了吧，别给项目惹事。"',
+        L: { lab: '（删了。这单很重要。）', fx: { money: +2, self: -5 } },
+        R: { lab: '"我关注谁，跟我配得好不好没关系。"', fx: { voice: +4, self: +5 } },
+        note: '2016 年韩国一位游戏配音演员晒了件印着"女孩不需要王子"的 T 恤，次日被游戏公司解雇、角色重录。一件 T 恤，成了"穿女权就丢饭碗"的第一个具体案例。',
       },
     },
   ],
@@ -2625,6 +2715,26 @@ const ERAS = [
       R: { lab: '（散场后把全季写手名单发上社交媒体）', fx: { voice: +5, self: +5, people: +2 } },
       note: '署名权是创作者最基本的主权，也是最常被省略的一项。把名字说出来——从 1848 年签宣言到这里，动作没变过。' },
   ],
+  [ // P6 录音棚 (配音演员专属)
+    { id: 'N15-P6-C1',
+      d: '解雇当天', sp: '一群陌生 ID', role: '众筹页面在涨', cameo: '♡',
+      t: '你因为那件 T 恤被换掉了。可几小时后，陌生女性给你众筹了七千万韩元——附言："不是赔你饭碗，是替你撑腰。"',
+      L: { lab: '（婉拒，不想被卷进风波）', fx: { money: +2, self: -3 } },
+      R: { lab: '（收下，公开账目，一分捐给反职场歧视）', fx: { voice: +5, self: +5, people: +3 } },
+      note: '2016 年那次众筹是真的：钱不是用途，是宣言——"你解雇她，我们就让全世界看见。"被解雇的个人会沉默，凑钱的人群不会。' },
+    { id: 'N15-P6-C2',
+      d: '半年后', sp: '记者', role: '想做你的专访', cameo: '※',
+      t: '"做个专访吧——你可以成为这场运动的代言人，故事很有传播力。"你知道，一旦露脸，配音这行就再没人敢用你了。',
+      L: { lab: '"我只想安静配音，不想当符号。"', fx: { self: +3, voice: -2 } },
+      R: { lab: '"代言人我不当——但我可以教后面的人怎么不被噤声。"', fx: { voice: +4, self: +5, people: +2 } },
+      note: '韩国数字女权运动没有把"受害者→代言人"做成固定路径——因为在那套职场结构里，露脸的代价高到没人扛得起。沉默不一定是认输，有时是另一种活下去的策略。' },
+    { id: 'N15-P6-C3',
+      d: '深夜 · 接了个新活', sp: '一部百合广播剧', role: '剧本里两个女主角', cameo: '☘',
+      t: '主流棚里没人敢用你了。但一部女性团队做的百合广播剧找上门——故事里两个女人彼此成全，没有一个角色需要你"先讨好谁"。',
+      L: { lab: '（接了，就当糊口）', fx: { money: +2, self: +2 } },
+      R: { lab: '（接了，而且第一次觉得：这才是我想配的声音）', fx: { self: +6, voice: +2, people: +2 } },
+      note: '被主流驱逐的女性创作者，常在更边缘的女性向类型里重新找到主场——这条暗线，下一棒的中国配音演员会接着走：同一个行业，另一种活法。' },
+  ],
   ],
   hazards: [
     { id: 'N15-HAZ-A',
@@ -2667,6 +2777,16 @@ const ERAS = [
         L: { lab: '（发穿搭。先活下去。）', fx: { money: +3, self: -4 } },
         R: { lab: '（发彩礼。火一晚是一晚。）', fx: { voice: +5, self: +5, money: -1 } },
         note: '审查最有效的一环不是删帖，是让写作者自己提前算好"这篇值不值得"。最锋利的剪刀，最后总是落到自己手里——但仍有人每周选那篇会被删的。',
+      },
+    },
+    { protag: '百合广播剧配音演员，27 岁', packs: [5, 1, 3],
+      open: {
+        id: 'N16-OPEN-C',
+        d: '私信 · 一个全女团队', sp: '广播剧制作人', role: '发来试音邀请', cameo: '☘',
+        t: '"我们做的是百合剧——两个女人彼此成全，没有霸总、没有等谁来救。主流棚嫌这题材小众，但我们的听众，全是女孩。来配吗？"',
+        L: { lab: '（犹豫：这能算正经工作吗）', fx: { money: -1, self: +2 } },
+        R: { lab: '"两个女人的故事……我等这个角色很久了。"', fx: { voice: +3, self: +6, people: +2 } },
+        note: '百合（GL）广播剧是中文女性向声音内容里的小众赛道——女性写、女性配、女性听。被主流挤到边缘的女性创作者，常在这里第一次配到"不必取悦男性"的角色。',
       },
     },
   ],
@@ -2784,6 +2904,26 @@ const ERAS = [
       L: { lab: '（算了，吵不过大号）', fx: { self: -5 } },
       R: { lab: '（贴出时间戳和原文，让读者自己看）', fx: { voice: +5, self: +5, people: +2 } },
       note: '洗稿是注意力经济的隐形剥削：观点归你，流量归搬运的人。从代笔"Ain’t I a Woman"到搬运公众号——署名权这道题，一百七十年还在考。' },
+  ],
+  [ // P6 百合广播剧 (配音演员专属)
+    { id: 'N16-P6-C1',
+      d: '录音棚 · 收工', sp: '同剧的女主役', role: '摘下耳机笑', cameo: '☘',
+      t: '"录了五年男频游戏，配的全是『等哥哥来救』的妹妹。今天第一次，我俩的角色是互相救对方——爽到起鸡皮疙瘩。"',
+      L: { lab: '"小众罢了，养不活人。"', fx: { money: +1, self: -2 } },
+      R: { lab: '"养不活又怎样？这是我第一次配一个完整的人。"', fx: { self: +6, voice: +2, people: +2 } },
+      note: '中文女性向声音圈的真实风景：被主流驱逐或厌倦的女配音演员，在百合广播剧里第一次配到"主体性完整"的女性角色——不依附、不等待、不取悦。主场不在中心，在边缘自己造的房间里。' },
+    { id: 'N16-P6-C2',
+      d: '上线日', sp: '弹幕', role: '刷过满屏', cameo: '♡',
+      t: '"谢谢你们做这个，我以为这辈子等不到。""原来女人爱女人可以这么理直气壮。"——弹幕里一半人在哭。',
+      L: { lab: '（截图存着，但设了私密）', fx: { self: +3 } },
+      R: { lab: '（公开置顶：这些声音，就是我们继续做的理由）', fx: { voice: +4, self: +5, people: +3 } },
+      note: '女性向内容的"被看见"本身就是政治：当主流叙事里女性永远是配角或奖品，一个"女人彼此成全"的故事就是反叙事。听众的眼泪，是这条暗线最真实的收视率。' },
+    { id: 'N16-P6-C3',
+      d: '深夜通知', sp: '平台规则', role: '下架预警', cameo: '✗',
+      t: '"『百合』『GL』已列入敏感词，相关作品搜索屏蔽、随时可能下架。"——你们连夜把标签改成谐音、把简介改成暗语。',
+      L: { lab: '（认了，转去做安全的题材）', fx: { money: +1, self: -4 } },
+      R: { lab: '（改个暗号继续更，老听众都找得到）', fx: { voice: +4, self: +5, people: +2 } },
+      note: '同性题材在中文平台长期是敏感词，耽美、百合反复被限被下架。但造词—改标签—继续更的循环，和组长那条"米饭兔子"暗线是同一种生存术：把内容藏进谐音里，让懂的人继续找得到。' },
   ],
   ],
   hazards: [
@@ -3065,6 +3205,16 @@ const ERAS = [
         note: '女声音频天然被算法推向"亲密陪伴"赛道——和 1970 年代航空公司的"Fly Me"同构：把专业内容压成可消费的女性气质。声音是你的，定义权未必。',
       },
     },
+    { protag: '独立游戏开发者，32 岁', packs: [5, 2, 3],
+      open: {
+        id: 'N18-OPEN-C',
+        d: '上线前夜', sp: '论坛热帖', role: '你的游戏被挂上去了', cameo: '✗',
+        t: '你做了一款讲女性历史的小游戏。还没上线，论坛已经在骂："又一个把政治塞进游戏的女拳开发者。"',
+        L: { lab: '（删掉简介里"女性主义"四个字）', fx: { money: +1, self: -4 } },
+        R: { lab: '（把那句骂街截图放进游戏的开场致谢页）', fx: { voice: +4, self: +6 } },
+        note: '女性游戏开发者被有组织骚扰，2014 年起就有过整场风暴。但"自己造一个世界"始终是最彻底的自有渠道——主流不给你角色，你就把整副游戏写出来。',
+      },
+    },
   ],
   open: {
     id: 'N18-OPEN',
@@ -3176,6 +3326,26 @@ const ERAS = [
       L: { lab: '（设成精华，笑了）', fx: { self: +5, people: +2 } },
       R: { lab: '（征得同意，放进下期开头：这就是我们为什么录）', fx: { self: +6, people: +3, voice: +2 } },
       note: '播客的亲密感是双刃的：算法想用它卖陪伴，创作者用它传方法。从客厅里的意识觉醒小组，到通勤路上的一副耳机——"原来不止我"换了载体，没换内核。' },
+  ],
+  [ // P6 自己造世界 (独立游戏开发者专属)
+    { id: 'N18-P6-C1',
+      d: '凌晨三点 · 一个人', sp: '编辑器光标', role: '在闪', cameo: '✦',
+      t: '没有团队、没有投资、没有发行商。只有你、一台旧电脑，和一个想讲给世界听的女性史。卡住的第一千个 bug 又弹出来了。',
+      L: { lab: '（太难了，先搁着吧）', fx: { self: -3, money: +1 } },
+      R: { lab: '（再调一遍。没人做，那就我来做。）', fx: { self: +6, voice: +2, body: -1 } },
+      note: '独立女性开发者常是"一个人的工作室"：又写代码又写剧本又做美术。1848 年的印刷机、1969 年的油印机、2021 年的播客——到这里，工具是一个人就能造世界的引擎。' },
+    { id: 'N18-P6-C2',
+      d: '上线当天', sp: '一条玩家留言', role: '来自一个十几岁的女孩', cameo: '♡',
+      t: '"我从没在历史课上听过这些名字。玩完你的游戏，我去图书馆借了三本书。"',
+      L: { lab: '（回个谢谢，关掉评论区防杠精）', fx: { self: +3 } },
+      R: { lab: '（置顶她，写：这就是做这个游戏的全部理由）', fx: { self: +6, people: +3, voice: +2 } },
+      note: '游戏是这个时代最被低估的女性史课堂：让人"玩过一遍"比"被讲一遍"记得久。一个去图书馆借书的少女，就是这条 178 年接力又递出去的一棒。' },
+    { id: 'N18-P6-C3',
+      d: '更新日志', sp: '你写下的最后一行', role: '开源页面', cameo: '✦',
+      t: '你把整个游戏开源了——代码、剧本、人物全部公开。附言："拿去改、拿去续。这不是我的终点，是谁都能接的下一棒。"',
+      L: { lab: '（还是留一手版权吧）', fx: { money: +2, self: -1 } },
+      R: { lab: '（全部公开。接力棒不该上锁。）', fx: { self: +6, voice: +3, people: +3 } },
+      note: '把工具交给下一个人，是这条暗线一以贯之的动作：从签名宣言到油印机到开源代码——运动延续不靠某个英雄，靠每一代都把"怎么做"无偿传下去。' },
   ],
   ],
   hazards: [
@@ -3439,12 +3609,30 @@ function buildQueue(era, role) {
 
 let pendingRoles = null; // 职业二选一的待定状态
 function offerRoles(era, introText) {
-  pendingRoles = shuffle(era.roles.slice()).slice(0, 2);
+  if (era.roles.length >= 3) { offerRoleMenu(era, introText); return; } // 后期: 职业菜单
+  pendingRoles = shuffle(era.roles.slice()).slice(0, 2);                 // 早中期: 左右滑二选一
   showCard({
     d: '', sp: '—— 接 力 ——', role: '这一棒，你是谁？', cameo: '✦',
     t: introText,
     L: { lab: pendingRoles[0].protag }, R: { lab: pendingRoles[1].protag },
   }, 'rolepick');
+}
+function offerRoleMenu(era, introText) {
+  document.getElementById('roleMenuIntro').textContent = introText;
+  const list = document.getElementById('roleMenuList');
+  list.innerHTML = '';
+  shuffle(era.roles.slice()).forEach(role => {
+    const b = document.createElement('button');
+    b.className = 'roleBtn';
+    b.textContent = role.protag;
+    b.addEventListener('click', () => {
+      document.getElementById('roleMenu').classList.remove('show');
+      applyRole(role);
+    });
+    list.appendChild(b);
+  });
+  document.getElementById('roleMenu').classList.add('show');
+  if (!skipEraSfx) SFX.era(); else skipEraSfx = false;
 }
 function applyRole(role) {
   const era = ERAS[gen];
@@ -3914,7 +4102,8 @@ function showFinal() {
 // ---------------- 输入 ----------------
 function inputBlocked() {
   return document.getElementById('endScreen').classList.contains('show')
-    || document.getElementById('noteScreen').classList.contains('show');
+    || document.getElementById('noteScreen').classList.contains('show')
+    || document.getElementById('roleMenu').classList.contains('show');
 }
 document.getElementById('btnL').addEventListener('click', () => { if (!inputBlocked()) commit('L'); });
 document.getElementById('btnR').addEventListener('click', () => { if (!inputBlocked()) commit('R'); });
@@ -3927,6 +4116,7 @@ document.addEventListener('keydown', e => {
     if (e.key === ' ' || e.key === 'Enter') newGame();
     return;
   }
+  if (document.getElementById('roleMenu').classList.contains('show')) return; // 职业菜单用点击
   if (e.key === 'ArrowLeft') commit('L');
   else if (e.key === 'ArrowRight') commit('R');
 });
