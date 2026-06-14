@@ -1972,6 +1972,21 @@ function render() {
     ctx.fillRect(0, 0, W, H);
   }
 
+  // v0.57 (玩家/调研): 低血量红边渐进 — 桃心越少, 屏幕边缘越红(临界1心脉冲), 持续的"快撑不住"紧迫感。
+  //   调研: 低血红 vignette 是标准做法(边缘渐红, 不用盯血条就感到 impending doom; Battlefield 还降饱和)。
+  //   区别于上面"烧一颗"的瞬闪 — 这是 sustained 状态。
+  if ((state.status === 'playing' || state.status === 'arriving') && state.hearts < 4) {
+    const lowHP = Math.max(0, (4 - state.hearts) / 4);              // 4心:0 → 3:.25 → 2:.5 → 1:.75
+    const pulse = state.hearts <= 1 ? (0.72 + Math.sin(nowR / 200) * 0.28) : 1;
+    const a = lowHP * 0.5 * pulse;
+    const vg = ctx.createRadialGradient(CX, H / 2, Math.min(W, H) * 0.30, CX, H / 2, Math.max(W, H) * 0.64);
+    vg.addColorStop(0, 'rgba(170,18,18,0)');
+    vg.addColorStop(0.62, `rgba(170,18,18,${a * 0.35})`);
+    vg.addColorStop(1, `rgba(170,18,18,${a})`);
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, W, H);
+  }
+
   // 高连击的镜头溅渍 (屏幕空间, 不随镜头抖)
   for (const s of state.screenSplats) {
     ctx.globalAlpha = Math.max(0, s.life * 0.22);
