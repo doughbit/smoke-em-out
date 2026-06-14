@@ -255,11 +255,13 @@ function LY() { return LAYOUTS[LAYOUT_MODE]; }
 // v0.20: SMOKER_RATE 已废弃 — 抽烟改由 PEOPLE_META 的 per-角色概率决定 (性别/职业相关)
 
 // v0.9: 可调设置 (结算页改, localStorage 记住)
-const SETTINGS_KEY = 'smoke_settings_v09';
+const SETTINGS_KEY = 'smoke_settings_v55'; // v0.55: bump → 重置所有人到「正常」默认 (修反馈"默认太快")
 const SPEEDS = [
   // mult = 行人走路速度(主差异, 越高档走得越快) · dens = 出生密度(人多寡)
   // v0.23: 复盘后把 dens 大幅调回 — v0.20 误把密度从~2.8 砍到 2.0 + 抽烟率腰斩 → 走火入魔只剩43。
   //        现在 dens 拉回高位, 配合 PEOPLE_META 提高的烟民率, 找回"赶地铁~25 / 泄愤~50 / 走火入魔100+"
+  // v0.55 (上线反馈"默认太快"): 加回最早的「正常」档当默认 (mult 1.0 = 比赶地铁慢 25%, 实测 avg~5.6/peak10 但走得慢=好打)
+  { name: EN ? 'Normal' : '正常',     mult: 1.0,  dens: 1.3, aoe: 0,   banner: '#ffce5e' },
   { name: EN ? 'Commute' : '赶地铁',  mult: 1.25, dens: 1.9, aoe: 0,   banner: '#ffce5e' },
   { name: EN ? 'Vent' : '杀无赦',     mult: 2.0,  dens: 4.0, aoe: 70,  banner: '#ff8c4a' }, // v0.30 玩家: 泄愤→杀无赦 (EN 仍 Vent)
   { name: EN ? 'Berserk' : '走火入魔', mult: 2.9,  dens: 7.0, aoe: 110, banner: '#ff5a3a' },
@@ -1102,8 +1104,8 @@ function update() {
       state.arriveStartTime = now;
       playTrainArrive();
       // v0.12: 高档撑到终点的那一瞬间就该爆一下 (结算屏还有第二波)
-      // v0.18: 去"正常"档后泄愤=1/走火入魔=2, 高档阈值从 >=2 改 >=1 (泄愤也算高档)
-      if (settings.speed >= 1) {
+      // v0.55: 加回"正常"档(idx0) → 高档阈值改回 >=2 (杀无赦/走火入魔; 正常/赶地铁不爆)
+      if (settings.speed >= 2) {
         spawnFloatingText(CX, H * 0.4, isMaxSpeed() ? (EN ? 'YOU MADE IT!!!' : '撑 住 了 !!!') : (EN ? 'SO GOOD!' : '解 气 !'), '#ffd700', 38);
         state.shakeIntensity = 14;
         state.shockwaves.push({ x: CX, y: H * 0.4, bornAt: now, maxR: Math.min(W, H) * 0.45 });
@@ -1116,7 +1118,7 @@ function update() {
     if (now - state.arriveStartTime > 2600) enterOver(now);
   } else if (state.status === 'over') {
     // v0.12 结算演出: 胜利烟花 + 滚分盖章 (失败局不放)
-    if (!state.diedEarly && settings.speed >= 1 && state.overAt) { // v0.18: >=2→>=1
+    if (!state.diedEarly && settings.speed >= 2 && state.overAt) { // v0.55: 加回正常档 → >=2 (杀无赦+)
       const cadence = isMaxSpeed() ? 300 : 600;
       if (now - state.lastFireworkAt > cadence) {
         state.lastFireworkAt = now;
@@ -1676,12 +1678,14 @@ function drawOptRow(label, items, selIdx, y, btnW, gap, dy, type, bucket) {
 }
 
 // v0.12 分档胜利文案 — 泄愤要"泄愤成功", 走火入魔要炸裂
-// v0.18: 与 SPEEDS 对齐 (去掉"正常"对应条), 索引: 0赶地铁 / 1泄愤 / 2走火入魔
+// v0.55: 加回"正常"档对应条, 索引与 SPEEDS 对齐: 0正常 / 1赶地铁 / 2杀无赦 / 3走火入魔
 const WIN_COPY = EN ? [
+  { t: '🚇 Caught your train', s: 'Smooth ride, smoke-free the whole way',     c1: '#7ad0ff', c2: '#bfe0ff' },
   { t: '🚇 Made your train',  s: '...and hosed down every smoker on the way', c1: '#7ad0ff', c2: '#bfe0ff' },
   { t: '😤 Vented!',          s: 'God, that felt good',                      c1: '#ffb05e', c2: '#ffd9a0' },
   { t: '🔥 BERSERK · CLEARED', s: "You're not human — you're a milk tea turret", c1: '#ff6a3a', c2: '#ffc09a' },
 ] : [
+  { t: '🚇 准点上车',       s: '稳稳当当, 清了一路二手烟',     c1: '#7ad0ff', c2: '#bfe0ff' },
   { t: '🚇 卡点上车',       s: '赶上了, 还顺手清了一路二手烟',  c1: '#7ad0ff', c2: '#bfe0ff' },
   { t: '😤 泄愤成功',       s: '这口气总算顺了',               c1: '#ffb05e', c2: '#ffd9a0' },
   { t: '🔥 走火入魔 · 通关', s: '你已不是人, 是人形奶茶炮台',   c1: '#ff6a3a', c2: '#ffc09a' },
