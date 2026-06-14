@@ -260,8 +260,9 @@ const SPEEDS = [
   // mult = 行人走路速度(主差异, 越高档走得越快) · dens = 出生密度(人多寡)
   // v0.23: 复盘后把 dens 大幅调回 — v0.20 误把密度从~2.8 砍到 2.0 + 抽烟率腰斩 → 走火入魔只剩43。
   //        现在 dens 拉回高位, 配合 PEOPLE_META 提高的烟民率, 找回"赶地铁~25 / 泄愤~50 / 走火入魔100+"
-  // v0.55 (上线反馈"默认太快"): 加回最早的「正常」档当默认 (mult 1.0 = 比赶地铁慢 25%, 实测 avg~5.6/peak10 但走得慢=好打)
-  { name: EN ? 'Normal' : '正常',     mult: 1.0,  dens: 1.3, aoe: 0,   banner: '#ffce5e' },
+  // v0.55 (上线反馈"默认太快"): 加回最慢档当默认 (mult 1.0 = 比赶地铁慢 25%, 实测 avg~5.6/peak10 但走得慢=好打)
+  // v0.56 (玩家): 「正常」→「佛系遛弯」, 跟 杀无赦/走火入魔 一个皮 (更有趣)
+  { name: EN ? 'Stroll' : '佛系遛弯', mult: 1.0,  dens: 1.3, aoe: 0,   banner: '#ffce5e' },
   { name: EN ? 'Commute' : '赶地铁',  mult: 1.25, dens: 1.9, aoe: 0,   banner: '#ffce5e' },
   { name: EN ? 'Vent' : '杀无赦',     mult: 2.0,  dens: 4.0, aoe: 70,  banner: '#ff8c4a' }, // v0.30 玩家: 泄愤→杀无赦 (EN 仍 Vent)
   { name: EN ? 'Berserk' : '走火入魔', mult: 2.9,  dens: 7.0, aoe: 110, banner: '#ff5a3a' },
@@ -1757,20 +1758,20 @@ function drawOverScreen() {
     fitFillText(EN ? `★ NEW RECORD ★  ${settings.dur}s · ${SPEEDS[settings.speed].name} best` : `★ 新纪录 ★  ${settings.dur}秒·${SPEEDS[settings.speed].name} 档最佳`, CX, 189, 14, W - 16, true);
     ctx.globalAlpha = 1;
   }
-  // 大按钮 — 只有点它才重玩 (空格也行)
-  const bw = 230, bh = 50, bx = CX - bw / 2, by = 198;
+  // v0.56 (朋友反馈): 三排设置在上 → 调完时长/速度/瞄准, 底部一个大钮直接开 (不用再回头点上面)
+  drawOptRow(EN ? 'Time' : '时长', DURS.map(durLabel), DURS.indexOf(settings.dur), 218, 64, 10, dy, 'dur', overOpts);
+  drawOptRow(EN ? 'Speed' : '速度', SPEEDS.map(s => s.name), settings.speed, 264, 84, 6, dy, 'speed', overOpts);
+  drawOptRow(EN ? 'Aim' : '瞄准', AIMS, settings.aim, 310, 84, 6, dy, 'aim', overOpts);
+  // 大按钮挪到最底部 — 选完设置即玩 (空格也行)
+  const bw = 240, bh = 46, bx = CX - bw / 2, by = 352;
   ctx.fillStyle = '#ffce5e';
   ctx.beginPath();
   if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 12); else ctx.rect(bx, by, bw, bh);
   ctx.fill();
   ctx.font = 'bold 21px sans-serif';
   ctx.fillStyle = '#1a1a2e';
-  ctx.fillText(EN ? 'PLAY AGAIN' : '再 来 一 局', CX, by + bh / 2 + 1);
+  ctx.fillText(EN ? '▶ PLAY AGAIN' : '▶ 再 来 一 局', CX, by + bh / 2 + 1);
   overBtn = { x: bx, y: by + dy, w: bw, h: bh };
-  // v0.9 两排设置 — 默认记住上次, 点了只改设置不开局
-  drawOptRow(EN ? 'Time' : '时长', DURS.map(durLabel), DURS.indexOf(settings.dur), 268, 64, 10, dy, 'dur', overOpts);
-  drawOptRow(EN ? 'Speed' : '速度', SPEEDS.map(s => s.name), settings.speed, 316, 84, 6, dy, 'speed', overOpts);
-  drawOptRow(EN ? 'Aim' : '瞄准', AIMS, settings.aim, 364, 84, 6, dy, 'aim', overOpts); // v0.27
   ctx.restore();
   // v0.47 结算屏右上角小喇叭 (玩家反馈: 玩过一局后没处开关声音) — 画布绝对坐标, 不随 dy
   {
