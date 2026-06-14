@@ -178,21 +178,6 @@
   .chapBtn:active { background: #d9c9a3; }
   #chapBack { margin: 16px auto 4px; font-family: inherit; font-size: 14px; letter-spacing: 3px;
     padding: 9px 28px; background: #3a2d1c; color: #e8dcc0; border: 1px solid #8a7654; cursor: pointer; }
-  #roleMenu { /* 3+ 职业的棒: 职业菜单(列全部选项); 2 职业棒仍走左右滑 (越往后路越宽) */
-    position: absolute; inset: 0; z-index: 50;
-    background: linear-gradient(180deg, #efe5cd, #ded0b0);
-    display: none; flex-direction: column; justify-content: center; padding: 26px 22px; overflow-y: auto;
-  }
-  #roleMenu.show { display: flex; }
-  #roleMenuTitle { font-size: 14px; letter-spacing: 3px; text-align: center; color: #3a2d1c;
-    border-bottom: 3px double #5a4a32; padding-bottom: 8px; margin: 0 0 12px; }
-  #roleMenuIntro { font-size: 13.5px; line-height: 1.75; color: #2b2218; text-align: justify;
-    max-width: 360px; margin: 0 auto 18px; }
-  .roleBtn { display: block; width: 100%; max-width: 360px; margin: 7px auto; padding: 13px 14px;
-    font-family: inherit; font-size: 14px; text-align: center; letter-spacing: 1px;
-    background: rgba(250,243,224,0.95); border: 1px solid #8a7654; color: #3a2d1c; cursor: pointer;
-    box-shadow: 0 2px 7px rgba(40,28,12,0.25); }
-  .roleBtn:active { background: #d9c9a3; }
   #choices { display: flex; gap: 10px; margin-top: 10px; min-height: 58px; }
   .choiceBtn {
     flex: 1; font-family: inherit; font-size: 13px; line-height: 1.4;
@@ -260,11 +245,6 @@
     <button class="choiceBtn" id="btnR"><span class="arrow">右滑 ▶</span><span id="btnRText"></span></button>
   </div>
   <div id="foot"></div>
-  <div id="roleMenu">
-    <div id="roleMenuTitle">—— 接 力 ｜ 这 一 棒，你 想 成 为 谁 ——</div>
-    <div id="roleMenuIntro"></div>
-    <div id="roleMenuList"></div>
-  </div>
   <div id="noteScreen">
     <div id="noteHead"><span id="noteHeadText"></span><span id="noteX">✕</span></div>
     <div id="noteBody"></div>
@@ -2411,7 +2391,7 @@ const ERAS = [
         note: '"虚假平衡"（false balance）：把不对称的争议剪成对称的"各执一词"。它看起来最公正，往往离事实最远——气候报道踩过的坑，性别报道又踩了一遍。',
       },
     },
-    { protag: '性别研究学者，41 岁', packs: [5, 1, 2],
+    { protag: '大学教授，41 岁', packs: [5, 1, 2],
       open: {
         id: 'N14-OPEN-C',
         d: '系务会', sp: '系主任', role: '推过来一杯咖啡', cameo: '♔',
@@ -2531,7 +2511,7 @@ const ERAS = [
       R: { lab: '（把两封威胁信并排截图发出：这就是这个议题的报道环境）', fx: { voice: +5, self: +5, body: -1 } },
       note: '报道极化议题的记者收双向威胁是常态——和版主们挨的交叉火力同构：位置不在两极的人，承受两极的火力。' },
   ],
-  [ // P6 评审桌 (性别研究学者专属)
+  [ // P6 评审桌 (大学教授专属)
     { id: 'N14-P6-C1',
       d: '公开课', sp: '一名学生', role: '课后举手', cameo: '☙',
       t: '"老师，有同学说您课上讲的某些观点『让人不适』，要求换掉这门课的内容。学校在征求意见——您怎么想？"',
@@ -3608,31 +3588,14 @@ function buildQueue(era, role) {
 }
 
 let pendingRoles = null; // 职业二选一的待定状态
+// 所有职业棒走左右滑二选一; 3+ 职业的棒每局随机抽 2 个 → 重玩换不同一对 (增加可玩性, 玩家)
 function offerRoles(era, introText) {
-  if (era.roles.length >= 3) { offerRoleMenu(era, introText); return; } // 后期: 职业菜单
-  pendingRoles = shuffle(era.roles.slice()).slice(0, 2);                 // 早中期: 左右滑二选一
+  pendingRoles = shuffle(era.roles.slice()).slice(0, 2);
   showCard({
     d: '', sp: '—— 接 力 ——', role: '这一棒，你是谁？', cameo: '✦',
-    t: introText,
+    t: introText + (era.roles.length >= 3 ? '（这一棒可选的身份不止两种——再玩一次，会遇到不同的人生。）' : ''),
     L: { lab: pendingRoles[0].protag }, R: { lab: pendingRoles[1].protag },
   }, 'rolepick');
-}
-function offerRoleMenu(era, introText) {
-  document.getElementById('roleMenuIntro').textContent = introText;
-  const list = document.getElementById('roleMenuList');
-  list.innerHTML = '';
-  shuffle(era.roles.slice()).forEach(role => {
-    const b = document.createElement('button');
-    b.className = 'roleBtn';
-    b.textContent = role.protag;
-    b.addEventListener('click', () => {
-      document.getElementById('roleMenu').classList.remove('show');
-      applyRole(role);
-    });
-    list.appendChild(b);
-  });
-  document.getElementById('roleMenu').classList.add('show');
-  if (!skipEraSfx) SFX.era(); else skipEraSfx = false;
 }
 function applyRole(role) {
   const era = ERAS[gen];
@@ -4102,8 +4065,7 @@ function showFinal() {
 // ---------------- 输入 ----------------
 function inputBlocked() {
   return document.getElementById('endScreen').classList.contains('show')
-    || document.getElementById('noteScreen').classList.contains('show')
-    || document.getElementById('roleMenu').classList.contains('show');
+    || document.getElementById('noteScreen').classList.contains('show');
 }
 document.getElementById('btnL').addEventListener('click', () => { if (!inputBlocked()) commit('L'); });
 document.getElementById('btnR').addEventListener('click', () => { if (!inputBlocked()) commit('R'); });
@@ -4116,7 +4078,6 @@ document.addEventListener('keydown', e => {
     if (e.key === ' ' || e.key === 'Enter') newGame();
     return;
   }
-  if (document.getElementById('roleMenu').classList.contains('show')) return; // 职业菜单用点击
   if (e.key === 'ArrowLeft') commit('L');
   else if (e.key === 'ArrowRight') commit('R');
 });
