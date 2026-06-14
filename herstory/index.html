@@ -3406,12 +3406,21 @@ const BREAKOUT_NIGHT = [
     note: '平安到家不会上新闻，统计表上也没有这一栏——它只是让你明天能继续上场。一百七十八年里，无数次接力就是这样，在无人记录的夜路上完成的。' },
 ];
 
-// 职业随机: era.roles = [{protag, packs:[包下标], hazards:[风险卡下标], open?, finale?}]
-// 有 roles 的棒开局先二选一职业; 包池/风险池/开场/收尾按职业过滤 (玩家: 职业史本身要看得见变化)
+// 职业随机: era.roles = [{protag, packs:[包下标], hazards, open?, finale?}]
+// 约定: 新增"职业角色"带 open 字段, 其 packs[0] = 本职业专属包; 默认角色无 open, packs=通用包
+// 选了职业后保底抽到专属包 + 至少 1 个通用包 (反馈: 选职业后故事跟职业没关联)
 function buildQueue(era, role) {
-  const n = era.pick || 1;
-  const pool = role ? role.packs.map(i => era.packs[i]) : era.packs;
-  const picked = shuffle(pool.slice()).slice(0, n);
+  let n = era.pick || 1;
+  let picked;
+  if (role && role.open) { // 职业角色: 专属包必出 + 1 通用包 (该棒变 2 包/9 卡)
+    n = Math.max(n, 2);
+    const profPack = era.packs[role.packs[0]];
+    const general = shuffle(role.packs.slice(1).map(i => era.packs[i]));
+    picked = shuffle([profPack, ...general.slice(0, n - 1)]);
+  } else {
+    const pool = role ? role.packs.map(i => era.packs[i]) : era.packs;
+    picked = shuffle(pool.slice()).slice(0, n);
+  }
   const cards = [(role && role.open) || era.open];
   for (const p of picked) cards.push(...p);
   cards.push((role && role.finale) || era.finale);
