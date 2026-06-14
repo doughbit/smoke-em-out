@@ -875,7 +875,7 @@ function impact(target, cx, cy, chained, side) {
   target.extinguished = true;
   target.flashUntil = now + 90;
   target.soakedAt = now;                 // 驱动挂浆下滴
-  target.speed = target.baseSpeed * 2.6; // v0.43: 1.9→2.6 — 1.9× 在满屏快行人里读不出仓皇感 (玩家: 没逃)
+  target.speed = target.baseSpeed * 2.6; // v0.43: 1.9→2.6 — 1.9× 在满屏快行人里读不出仓皇感 (玩家反馈: 没逃)
 
   // v0.15: 香烟被打飞 — 从嘴叼处旋转飞出 + 掉地 (替代"凭空消失"的生硬感)
   state.flyingCigs.push({
@@ -1504,7 +1504,7 @@ function drawHand(side) {
     ctx.translate(anchor.x, anchor.y + recoil);
     if (side === 'left') ctx.scale(-1, 1);
     // v0.41: 两态分开定宽 — 玩家 反馈持杯显得太大、甩出显得太小 (两张图手的占幅不同)
-    const hw = throwing ? 92 : 72; // v0.42: 持杯再缩小(玩家: 奶茶本身缩小一点); 掷出=新拳头图
+    const hw = throwing ? 92 : 72; // v0.42: 持杯再缩小(玩家反馈: 奶茶本身缩小一点); 掷出=新拳头图
     const hh = hi.height * (hw / hi.width);
     if (!throwing && reloading) ctx.globalAlpha = hand.queued ? 0.62 : 0.4;
     ctx.imageSmoothingEnabled = true;
@@ -1618,17 +1618,23 @@ function drawStartScreen() {
     ctx.fillText(settings.sound ? (EN ? '🔊 Sound: ON' : '🔊 声音：开') : (EN ? '🔇 Sound: OFF' : '🔇 声音：关'), CX, sy + sh / 2 + 1);
     startOpts.push({ x: sx, y: sy + dy, w: sw, h: sh, type: 'sound', idx: 0 });
   }
-  // v0.13 三排设置 — 一进来就能选; v0.31 整体下移避开声音开关
-  drawOptRow(EN ? 'Time' : '时长', DURS.map(durLabel), DURS.indexOf(settings.dur), 198, 64, 10, dy, 'dur', startOpts);
-  drawOptRow(EN ? 'Speed' : '速度', SPEEDS.map(s => s.name), settings.speed, 250, 84, 6, dy, 'speed', startOpts);
-  drawOptRow(EN ? 'Aim' : '瞄准', AIMS, settings.aim, 302, 84, 6, dy, 'aim', startOpts);
-  ctx.fillStyle = '#778';
-  fitFillText(settings.aim === 1
-    ? (EN ? 'Manual: tap ON a smoker to hit — splashing bystanders costs −1' : '手动：点哪打哪 — 打中烟民得分，误伤路人 -1')
-    : (EN ? 'Auto: tap left / right half to rapid-fire, auto-locks smokers' : '自动：点左 / 右半屏即连发，自动锁定烟民'), CX, 344, 11, W - 16);
-  // 开始 (设置按钮以外点哪都开始)
+  // v0.53 (上线反馈: 开局屏按钮太多, 不知怎么开始): 撤掉时长/速度/瞄准三排 → 一个大"开始游戏"钮。
+  //   默认 20秒·赶地铁·自动 (新玩家初始值); 玩过一局后在结算页调那三排。点钮/点空白/空格都开始。
+  const sbw = 240, sbh = 60, sbx = CX - sbw / 2, sby = 208;
   ctx.fillStyle = '#ffce5e';
-  fitFillText(EN ? 'Tap anywhere / press [Space] to start' : '点空白处 / 按 [空格] 开始', CX, 368, 20, W - 16, true);
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(sbx, sby, sbw, sbh, 14); else ctx.rect(sbx, sby, sbw, sbh);
+  ctx.fill();
+  ctx.fillStyle = '#1a1a2e';
+  ctx.font = 'bold 26px sans-serif';
+  ctx.fillText(EN ? '▶  START GAME' : '▶  开 始 游 戏', CX, sby + sbh / 2 + 1);
+  // 当前档位 (反映真实设置 — 返场玩家看到自己上次的档, 不被误导) + "玩一局后可调"
+  ctx.fillStyle = '#889';
+  fitFillText(EN
+    ? `${settings.dur}s · ${SPEEDS[settings.speed].name} · ${AIMS[settings.aim]}-aim   (tweak after your first round)`
+    : `${settings.dur} 秒 · ${SPEEDS[settings.speed].name} · ${AIMS[settings.aim]}瞄准（玩一局后可调）`, CX, sby + sbh + 28, 12, W - 16);
+  ctx.fillStyle = '#667';
+  fitFillText(EN ? 'tap the button / anywhere / press [Space]' : '点按钮 / 空白处 / 按 [空格] 开始', CX, sby + sbh + 52, 12, W - 16);
   ctx.restore();
 }
 
@@ -1703,7 +1709,7 @@ function drawOverScreen() {
     ctx.fillText(EN ? '🖤 Out of hearts' : '🖤 桃心烧光了', CX, 118);
   } else {
     const wc = WIN_COPY[settings.speed];
-    // 走火入魔: 标题脉冲呼吸 + 开场 0.7s 余震抖动 (玩家: "震出屏幕"是爽点)
+    // 走火入魔: 标题脉冲呼吸 + 开场 0.7s 余震抖动 (玩家反馈: "震出屏幕"是爽点)
     let jx = 0, jy = 0, sc = 1;
     if (isMaxSpeed()) {
       sc = 1 + Math.sin(nowO / 170) * 0.045;
@@ -1762,7 +1768,7 @@ function drawOverScreen() {
   drawOptRow(EN ? 'Speed' : '速度', SPEEDS.map(s => s.name), settings.speed, 316, 84, 6, dy, 'speed', overOpts);
   drawOptRow(EN ? 'Aim' : '瞄准', AIMS, settings.aim, 364, 84, 6, dy, 'aim', overOpts); // v0.27
   ctx.restore();
-  // v0.47 结算屏右上角小喇叭 (玩家: 玩过一局后没处开关声音) — 画布绝对坐标, 不随 dy
+  // v0.47 结算屏右上角小喇叭 (玩家反馈: 玩过一局后没处开关声音) — 画布绝对坐标, 不随 dy
   {
     const bs = 32, bx2 = W - bs - 8, by2 = 8;
     ctx.fillStyle = settings.sound ? 'rgba(42,74,62,0.92)' : 'rgba(90,42,42,0.92)';
